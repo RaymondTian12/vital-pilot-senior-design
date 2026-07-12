@@ -17,6 +17,18 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `password_hash` | `VARCHAR(255)`| `NOT NULL` | Securely hashed password|
 | `date_created` | `DATETIME` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Date and time the user account was created|
 
+### UserHealthProfile
+*Extends the core identity table to isolate baseline physiological and demographic characteristics. This data provides the core benchmarks required for dynamic clinical matrix calculations (such as age-gated alerts or sex-specific thresholds) while keeping authentication records separated from medical data.*
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `profile_id` | `SERIAL` | `PRIMARY KEY` | Unique internal identifier for the health profile |
+| `user_id` | `INT` | `FOREIGN KEY`, `NOT NULL`, `UNIQUE` | References `Users.user_id` (`ON DELETE CASCADE`) |
+| `baseline_height_in` | `NUMERIC(4,2)` | `NOT NULL` | The baseline height captured during onboarding to pre-populate logs |
+| `sex` | `ENUM('Female', 'Male')` | `NOT NULL` | The user's sex for clinical baselines |
+| `date_of_birth` | `DATE` | `NOT NULL` | The user's birthdate which is used to dynamically calculate age if needed |
+| `created_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Timestamp when the health profile was initially established |
+| `updated_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Tracks the last modification of physical profile characteristics. |
+
 ### MetricGoals
 *Tracks the user's active goal configurations. This table is optimized for low-latency, real-time transactional lookups by the conditional validation engine.*
 | Column Name | Data Type | Constraints | Description |
@@ -47,3 +59,10 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `systolic_mmhg` | `INT` | `NOT NULL` | The top number representing arterial pressure during heartbeats |
 | `diastolic_mmhg` | `INT` | `NOT NULL` | The bottom number representing arterial pressure between heartbeats |
 | `logged_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | The precise date and time the reading was taken | 
+
+### BodyMassIndex
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `log_id` | `SERIAL` | `PRIMARY KEY` | Unique identifier for this specific weight/BMI log |
+| `user_id` | `INT` | `FOREIGN KEY`, `NOT NULL` | References `Users.user_id` with `ON DELETE CASCADE` |
+| `weight_lbs` | `NUMERIC(5,2)` | `NOT NULL` | The user's logged weight in pounds |
