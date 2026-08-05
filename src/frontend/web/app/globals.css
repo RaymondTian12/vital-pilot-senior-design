@@ -1,16 +1,18 @@
 @import "tailwindcss";
 
-:root {
-  
-  --color: #0F1111;
-  --color: #19B788;
-  --color: #039387;
-  --color: #F8FFA1;
-  --color: #EBF1FF;
-  --color: #ECEEF0;
-  --color: #BAECE3;
-  --color: #333333;
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Quicksand:wght@300..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Geist:ital,wght@0,100..900;1,100..900&family=Quicksand:wght@300..700&display=swap");
 
+:root {
+  --color: #0f1111;
+  --color: #19b788;
+  --color: #039387;
+  --color: #f8ffa1;
+  --color: #ebf1ff;
+  --color: #eceef0;
+  --color: #baece3;
+  --color: #333333;
 }
 
 @theme inline {
