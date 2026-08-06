@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
+
+
+:root {
+  --title-color: #0f1111;
+  --text-color: #4A5565;
+  --main-color: #19b788;
+  --secondary-color: #039387;
+  --third-color: #f8ffa1;
+  --footer-color: #0F5132;
+  --ai-color: #ebf1ff;
+  --gray-color: #eceef0;
+  --light-color: #baece3;
+  --color: #333333;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Geist", sans-serif;;
+   line-height: 1.5;
+  background-color: var(--light-color);
+}
+
+li {
+  list-style: none;
+}
+
+a {
+  font-weight: normal;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button {
+  padding: 5px 15px;
+  cursor: pointer;
+  font-family: inherit;
+}
