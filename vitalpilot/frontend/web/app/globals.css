@@ -1,33 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
-
+@import url("https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Prociono&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+/* font-family: "Prociono", serif */
 @import "tailwindcss";
 
-
-
 @theme {
-  --font-geist:  "Geist", sans-serif;
-  --font-fraunces:  "Fraunces", sans-serif;
-  --font-quicksand:  "Quicksand", sans-serif;
-  
-  
+  --font-geist: "Geist", sans-serif;
+  --font-fraunces: "Fraunces", sans-serif;
+  --font-quicksand: "Quicksand", sans-serif;
+  --font-inter: "Inter", sans-serif;
+
   /* --color-title: #0f1111; */
   --color-title: #1e2f23;
   --color-text: #333333;
+  /* --color-text: #4A5565; */
   --color-main: #19b788;
   /* --color-main: #009999; */
   --color-secondary: #039387;
   --color-third: #f8ffa1;
-  --color-footer: #0F5132;
+  --color-footer: #0f5132;
   --color-ai: #ebf1ff;
   /* --color-gray: #eceef0; */
   /* --gray-color: #F8FAFC; 
   --light-color: #baece3; */
   /* --light-color: #eefffc;
   */
-  /* --color-text: #4A5565; */
-  
+
   --spacing-section: 50px;
 }
 
@@ -36,34 +36,50 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-} 
-
+}
 
 * {
   box-sizing: border-box;
 }
 
 body {
-  font-family: var(--font-geist);
-   line-height: 1.5;
+  /* font-family: var(--font-geist); */
+  line-height: 1.5;
+  font-size: 16px;
+  color: var(--color-text);
 }
 
 @layer base {
-  h1, h2, h3, h4 {
-     @apply text-title
-  } 
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-title;
+  }
+  h1 {
+    @apply text-title text-5xl;
+  }
+
+  h2 {
+    @apply text-title text-5xl;
+  }
+
+  h3 {
+    @apply text-title text-5xl;
+  }
+  h4 {
+    @apply text-title text-5xl;
+  }
 
   li {
-    @apply list-none
+    @apply list-none font-medium;
   }
-  
+
   a {
-    @apply no-underline font-normal cursor-pointer hover:text-main
+    @apply no-underline text-[18px] font-medium cursor-pointer transition duration-300 ease-in-out hover:text-main;
   }
-  
-  button {
-    padding: 5px 15px;
-    cursor: pointer;
-    font-family: inherit;
-  }
+}
+
+@utility flex-center {
+  @apply flex justify-center items-center;
 }
