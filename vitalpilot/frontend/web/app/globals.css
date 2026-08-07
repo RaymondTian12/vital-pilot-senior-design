@@ -28,7 +28,7 @@
   /* --light-color: #eefffc;
   */
 
-  --spacing-section: 50px;
+  /* --spacing-section: 50px; */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -38,18 +38,18 @@
   }
 }
 
-* {
-  box-sizing: border-box;
-}
-
 body {
-  /* font-family: var(--font-geist); */
+  font-family: var(--font-geist);
   line-height: 1.5;
   font-size: 16px;
   color: var(--color-text);
 }
 
 @layer base {
+  * {
+    @apply box-border;
+  }
+
   h1,
   h2,
   h3,
@@ -57,11 +57,11 @@ body {
     @apply text-title;
   }
   h1 {
-    @apply text-title text-5xl;
+    @apply text-title text-[50px] font-bold;
   }
 
   h2 {
-    @apply text-title text-5xl;
+    @apply text-title text-[25px];
   }
 
   h3 {
@@ -72,7 +72,7 @@ body {
   }
 
   li {
-    @apply list-none font-medium;
+    @apply list-none;
   }
 
   a {

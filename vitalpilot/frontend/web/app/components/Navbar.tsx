@@ -5,10 +5,10 @@ import { PiSignInBold } from "react-icons/pi";
 const Navbar = () => {
   return (
     <div
-      className="bg-amber-200 fixed w-[80%] mx-auto mt-5 left-1/2 -translate-x-1/2 
-                  rounded-2xl h-17 flex justify-around items-center z-10"
+      className="bg-white fixed w-[80%] mx-auto mt-5 left-1/2 -translate-x-1/2 
+                  rounded-2xl h-17 flex justify-around items-center z-10 shadow-xl"
     >
-      <a href="" className="">
+      <a href="" className="drop-shadow-lg">
         <Image
           src="/assets/logo_hero.png"
           alt="Vitalpilot"
@@ -16,10 +16,10 @@ const Navbar = () => {
           height={150}
         />
       </a>
-      <ul className="flex font-normal gap-6">
+      <ul className="font-normal gap-6 flex items-center">
         <li>
           <a
-            className="bg-ai px-3 py-1 text-[16px] rounded-full font-bold 
+            className="bg-ai px-3 py-1 text-[16px] rounded-full font-bold drop-shadow-md
             font-quicksand flex-center gap-1 hover:text-black hover:bg-[#dce6fd]"
             href=""
           >
