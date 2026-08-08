@@ -13,8 +13,8 @@ const homePage = () => {
       <Navbar />
       <Hero />
       <Description />
-      <DownloadApp />
       <Testimonials />
+      <DownloadApp />
       <Accordion />
       <Footer />
     </div>

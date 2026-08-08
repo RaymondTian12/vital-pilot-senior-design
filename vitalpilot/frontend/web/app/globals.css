@@ -19,7 +19,9 @@
   --color-main: #19b788;
   /* --color-main: #009999; */
   --color-secondary: #039387;
-  --color-third: #f8ffa1;
+  /* --color-third: #f8ffa1; */
+  /* --color-third: #E6F8B2; */
+  --color-third: #CDE77F;
   --color-footer: #0f5132;
   --color-ai: #ebf1ff;
   /* --color-gray: #eceef0; */
@@ -61,11 +63,11 @@ body {
   }
 
   h2 {
-    @apply text-title text-[25px];
+    @apply text-title text-[45px];
   }
 
   h3 {
-    @apply text-title text-5xl;
+    @apply text-title text-[25px];
   }
   h4 {
     @apply text-title text-[18px];

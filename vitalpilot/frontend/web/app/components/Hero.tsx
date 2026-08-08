@@ -38,7 +38,7 @@ const Hero = () => {
         ))} */}
         <div className="relative h-[60px] w-full flex justify-center items-center">
           {messages.map((message, i) => (
-            <motion.h2
+            <motion.h3
               key={i}
               className="absolute whitespace-nowrap text-white drop-shadow-lg"
               initial={{ opacity: 0 }}
@@ -55,7 +55,7 @@ const Hero = () => {
               }}
             >
               {message}
-            </motion.h2>
+            </motion.h3>
           ))}
         </div>
         <div className="btn flex-center gap-5 drop-shadow-lg">
