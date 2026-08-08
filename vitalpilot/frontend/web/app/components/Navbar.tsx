@@ -34,7 +34,7 @@ const Navbar = () => {
         </li>
         <li>
           <a className="font-normal" href="">
-            Doctor
+            Doctors
           </a>
         </li>
         <li>
