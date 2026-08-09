@@ -6,7 +6,7 @@ const Navbar = () => {
   return (
     <div
       className="bg-white fixed w-[80%] mx-auto mt-5 left-1/2 -translate-x-1/2 
-                  rounded-2xl h-17 flex justify-around items-center z-10 shadow-xl"
+                  rounded-2xl h-17 flex justify-around items-center z-40 shadow-xl"
     >
       <a href="" className="drop-shadow-lg">
         <Image
