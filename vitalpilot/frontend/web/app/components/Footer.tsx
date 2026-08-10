@@ -4,7 +4,7 @@ import Image from "next/image";
 const Footer = () => {
   let currentYear = new Date().getFullYear();
   return (
-    <section className="relative bg-footer h-85">
+    <section className="relative bg-footer h-90">
       <div className="flex items-start justify-around w-[90%] pt-10 h-full m-auto">
         <div className="relative basis-3/7 h-ful">
           <Image
@@ -54,11 +54,6 @@ const Footer = () => {
                 Description
               </a>
             </li>
-            <li>
-              <a href="#" className="text-white hover:underline">
-                FAQ
-              </a>
-            </li>
           </ul>
         </div>
 
@@ -72,12 +67,12 @@ const Footer = () => {
             </li>
             <li>
               <a href="#" className="text-white hover:underline">
-                Dashboard
+                Doctors
               </a>
             </li>
             <li>
               <a href="#" className="text-white hover:underline">
-                Doctors
+                Dashboard
               </a>
             </li>
           </ul>
@@ -91,7 +86,7 @@ const Footer = () => {
             width={320}
             height={100}
           />
-          <ul className="absolute left-35 top-35 font-medium drop-shadow-2xl">
+          <ul className="absolute left-35 top-38 font-medium drop-shadow-2xl">
             <li className="flex gap-1 items-center text-white">
               <IoIosCheckmarkCircle className="text-white text-[22px]" /> HIPAA
               Compliant
@@ -107,7 +102,7 @@ const Footer = () => {
           </ul>
         </div>
       </div>
-      <p className="absolute left-1/2 -translate-x-1/2 bottom-2 text-white font-medium">
+      <p className="absolute left-1/2 -translate-x-1/2 bottom-4 text-white font-medium">
         © {currentYear} VitalPilot. All rights reserved.
       </p>
     </section>

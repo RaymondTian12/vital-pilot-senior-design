@@ -16,7 +16,7 @@ const Navbar = () => {
           height={150}
         />
       </a>
-      <ul className="font-normal gap-6 flex items-center">
+      <ul className="gap-6 flex items-center">
         <li>
           <a
             className="bg-ai px-3 py-1 text-[16px] rounded-full font-bold drop-shadow-md
@@ -33,31 +33,31 @@ const Navbar = () => {
           </a>
         </li>
         <li>
-          <a className="font-normal" href="">
+          <a href="">
             Doctors
           </a>
         </li>
         <li>
-          <a className="font-normal" href="">
+          <a href="">
             Dashboard
           </a>
         </li>
         <li>
-          <a className="font-normal" href="">
+          <a href="">
             Download App
           </a>
         </li>
       </ul>
       <div className="w-70 h-full flex-center gap-3">
         <button>
-          <a className="flex-center gap-1" href="">
+          <a className="flex-center gap-1 font-semibold" href="">
             <PiSignInBold />
             Sign in
           </a>
         </button>
         <button>
           <a
-            className="text-white px-5 py-2 bg-main rounded-[10px] hover:bg-secondary"
+            className="text-white px-5 py-2 bg-main rounded-[10px] hover:bg-secondary font-semibold"
             href=""
           >
             Get Started

@@ -17,9 +17,9 @@ const Accordion = () => {
   };
 
   return (
-    <section className="flex-center mx-auto h-180 py-12 bg-[linear-gradient(180deg,rgba(0,0,0,0)_60%,rgba(205,231,127,0.5)_100%)]">
+    <section className="flex-center mx-auto h-160 py-12 bg-[linear-gradient(180deg,rgba(0,0,0,0)_60%,rgba(205,231,127,0.7)_100%)]">
       <div className="flex justify-center w-[80%]">
-        <h2 className="leading-none font-medium basis-2/5">
+        <h2 className="leading-none font-medium basis-2/5 ">
           Why{" "}
           <span className="text bg-linear-to-r from-[#BFD67C] via-[#58D78A] to-[#20a4b3] bg-clip-text text-transparent">
             VitalPilot
