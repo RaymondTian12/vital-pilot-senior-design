@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 const DownloadApp = () => {
   return (
-    <section className="bg-third h-[600] text-white flex rounded-t-4xl">
+    <section className="bg-third h-[600] text-white flex rounded-t-4xl overflow-hidden">
       <div className="w-[80%] mx-auto flex-center">
 
         <div className="basis-1/2">

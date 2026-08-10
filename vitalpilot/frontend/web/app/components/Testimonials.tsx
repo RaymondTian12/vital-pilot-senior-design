@@ -2,12 +2,12 @@ import React from "react";
 import TestimonialCard from "./TestimonialsCard";
 const Testimonials = () => {
   return (
-    <section className="h-130 bg-gray-100 flex-center flex-col w-[80%] mx-auto">
-      <h3 className="font-fraunces">Testimonials</h3>
-      <h2 className="text-3xl font-medium mb-8">
-        Hear from VitalPilot users and see how it helps them{" "}
+    <section className="h-180 flex-center flex-col w-[80%] mx-auto">
+      <h3 className="font-fraunces font-medium drop-shadow-2xl">Testimonials</h3>
+      <h2 className="text-3xl font-medium mb-8 drop-shadow-2xl">
+        Hear from <span className="bg-linear-to-r from-[#BFD67C] via-[#58D78A] to-[#20a4b3]  bg-clip-text text-transparent">VitalPilot</span> users and see how it helps them{" "}
       </h2>
-      <div className="flex-center gap-2">
+      <div className="flex-center gap-y-7 gap-x-10 flex-wrap">
         <TestimonialCard
           text="VitalPilot makes it much easier for me to understand my health trends without feeling overwhelmed."
           name="Daniel Chen"
