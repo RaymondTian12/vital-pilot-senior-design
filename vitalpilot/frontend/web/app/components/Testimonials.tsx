@@ -1,12 +1,26 @@
 import React from "react";
 import TestimonialCard from "./TestimonialsCard";
+import Image from "next/image";
+
+
 const Testimonials = () => {
   return (
-    <section className="h-180 flex-center flex-col w-[80%] mx-auto">
-      <h3 className="font-fraunces font-medium drop-shadow-2xl">Testimonials</h3>
-      <h2 className="text-3xl font-medium mb-8 drop-shadow-2xl">
-        Hear from <span className="bg-linear-to-r from-[#BFD67C] via-[#58D78A] to-[#20a4b3]  bg-clip-text text-transparent">VitalPilot</span> users and see how it helps them{" "}
+    <section className="h-200 flex-center flex-col w-[80%] mx-auto">
+      <h3 className="font-[Georgia] font-medium shadow-2xl border-none rounded-full mb-3 px-4 bg-ai">
+        Testimonials
+      </h3>
+      <h2 className="relative text-3xl text-center font-semibold mb-4 drop-shadow-2xl leading-none">
+        Hear from{" "}
+        <span className="bg-linear-to-r from-[#BFD67C] via-[#58D78A] to-[#20a4b3]  bg-clip-text text-transparent">
+          VitalPilot
+        </span>{" "}
+        users and <Image src="/assets/testimonial_icon.png" alt="icon" width={1200} height={1200} className="absolute -top-7 -right-18 w-20 h-20"/><br />
+        see how it helps them{" "}
       </h2>
+      <h4 className="text-center text-gray-500 font-semibold leading-6 mb-7">
+        Real experiences from people using VitalPilot<br/> to stay informed, take
+        control, and live healthier{" "}
+      </h4>
       <div className="flex-center gap-y-7 gap-x-10 flex-wrap">
         <TestimonialCard
           text="VitalPilot makes it much easier for me to understand my health trends without feeling overwhelmed."

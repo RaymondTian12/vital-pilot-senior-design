@@ -15,11 +15,11 @@ const TestimonialCard = ({ text, name, img }: testimonial) => {
   return (
     <div
       className="w-100 font-semibold py-5 px-5 drop-shadow-2xl rounded-2xl 
-    bg-[radial-gradient(ellipse_at_bottom,#ECEAEC_40%,#ECEAEC_50%,#c0f8e7_90%)]
+    bg-[radial-gradient(ellipse_at_bottom,#ffffff_50%,#ebf1ff_80%,#c0f8e7_100%)]
     transition-all duration-300 ease-in-out hover:scale-105"
     >
       <div className="relative flex justify-center gap-x-2 mb-5 drop-shadow-2xl">
-        <BiSolidQuoteAltLeft className="w-30 h-20 -translate-y-4 drop-shadow-2xl" />
+        <BiSolidQuoteAltLeft className="w-30 h-20 -translate-y-4 drop-shadow-2xl text-main" />
         <p className=" text-[18px] font-[Georgia] font-medium drop-shadow-2xl">
           {text}
         </p>

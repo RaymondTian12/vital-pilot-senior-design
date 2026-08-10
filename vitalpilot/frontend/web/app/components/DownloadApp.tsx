@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 const DownloadApp = () => {
   return (
-    <section className="bg-third h-[600] text-white flex rounded-t-4xl overflow-hidden">
+    <section className="bg-third h-[600] text-white flex rounded-4xl overflow-hidden">
       <div className="w-[80%] mx-auto flex-center">
 
         <div className="basis-1/2">
@@ -42,7 +42,7 @@ const DownloadApp = () => {
 
         <div className="relative basis-1/2 h-full drop-shadow-2xl flex-center scale-110">
           <Image
-            className="absolute left-15 -top-1 mask-b-from-60%"
+            className="absolute left-15 top-2 mask-b-from-60%"
             src="/assets/iphone_download.png"
             alt="iphone image"
             width={700}

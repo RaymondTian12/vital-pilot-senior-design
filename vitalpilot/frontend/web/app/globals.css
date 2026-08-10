@@ -18,25 +18,24 @@
   /* --color-third: #f8ffa1; */
   /* --color-third: #E6F8B2; */
   --color-third: #CDE77F;
+  --color-fourth: #c0f8e7;
   --color-footer: #0f5132;
   --color-ai: #ebf1ff;
   --color-gray: #eceef0;
-  /* --gray-color: #F8FAFC; 
-  --light-color: #baece3; */
+  /* --light-color: #baece3; */ 
   /* --light-color: #eefffc;
   */
 
   /* --spacing-section: 50px; */
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
-    --background: rgb(235, 241, 255);
+    --background: rgb(255, 255, 255);
     --foreground: #ededed;
-      --color-main: #c0f8e7;
 
   }
-}
+} */
 
 body {
   font-family: var(--font-manrope);
