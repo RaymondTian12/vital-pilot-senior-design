@@ -12,7 +12,7 @@ const DescriptionChatbot = () => {
         <h1 className="leading-none text-center mb-5 drop-shadow-2xl">
           Smarter insights for your
           <br />
-          everyday health
+          everyday <span className="text-main">health</span> 
         </h1>
         <p className="text-center font-semibold text-gray-500">
           Understand your health, get symptom guidance, and

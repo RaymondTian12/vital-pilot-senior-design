@@ -28,7 +28,7 @@ const Hero = () => {
         alt="Image showing senior citizens using the app"
         width={1678}
         height={937}
-        className="w-screen h-full"
+        className="w-full h-full"
       />
 
       <div className="hero-content flex-center flex-col w-full absolute z-20 -bottom-5 left-1/2 -translate-1/2">

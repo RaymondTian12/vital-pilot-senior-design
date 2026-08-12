@@ -5,8 +5,8 @@ import Image from "next/image";
 
 const Testimonials = () => {
   return (
-    <section className="h-200 flex-center flex-col w-[80%] mx-auto">
-      <h3 className="font-[Georgia] font-medium shadow-2xl border-none rounded-full mb-3 px-4 bg-ai">
+    <section className="flex items-center flex-col w-[80%] mx-auto mb-20">
+      <h3 className="font-[Georgia] font-medium shadow-2xl border-none rounded-full mb-3 px-4 bg-ai w-fit">
         Testimonials
       </h3>
       <h2 className="relative text-3xl text-center font-semibold mb-4 drop-shadow-2xl leading-none">
