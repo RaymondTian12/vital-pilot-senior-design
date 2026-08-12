@@ -1,12 +1,35 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { PiSignInBold } from "react-icons/pi";
 
 const Navbar = () => {
+  const [navbar, setNavbar] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      let currentYScroll = window.scrollY;
+
+      if (currentYScroll >= 100) {
+        setNavbar(true);
+      } else {
+        setNavbar(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => {
+      removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   return (
-    <div
-      className="bg-white fixed w-[80%] mx-auto mt-5 left-1/2 -translate-x-1/2 
-                  rounded-2xl h-17 flex justify-around items-center z-40 shadow-xl"
+    <section
+      className={`fixed w-[80%] mx-auto mt-5 left-1/2 -translate-x-1/2 rounded-2xl h-17 flex justify-around items-center z-40 shadow-xl 
+        ${navbar ? "bg-white/50 backdrop-blur-sm transition-all duration-300" : "bg-white"}`}
     >
       <a href="" className="drop-shadow-lg">
         <Image
@@ -33,19 +56,13 @@ const Navbar = () => {
           </a>
         </li>
         <li>
-          <a href="">
-            Doctors
-          </a>
+          <a href="">Doctors</a>
         </li>
         <li>
-          <a href="">
-            Dashboard
-          </a>
+          <a href="">Dashboard</a>
         </li>
         <li>
-          <a href="">
-            Download App
-          </a>
+          <a href="">Download App</a>
         </li>
       </ul>
       <div className="w-70 h-full flex-center gap-3">
@@ -64,7 +81,7 @@ const Navbar = () => {
           </a>
         </button>
       </div>
-    </div>
+    </section>
   );
 };
 

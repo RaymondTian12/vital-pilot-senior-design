@@ -10,7 +10,7 @@ import Image from "next/image";
 
 const Description = () => {
   return (
-    <section className="w-[80%] overflow-y-hidden mx-auto my-10">
+    <section className="w-[80%]  mx-auto my-10">
       <div className="flex-center flex-col mb-10">
         <h4 className="font-quicksand font-bold text-main mb-3">
           Meet <span className="font-quicksand">PILOT AI</span>
@@ -24,9 +24,10 @@ const Description = () => {
           Understand your health, get symptom guidance, and
           <br /> prepare for better conversations with your doctor.
         </p>
+
         <div className="flex-center gap-4 my-10">
-          <div className="flex flex-col w-[340px] h-[420px] rounded-2xl overflow-hidden shadow-xl">
-            <div className="bg-[#CAE9F3] flex-center w-full h-[60%]">
+          <div className="flex-center flex-col w-[340px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
+            <div className="bg-[#CAE9F3] flex-center w-[97%] h-[60%] rounded-2xl mt-2 ">
               <Image
                 src="/assets/ai_description_1.png"
                 alt=""
@@ -49,14 +50,14 @@ const Description = () => {
             </div>
           </div>
 
-          <div className="flex flex-col w-[340px] h-[420px] rounded-2xl overflow-hidden shadow-xl">
-            <div className="w-full h-[60%]">
+          <div className="flex-center flex-col w-[340px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
+            <div className="w-[97%] h-[60%] flex-center">
               <Image
                 src="/assets/w.png"
                 alt=""
                 width={1400}
                 height={1100}
-                className="w-full h-full"
+                className="w-full h-full rounded-2xl mt-2"
               />
             </div>
             <div className="flex-center text-center flex-col py-5 px-3">
@@ -74,14 +75,14 @@ const Description = () => {
             </div>
           </div>
 
-          <div className="flex flex-col w-[340px] h-[420px] rounded-2xl overflow-hidden shadow-xl">
-            <div className="w-full h-[60%]">
+          <div className="flex-center flex-col w-[340px] h-[420px] rounded-2xl  shadow-xl  border-1 border-gray-100">
+            <div className=" w-[97%] h-[60%] flex-center">
               <Image
                 src="/assets/ai_description_33.png"
                 alt=""
                 width={1448}
                 height={1086}
-                className="w-full h-full"
+                className="w-full h-full rounded-2xl mt-2"
               />
             </div>
             <div className="flex-center text-center flex-col py-5 px-3">
