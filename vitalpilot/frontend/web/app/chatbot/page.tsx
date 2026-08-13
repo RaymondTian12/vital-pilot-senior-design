@@ -1,11 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { FaArrowUp } from "react-icons/fa6";
-import { FiMic } from "react-icons/fi";
-import { IoMdAdd } from "react-icons/io";
+import { IoChatboxEllipsesOutline } from "react-icons/io5";
+import { VscLayoutSidebarRightDock } from "react-icons/vsc";
+import { VscLayoutSidebarLeftDock } from "react-icons/vsc";
+
+// import { IoMdAdd } from "react-icons/io";
+import Image from "next/image";
 
 const Chatbot = () => {
+  const [clicked, setClicked] = useState<boolean>(false);
+
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
 
@@ -20,33 +26,73 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="relative h-screen">
-      {/* background glow */}
-      <div
-        className="
+    <div className="relative flex h-screen">
+      <div className="bg-amber-300">
+        <div className="">
+          <IoChatboxEllipsesOutline className="" /> New chat
+        </div>
+      </div>
+      <div>
+        <button className="absolute top-10 -translate-y-1/2">
+          <VscLayoutSidebarRightDock className="" />
+        </button>
+        <a
+          href=""
+          className=" absolute drop-shadow-lg left-1/2 -translate-x-1/2 top-10 -translate-y-1/2"
+        >
+          <Image
+            src="/assets/logo_green1.png"
+            alt="Vitalpilot"
+            width={50}
+            height={50}
+          />
+        </a>
+        <div className="absolute drop-shadow-lg left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[820]">
+          <h2 className="font-medium font-[georgia]">Hello, Username</h2>
+          <h4 className="font-semibold text-gray-600">
+            I'm Pilot AI How can I help you today with your health today?
+          </h4>
+          <div className="flex-center gap-x-4 mt-5">
+            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+              Check Symptoms
+            </button>
+            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+              Explain My Vitals
+            </button>
+            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+              Find a Specialist
+            </button>
+            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+              Lifestyle Recommendations
+            </button>
+          </div>
+        </div>
+        {/* background glow */}
+        <div
+          className="
           absolute
           bottom-5
           left-1/2
-          h-[100px]
+          h-15
           w-full
           -translate-x-1/2
           bg-main
-          blur-[200px]
+          blur-[150px]
         "
-      />
+        />
 
-      {/* CHAT INPUT */}
-      <div
-        className="
+        {/* CHAT INPUT */}
+        <div
+          className="
           absolute
           bottom-10
           left-1/2
           w-[800px]
           -translate-x-1/2
         "
-      >
-        <div
-          className="
+        >
+          <div
+            className="
             flex
             min-h-[70px]
             w-full
@@ -62,13 +108,13 @@ const Chatbot = () => {
             focus-within:ring-2
             focus-within:ring-main
           "
-        >
-          {/* TEXTAREA */}
-          <textarea
-            rows={1}
-            onInput={handleInput}
-            placeholder="Describe your symptom or ask any health questions..."
-            className="
+          >
+            {/* TEXTAREA */}
+            <textarea
+              rows={1}
+              onInput={handleInput}
+              placeholder="Describe your symptom or ask any health questions..."
+              className="
               min-h-[32px]
               max-h-[130px]
               w-full
@@ -85,12 +131,12 @@ const Chatbot = () => {
               [scrollbar-width:none]
               [&::-webkit-scrollbar]:hidden
             "
-          />
+            />
 
-          {/* BOTTOM CONTROLS */}
-          <div className="mt-1 flex items-center justify-between">
-            {/* LEFT */}
-            {/* <button
+            {/* BOTTOM CONTROLS */}
+            <div className="mt-1 flex items-center justify-between">
+              {/* LEFT */}
+              {/* <button
               type="button"
               className="
                 flex
@@ -107,11 +153,11 @@ const Chatbot = () => {
               <IoMdAdd />
             </button> */}
 
-            {/* RIGHT */}
-            <div className="flex items-center gap-2 w-full justify-end">
-              <button
-                type="button"
-                className="
+              {/* RIGHT */}
+              <div className="flex items-center gap-2 w-full justify-end">
+                <button
+                  type="button"
+                  className="
                   flex
                   h-9
                   w-9
@@ -124,9 +170,10 @@ const Chatbot = () => {
                   transition
                   hover:bg-secondary
                 "
-              >
-                <FaArrowUp />
-              </button>
+                >
+                  <FaArrowUp />
+                </button>
+              </div>
             </div>
           </div>
         </div>

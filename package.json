@@ -4,31 +4,27 @@
   "version": "1.0.0",
   "private": true,
   "description": "VitalPilot is a full-stack software architecture combining a TypeScript frontend, a Python backend engine, and a relational database for personalized health monitoring. Developed for CSE 4316-17 Senior Design at UT Arlington (Summer 2026 - Fall 2026).",
-
   "workspaces": [
     "vitalpilot/frontend/*"
   ],
-
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint"
   },
-
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RaymondTian12/vital-pilot-senior-design.git"
   },
-
   "license": "ISC",
-
   "bugs": {
     "url": "https://github.com/RaymondTian12/vital-pilot-senior-design/issues"
   },
-
   "homepage": "https://github.com/RaymondTian12/vital-pilot-senior-design#readme",
-
   "devDependencies": {
     "turbo": "^2.10.8"
+  },
+  "dependencies": {
+    "react-toastify": "^11.1.0"
   }
 }

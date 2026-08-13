@@ -11,7 +11,7 @@ const Testimonials = () => {
       </h3>
       <h2 className="relative text-3xl text-center font-semibold mb-4 drop-shadow-2xl leading-none">
         Hear from{" "}
-        <span className="bg-linear-to-r from-[#BFD67C] via-[#58D78A] to-[#20a4b3]  bg-clip-text text-transparent">
+        <span className="bg-linear-to-r from-[#BFD67C] via-[#58D78A] to-[#20a4b3] bg-clip-text text-transparent">
           VitalPilot
         </span>{" "}
         users and <Image src="/assets/testimonial_icon.png" alt="icon" width={1200} height={1200} className="absolute -top-7 -right-18 w-20 h-20"/><br />

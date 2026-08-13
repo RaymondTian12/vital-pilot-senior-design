@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import Image from "next/image";
-
 
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -13,7 +13,7 @@ interface FormData {
   confirmPassword: string;
 }
 
-const Signin = () => {
+const Signup = () => {
   const {
     register,
     handleSubmit,
@@ -23,10 +23,12 @@ const Signin = () => {
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
-      toast.success("Message sent successfully!");
+      console.log(data)
+
+      toast.success("Account created successfully!");
       reset();
-    } catch (error: any) {
-      toast.error(error?.text || "Message failed to send.");
+    } catch (error: unknown) {
+       toast.error("Failed to create account.");
     }
   };
 
@@ -71,22 +73,22 @@ const Signin = () => {
             placeholder="Password*"
             className="w-full h-[60] pl-5 outline-none rounded-lg border-2 border-gray focus:border-none focus:ring-3 focus:ring-main my-2"
             {...register("password", {
-                required: "Password is required",
-                minLength: {
-                    value: 8,
-                    message: "Password must be at least 8 characters",
-                },
-                
-                pattern: {
-                    value:
-                    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
-                    message:
-                    "Password must contain an uppercase letter, lowercase letter, number, and special character",
-                },
+              required: "Password is required",
+              minLength: {
+                value: 8,
+                message: "Password must be at least 8 characters",
+              },
+
+              pattern: {
+                value:
+                  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+                message:
+                  "Password must contain an uppercase letter, lowercase letter, number, and special character",
+              },
             })}
-            />
+          />
           {errors.password && (
-              <p className="error-message">{errors.password.message}</p>
+            <p className="error-message">{errors.password.message}</p>
           )}
 
           <input
@@ -109,8 +111,8 @@ const Signin = () => {
             <p>{isSubmitting ? "Sending..." : "Submit"}</p>
           </button>
           <div className="flex-center gap-2">
-            <p>Don't have an account?</p>
-            <Link className="text-[16px] hover:underline"> Sign up</Link>
+            <p>Already have an account?</p>
+            <Link href="/signin" className="text-[16px] hover:underline"> Sign in</Link>
           </div>
         </form>
       </div>
@@ -118,4 +120,4 @@ const Signin = () => {
   );
 };
 
-export default Signin;
+export default Signup;
