@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-
+import Link from "next/link";
 
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -10,7 +10,6 @@ import { toast } from "react-toastify";
 interface FormData {
   email: string;
   password: string;
-  confirmPassword: string;
 }
 
 const Signin = () => {
@@ -23,27 +22,39 @@ const Signin = () => {
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
-      toast.success("Message sent successfully!");
+      console.log(data);
+
+      toast.success("Welcome back!");
       reset();
-    } catch (error: any) {
-      toast.error(error?.text || "Message failed to send.");
+    } catch (error: unknown) {
+      toast.error("Failed to sign in.");
     }
   };
 
   return (
     <div className="relative flex-center gap-x-20 h-screen">
-        {/* <div className="absolute w-[150] h-[150] bg-main left-[50%] -translate-x-1/2 top-20 -translate-y-1/2 -z-11"/> */}
-        <div className="absolute w-[400] h-[100] bg-linear-to-r from-main from-25% to-third to-50% left-1/2 -translate-x-1/2 top-20 -translate-y-1/2 -z-10 blur-[100px]"/>
+      <a
+        href="/"
+        className=" absolute drop-shadow-lg left-[80] -translate-x-1/2 top-10 -translate-y-1/2"
+      >
+        <Image
+          src="/assets/logo_black.png"
+          alt="Vitalpilot"
+          width={85}
+          height={85}
+        />
+      </a>
+      <div className="absolute w-[400] h-[100] bg-linear-to-r from-main from-25% to-third to-50% left-1/2 -translate-x-1/2 top-20 -translate-y-1/2 -z-10 blur-[100px]" />
       <Image
-        src="/assets/form_pic.png"
+        src="/assets/signin_pic.png"
         alt=""
         width={1537}
         height={1023}
         className="w-[500]"
       />
       <div className="w-[400]">
-        <h3 className="text-[28px] font-semibold leading-none text-center mb-10 drop-shadow-2xl">
-          Create your account to start tracking your health
+        <h3 className="text-[28px] font-semibold leading-normal text-center mb-10 drop-shadow-2xl">
+          Log in to continue your learning journey
         </h3>
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
           <input
@@ -66,51 +77,33 @@ const Signin = () => {
 
           <input
             type="password"
-            autoComplete="new-password"
+            autoComplete="current-password"
             id="password"
             placeholder="Password*"
             className="w-full h-[60] pl-5 outline-none rounded-lg border-2 border-gray focus:border-none focus:ring-3 focus:ring-main my-2"
             {...register("password", {
-                required: "Password is required",
-                minLength: {
-                    value: 8,
-                    message: "Password must be at least 8 characters",
-                },
-                
-                pattern: {
-                    value:
-                    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
-                    message:
-                    "Password must contain an uppercase letter, lowercase letter, number, and special character",
-                },
-            })}
-            />
-          {errors.password && (
-              <p className="error-message">{errors.password.message}</p>
-          )}
-
-          <input
-            type="password"
-            autoComplete="new-password"
-            id="confirmPassword"
-            placeholder="Confirm password*"
-            className="w-full h-[60] pl-5 outline-none rounded-lg border-2 border-gray focus:border-none focus:ring-3 focus:ring-main my-2"
-            {...register("confirmPassword", {
-              required: "Please confirm your password",
-              validate: (value, formValues) =>
-                value === formValues.password || "Passwords do not match",
+              required: "Password is required",
             })}
           />
-          {errors.confirmPassword && (
-            <p className="error-message">{errors.confirmPassword.message}</p>
+          {errors.password && (
+            <p className="error-message">{errors.password.message}</p>
           )}
 
-          <button type="submit" className="w-full h-[60] pl-5 rounded-lg bg-main my-5 cursor-pointer font-semibold" disabled={isSubmitting}>
-            <p>{isSubmitting ? "Sending..." : "Submit"}</p>
+          <button
+            type="submit"
+            className="w-full h-[60] pl-5 rounded-lg bg-main my-5 cursor-pointer font-semibold"
+            disabled={isSubmitting}
+          >
+            <p className="text-white">
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </p>
           </button>
           <div className="flex-center gap-2">
             <p>Don't have an account?</p>
-            <Link className="text-[16px] hover:underline"> Sign up</Link>
+            <Link href="/signup" className="text-[16px] hover:underline">
+              {" "}
+              Sign up
+            </Link>
           </div>
         </form>
       </div>
