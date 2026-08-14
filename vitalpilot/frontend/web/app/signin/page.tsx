@@ -53,7 +53,7 @@ const Signin = () => {
         className="w-[500]"
       />
       <div className="w-[400]">
-        <h3 className="text-[28px] font-semibold leading-normal text-center mb-10 drop-shadow-2xl">
+        <h3 className="text-[28px] font-bold leading-normal text-center mb-10 drop-shadow-2xl">
           Log in to continue your learning journey
         </h3>
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>

@@ -54,7 +54,7 @@ const Signup = () => {
         className="w-[500]"
       />
       <div className="w-[400]">
-        <h3 className="text-[28px] font-semibold leading-normal text-center mb-10 drop-shadow-2xl">
+        <h3 className="text-[28px] font-bold leading-normal text-center mb-10 drop-shadow-2xl">
           Create your account to start tracking your health
         </h3>
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
