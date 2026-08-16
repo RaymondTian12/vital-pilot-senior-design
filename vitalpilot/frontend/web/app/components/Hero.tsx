@@ -22,7 +22,7 @@ const Hero = () => {
   }, [messages.length]);
 
   return (
-    <section className="relative w-screen h-[700]">
+    <section className="relative h-[700]">
       <Image
         src="/assets/hero_pic.png"
         alt="Image showing senior citizens using the app"
@@ -38,9 +38,9 @@ const Hero = () => {
 
         <AnimatePresence mode="wait">
           <motion.h3
-            className="h-10 flex items-center justify-center text-white"
+            className="h-10 flex items-center justify-center text-white my-1"
             key={currentMessage}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: -7 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.5 }}
@@ -49,15 +49,15 @@ const Hero = () => {
           </motion.h3>
         </AnimatePresence>
 
-        <div className="btn flex-center gap-5 drop-shadow-lg">
+        <div className="btn flex-center gap-5 drop-shadow-lg ">
           <a
-            className="rounded-full px-6 py-2 text-white bg-main border-2 border-main hover:bg-secondary hover:border-secondary"
+            className="rounded-full px-6 py-2 text-[18px] text-white bg-main border-2 border-main hover:bg-secondary hover:border-secondary"
             href=""
           >
             Get Started
           </a>
           <a
-            className=" rounded-full px-6 py-2 text-white bg-transparent border-2 border-white
+            className=" rounded-full px-6 py-2 text-[18px] text-white bg-transparent border-2 border-white
               hover:bg-white hover:text-main "
             href=""
           >

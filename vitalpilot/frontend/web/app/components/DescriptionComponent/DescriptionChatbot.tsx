@@ -19,14 +19,14 @@ const DescriptionChatbot = () => {
           <br /> prepare for better conversations with your doctor.
         </p>
         <div className="flex-center gap-4 my-10">
-          <div className="flex-center flex-col w-[340px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
-            <div className="bg-[#CAE9F3] flex-center w-[97%] h-[60%] rounded-2xl mt-2 ">
+          <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
+            <div className="flex-center w-[97%] h-[60%]">
               <Image
-                src="/assets/ai_description_1.png"
+                src="/assets/ai_description_11.png"
                 alt=""
                 width={1536}
                 height={1024}
-                className="w-full drop-shadow-2xl"
+                className="w-full h-full rounded-2xl mt-2"
               />
             </div>
             <div className="flex-center text-center flex-col py-5 px-3">
@@ -43,7 +43,7 @@ const DescriptionChatbot = () => {
             </div>
           </div>
 
-          <div className="flex-center flex-col w-[340px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
+          <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
             <div className="w-[97%] h-[60%] flex-center">
               <Image
                 src="/assets/w.png"
@@ -68,10 +68,10 @@ const DescriptionChatbot = () => {
             </div>
           </div>
 
-          <div className="flex-center flex-col w-[340px] h-[420px] rounded-2xl  shadow-xl  border-1 border-gray-100">
+          <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl  border-1 border-gray-100">
             <div className=" w-[97%] h-[60%] flex-center">
               <Image
-                src="/assets/ai_description_33.png"
+                src="/assets/ai_description_3.png"
                 alt=""
                 width={1448}
                 height={1086}

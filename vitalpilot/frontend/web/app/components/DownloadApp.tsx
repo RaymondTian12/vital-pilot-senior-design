@@ -6,13 +6,13 @@ const DownloadApp = () => {
       <div className="w-[80%] mx-auto flex-center">
 
         <div className="basis-1/2">
-          <h2 className="text-white leading-none font-semibold drop-shadow-lg">
+          <h1 className="text-white leading-none font-semibold drop-shadow-lg">
             Take VitalPilot with you
             <br />
             Stay connected
-          </h2>
+          </h1>
 
-          <p className="text-white text-[18px] drop-shadow-md mt-5 mb-6 w-[70%] text-justify">
+          <p className="text-white text-[18px] drop-shadow-md my-10 w-[70%] text-justify">
             Track your health metrics, review your trends, and stay connected to
             your health wherever you go. Download the VitalPilot app and keep
             your health information within reach.

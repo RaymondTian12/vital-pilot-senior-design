@@ -9,7 +9,7 @@ import Footer from "./components/Footer";
 
 const homePage = () => {
   return (
-    <div className="overflow-x-hidden">
+    <div className="">
       <Navbar />
       <Hero />
       <Description />

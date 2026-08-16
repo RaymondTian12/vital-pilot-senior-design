@@ -18,7 +18,7 @@ const Accordion = () => {
 
   return (
     <section className="flex-center mx-auto h-160 py-12 bg-[linear-gradient(180deg,rgba(0,0,0,0)_60%,rgba(205,231,127,0.7)_100%)]">
-      <div className="flex justify-center w-[80%]">
+      <div className="flex justify-center w-[70%]">
         <h2 className="leading-none font-medium basis-2/5 ">
           Why{" "}
           <span className="text bg-linear-to-r from-[#BFD67C] via-[#58D78A] to-[#20a4b3] bg-clip-text text-transparent">
@@ -36,10 +36,10 @@ const Accordion = () => {
                 className="flex justify-between items-center cursor-pointer transition duration-300 w-full"
                 onClick={() => toggle(i)}
               >
-                <h3 className="font-semibold leading-tight basis-2/3 text-[22px] py-2">
+                <h3 className="font-semibold leading-tight basis-2/3 text-[20px] py-2">
                   {data.question}
                 </h3>
-                <span className="text-[30px] font-bold">
+                <span className="text-[25px] font-bold">
                   {clicked === i ? <LuMinus /> : <LuPlus />}
                 </span>
               </div>
@@ -47,8 +47,8 @@ const Accordion = () => {
               <p
                 className={
                   clicked === i
-                    ? "font-semibold text-justify mb-3 overflow-hidden opacity-100 transition duration-300 ease max-h-full w-[85%]"
-                    : "font-semibold text-justify mb-3 overflow-hidden opacity-0 ease max-h-0 w-[85%]"
+                    ? "font-semibold text-justify mb-3 overflow-hidden opacity-100 transition duration-300 ease max-h-full w-[80%]"
+                    : "font-semibold text-justify mb-3 overflow-hidden opacity-0 ease max-h-0 w-[80%]"
                 }
               >
                 {data.answer}

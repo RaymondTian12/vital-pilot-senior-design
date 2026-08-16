@@ -5,7 +5,7 @@ import Image from "next/image";
 const DescriptionDashboard = () => {
   return (
     <div className="flex-center flex-col mb-15">
-      <h1 className="leading-15 text-center mb-5">
+      <h1 className="leading-none text-center mb-7">
         Everything about your health,
         <br />
         <span className="text-main">connected</span> in one place.

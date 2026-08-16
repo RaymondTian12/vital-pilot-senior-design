@@ -56,11 +56,11 @@ body {
     @apply text-title;
   }
   h1 {
-    @apply text-title text-[50px] font-bold;
+    @apply text-title text-[40px] font-bold;
   }
 
   h2 {
-    @apply text-title text-[45px];
+    @apply text-title text-[34px];
   }
 
   h3 {
@@ -75,7 +75,7 @@ body {
   }
 
   a {
-    @apply no-underline text-[18px] font-medium cursor-pointer transition duration-300 ease-in-out hover:text-main ;
+    @apply no-underline text-[16px] font-medium cursor-pointer transition duration-300 ease-in-out hover:text-main ;
   }
 }
 

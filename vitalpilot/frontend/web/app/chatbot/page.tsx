@@ -73,11 +73,11 @@ const Chatbot = () => {
           absolute
           bottom-5
           left-1/2
-          h-15
+          h-10
           w-full
           -translate-x-1/2
           bg-main
-          blur-[150px]
+          blur-[100px]
         "
         />
 
@@ -113,7 +113,7 @@ const Chatbot = () => {
             <textarea
               rows={1}
               onInput={handleInput}
-              placeholder="Describe your symptom or ask any health questions..."
+              placeholder="Describe your symptom(s) or ask any health questions..."
               className="
               min-h-[32px]
               max-h-[130px]
