@@ -123,7 +123,7 @@ const Signup = () => {
             disabled={isSubmitting}
           >
             <p className="text-white">
-              {isSubmitting ? "Sending..." : "Sign up"}
+              {isSubmitting ? "Sending..." : "Continue"}
             </p>
           </button>
           <div className="flex-center gap-2">
