@@ -15,6 +15,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `last_name` | `VARCHAR(50)` | `NOT NULL` | User's last name |
 | `email` | `VARCHAR(255)` | `NOT NULL`, `UNIQUE`| User's email address used for login |
 | `password_hash` | `VARCHAR(255)`| `NOT NULL` | Securely hashed password|
+| `role` | `ENUM('patient', 'provider', 'admin')` | `NOT NULL, DEFAULT 'patient'` | System role used for role-based authorization |
 | `date_created` | `DATETIME` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Date and time the user account was created|
 
 ### UserHealthProfiles
@@ -27,6 +28,37 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `sex` | `ENUM('Female', 'Male')` | `NOT NULL` | The user's sex for clinical baselines |
 | `date_of_birth` | `DATE` | `NOT NULL` | The user's birthdate which is used to dynamically calculate age if needed |
 | `updated_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Tracks the last modification of physical profile characteristics. |
+
+### Providers
+
+*Stores professional credentials, clinical identification numbers, and contact information for healthcare providers authorized to access patient records.*
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `provider_id` | `SERIAL` | `PRIMARY KEY` | Unique internal identifier for the provider record |
+| `user_id` | `INT` | `FOREIGN KEY, NOT NULL, UNIQUE` | References `Users.user_id` (`ON DELETE CASCADE`) |
+| `npi` | `VARCHAR(10)` | `NOT NULL, UNIQUE` | 10-digit National Provider Identifier |
+| `specialty` | `VARCHAR(100)` | `NOT NULL` | Medical practice specialty (e.g. Cardiology, Endocrinology) |
+| `license_state` | `VARCHAR(2)` | `NOT NULL` | State abbreviation of clinical licensure |
+| `license_number` | `VARCHAR(50)` | `NOT NULL` | State medical license registration number |
+| `clinic_name` | `VARCHAR(255)` | `NULL` | Associated clinic or healthcare system |
+| `clinic_phone` | `VARCHAR(20)` | `NULL` | Practice contact phone number |
+| `created_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider profile was created |
+| `updated_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Tracks the last modification of provider profile information |
+
+### PatientProviderAssignments
+
+*Defines relational access links between healthcare providers and patients to enforce authorized dashboard access and clinical record review.*
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `assignment_id` | `SERIAL` | `PRIMARY KEY` | Unique internal identifier for the care assignment record |
+| `provider_id` | `INT` | `FOREIGN KEY, NOT NULL` | References `Providers.provider_id` (`ON DELETE CASCADE`) |
+| `patient_profile_id` | `INT` | `FOREIGN KEY, NOT NULL` | References `UserHealthProfiles.profile_id` (`ON DELETE CASCADE`) |
+| `assignment_status` | `ENUM('ACTIVE', 'PENDING', 'REVOKED')` | `NOT NULL, DEFAULT 'ACTIVE'` | Access status controlling provider record visibility |
+| `assigned_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider was granted patient access |
+
+---
 
 ### MetricGoals
 *Tracks the user's active goal configurations. This table is optimized for low-latency, real-time transactional lookups by the conditional validation engine.*
@@ -57,7 +89,7 @@ Stores static, institutional health guidelines. This table uses a single row per
 | `threshold_id` | `SERIAL` | `PRIMARY KEY` | Unique identifier for the specific clinical rule |
 | `metric_type` | `ENUM('BLOOD_PRESSURE', 'BLOOD_GLUCOSE', 'BLOOD_OXYGEN', 'BODY_MASS_INDEX', 'PEAK_FLOW_RATE', 'WATER_INTAKE', 'PHYSICAL_ACTIVITY', 'SLEEP')` | `NOT NULL` | The high-level tracking module being evaluated. All specific system metrics are enumerated here |
 | `sub_metric` | `ENUM('SYSTOLIC', 'DIASTOLIC', 'FASTING', 'POST_PRANDIAL', 'UNIVERSAL', 'FEMALE', 'MALE')` | `NOT NULL` | The specific metric component, clinical condition, or demographic breakdown being isolated |
-| `classification` | `VARCHAR(50)` | `NOT NULL` | The clinical tier label or configuration flag (e.g., `'Hypoglycemia'`, `'Stage 1 Hypertension'`, `'RECOMMENDED_GOAL_FLOOR'`) |
+| `classification` | `VARCHAR(50)` | `NOT NULL` | The clinical tier label or configuration flag (e.g. `'Hypoglycemia'`, `'Stage 1 Hypertension'`, `'RECOMMENDED_GOAL_FLOOR'`) |
 | `min_value` | `DECIMAL(8,2)` | `NOT NULL` | The lower inclusive boundary for this specific rule. Use `-999.99` if no lower limit exists. For behavioral goal-validation metrics, (`PhysicalActivity`, `Sleep`, `WaterIntake`, this column holds the baseline recommended target floor. The `max_value` for these records is set to the upper open-ended placeholder (999.99) |
 | `max_value` | `DECIMAL(8,2)` | `NOT NULL` | The upper exclusive boundary for this specific rule (use `99,999.99` if no upper limit exists) |
 | `alert_state` | `ENUM('LOG_SUCCESS_AND_BANNER', 'LOG_WARNING_AND_BANNER', 'LOG_CRITICAL_AND_BANNER', 'DISPLAY_GOAL_NOTICE')` | `NOT NULL` | The exact UI and log state flag dispatched by the validation engine. Behavioral goal evaluation rows utilize `'DISPLAY_GOAL_NOTICE'` |
@@ -154,6 +186,14 @@ Stores static, institutional health guidelines. This table uses a single row per
 ### `UserHealthProfiles`
 * **Purpose:** Stores health-specific attributes required for clinical calculations such as sex for daily water intake goals and height for BMI.
 * **Design Decision:** By keeping health attributes separate from the `Users` table, the system avoids mixing authentication records with clinical data if not needed. While height is usually a stable physical trait for adults, the schema uses an `updated_at` field
+
+### `Providers`
+* **Purpose:** Stores professional licensing credentials, clinical identification numbers, and practice contact information for healthcare providers authorized to access and review patient records.
+* **Design Decision:** Provider records are decoupled from the base `Users` authentication table to prevent table sparsity (avoiding excessive `NULL` fields for standard patient accounts) and enforce HIPAA minimum necessary isolation. While the `npi` (National Provider Identifier) uniquely identifies a clinician, it is designated as a unique constraint rather than the primary key to maintain surrogate key stability (`provider_id`) across relational foreign keys.
+
+### `PatientProviderAssignments`
+* **Purpose:** Manages relational links and access statuses between healthcare providers and patients, enabling clinicians to monitor assigned patient health profiles.
+* **Design Decision:** Implemented as a dedicated junction table to support a many-to-many relationship structure (e.g. a patient managed by multiple specialists or a provider overseeing multiple patients) without tightly coupling provider records directly to health profiles. The `assignment_status` field facilitates granular access control (e.g. active, pending, or revoked access) in adherence to HIPAA security and access-control principles.
 
 ### `MetricGoals`
 * **Purpose:** Stores a user's active goal configurations for hours of sleep, steps, water intake, and peak flow. All other metrics  tracked by VitalPilot will follow standards which will be stored in the `ClinicalThresholds` table.
