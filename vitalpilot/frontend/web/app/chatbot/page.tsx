@@ -96,7 +96,7 @@ const Chatbot = () => {
         />
         <Link href="/" className="drop-shadow-lg mt-10 ">
           <Image
-            src="/assets/logo_green1.png"
+            src="/assets/logo_green.png"
             alt="Vitalpilot"
             width={50}
             height={50}

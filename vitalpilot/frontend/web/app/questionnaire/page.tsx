@@ -35,8 +35,17 @@ const Questionnaire = () => {
   };
 
   const [step, setStep] = useState<number>(1);
-  const [selected, setSelected] = useState<boolean>(false);
+  const [selectedVitals, setSelectedVitals] = useState<string[]>([]);
 
+  const toggleVital = (vital: string) => {
+    setSelectedVitals((prev) =>
+      prev.includes(vital)
+        ? prev.filter((item) => item !== vital)
+        : [...prev, vital],
+    );
+  };
+
+  const isVitalSelected = (vital: string) => selectedVitals.includes(vital);
   const nextStep = async () => {
     let isValid = false;
 
@@ -65,50 +74,24 @@ const Questionnaire = () => {
     setStep((prev) => Math.max(prev - 1, 1));
   };
 
-  const selectedItems = () => {
-    if (selected === false) {
-      setSelected(true);
-    } else {
-      setSelected(false);
-    }
-  };
 
   return (
     <div className="relative flex flex-col items-center h-screen bg-linear-to-br from-[#f7fffc] via-white to-[#dff8ef]">
-   
       <div className="flex-center gap-5 pt-7 border-b border-ai w-full pb-5 z-10 bg-white">
-        
         <div className="flex gap-2">
-          <div className="w-[50px] h-[7px] rounded-2xl bg-main" />
-
-          <div
-            className={`w-[50px] h-[7px] rounded-2xl ${
-              step >= 2 ? "bg-main" : "bg-ai"
-            }`}
-          />
-
-          <div
-            className={`w-[50px] h-[7px] rounded-2xl ${
-              step >= 3 ? "bg-main" : "bg-ai"
-            }`}
-          />
-
-          <div
-            className={`w-[50px] h-[7px] rounded-2xl ${
-              step >= 4 ? "bg-main" : "bg-ai"
-            }`}
-          />
-
-          <div
-            className={`w-[50px] h-[7px] rounded-2xl ${
-              step >= 5 ? "bg-main" : "bg-ai"
-            }`}
-          />
+          {[1, 2, 3, 4, 5].map((item) => (
+            <div
+              key={item}
+              className={`w-[48px] h-[6px] rounded-full transition-all duration-300 ${
+                step >= item ? "bg-main" : "bg-ai/40"
+              }`}
+            />
+          ))}
         </div>
 
         <a href="/" className="drop-shadow-lg">
           <Image
-            src="/assets/logo_green1.png"
+            src="/assets/logo_green.png"
             alt="VitalPilot"
             width={30}
             height={30}
@@ -116,7 +99,7 @@ const Questionnaire = () => {
         </a>
       </div>
       <div
-        className="min-w-[700] min-h-[600] max-h-[600] shadow-[5px_5px_10px,-5px_-5px_10px] shadow-ai/50 rounded-2xl mt-7 
+        className="min-w-[700] min-h-[600] max-h-[600] shadow-[5px_5px_10px,-5px_-5px_10px] shadow-ai/50 rounded-2xl mt-7
         overflow-y-auto
         [&::-webkit-scrollbar]:w-[6px]
         [&::-webkit-scrollbar-track]:bg-transparent
@@ -125,7 +108,6 @@ const Questionnaire = () => {
         [&::-webkit-scrollbar-thumb:hover]:bg-main/60
         [&::-webkit-scrollbar-button]:hidden bg-white"
       >
-        
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col ">
           {step === 1 && (
             <div className="flex flex-col py-10 px-10">
@@ -385,10 +367,10 @@ const Questionnaire = () => {
                 </h3>
                 <div className="flex flex-wrap gap-x-7 gap-y-3 w-[600px] m-x-auto mb-5 ">
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("blood_glucose")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("blood_glucose")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -402,15 +384,15 @@ const Questionnaire = () => {
                       className="w-[100] h-[100] drop-shadow-2xl"
                     />
                     <p className="text-title font-semibold">Blood glucose</p>
-                    {selected && (
+                    {isVitalSelected("blood_glucose") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("blood_oxygen")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("blood_oxygen")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -424,15 +406,15 @@ const Questionnaire = () => {
                       className="w-[60] h-[60] drop-shadow-2xl mt-4 mb-6"
                     />
                     <p className="text-title font-semibold">Blood oxygen</p>
-                    {selected && (
+                    {isVitalSelected("blood_oxygen") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("chronic_obesity")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("chronic_obesity")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -446,15 +428,15 @@ const Questionnaire = () => {
                       className="w-[100] h-[100] drop-shadow-2xl"
                     />
                     <p className="text-title font-semibold">Chronic obesity</p>
-                    {selected && (
+                    {isVitalSelected("chronic_obesity") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("blood_pressure")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("blood_pressure")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -468,15 +450,15 @@ const Questionnaire = () => {
                       className="w-[100] h-[100] drop-shadow-2xl"
                     />
                     <p className="text-title font-semibold">Blood pressure</p>
-                    {selected && (
+                    {isVitalSelected("blood_pressure") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("peak_flow_rate")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 pt-6 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("peak_flow_rate")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -490,15 +472,15 @@ const Questionnaire = () => {
                       className="w-[70] h-[50] drop-shadow-2xl mb-6"
                     />
                     <p className="text-title font-semibold">Peak flow rate</p>
-                    {selected && (
+                    {isVitalSelected("peak_flow_rate") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("physical_activity")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("physical_activity")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -514,15 +496,15 @@ const Questionnaire = () => {
                     <p className="text-title font-semibold">
                       Physical activity
                     </p>
-                    {selected && (
+                    {isVitalSelected("physical_activity") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("water_intake")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("water_intake")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -536,15 +518,15 @@ const Questionnaire = () => {
                       className="w-[100] h-[100] drop-shadow-2xl"
                     />
                     <p className="text-title font-semibold">Water intake</p>
-                    {selected && (
+                    {isVitalSelected("water_intake") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
                   <div
-                    onClick={selectedItems}
+                    onClick={() => toggleVital("sleep_duration")}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
                     ${
-                      selected
+                      isVitalSelected("sleep_duration")
                         ? "border-main bg-main/10"
                         : "border-ai hover:bg-ai/50"
                     }
@@ -558,7 +540,7 @@ const Questionnaire = () => {
                       className="w-[100] h-[100] drop-shadow-2xl"
                     />
                     <p className="text-title font-semibold">Sleep duration</p>
-                    {selected && (
+                    {isVitalSelected("sleep_duration") && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
                   </div>
