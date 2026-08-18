@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { FaArrowUp } from "react-icons/fa6";
 import { IoChatboxEllipsesOutline } from "react-icons/io5";
 import { VscLayoutSidebarRightDock } from "react-icons/vsc";
@@ -26,19 +27,19 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="relative flex h-screen">
-      <div className="bg-amber-300">
+    <div className="flex  h-screen">
+      <div className="w-[200]">
         <div className="">
           <IoChatboxEllipsesOutline className="" /> New chat
         </div>
       </div>
-      <div>
-        <button className="absolute top-10 -translate-y-1/2">
+      <div className="bg-amber-200 flex flex-1 items-center justify-between flex-col h-full ">
+        {/* <button className="absolute top-10 -translate-y-1/2">
           <VscLayoutSidebarRightDock className="" />
-        </button>
-        <a
-          href=""
-          className=" absolute drop-shadow-lg left-1/2 -translate-x-1/2 top-10 -translate-y-1/2"
+        </button> */}
+        <Link
+          href="/"
+          className="drop-shadow-lg mt-10 "
         >
           <Image
             src="/assets/logo_green1.png"
@@ -46,8 +47,10 @@ const Chatbot = () => {
             width={50}
             height={50}
           />
-        </a>
-        <div className="absolute drop-shadow-lg left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[820]">
+        </Link>
+        <div 
+        className=" drop-shadow-lg"
+        >
           <h2 className="font-medium font-[georgia]">Hello, Username</h2>
           <h4 className="font-semibold text-gray-600">
             I'm Pilot AI How can I help you today with your health today?
@@ -84,11 +87,8 @@ const Chatbot = () => {
         {/* CHAT INPUT */}
         <div
           className="
-          absolute
-          bottom-10
-          left-1/2
+          mb-10
           w-[800px]
-          -translate-x-1/2
         "
         >
           <div
