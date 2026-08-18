@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 const Hero = () => {
@@ -50,16 +51,16 @@ const Hero = () => {
         </AnimatePresence>
 
         <div className="btn flex-center gap-5 drop-shadow-lg ">
-          <a
+          <Link
             className="rounded-full px-6 py-2 text-[18px] text-white bg-main border-2 border-main hover:bg-secondary hover:border-secondary"
-            href=""
+            href="/signup"
           >
             Get Started
-          </a>
+          </Link>
           <a
             className=" rounded-full px-6 py-2 text-[18px] text-white bg-transparent border-2 border-white
               hover:bg-white hover:text-main "
-            href=""
+            href="#faq"
           >
             Learn More
           </a>

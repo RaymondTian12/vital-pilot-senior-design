@@ -74,8 +74,10 @@ const Questionnaire = () => {
   };
 
   return (
-    <div className="flex flex-col items-center h-screen ">
-      <div className="flex-center gap-5 mt-7 border-b border-ai w-full pb-5">
+    <div className="relative flex flex-col items-center h-screen bg-linear-to-br from-[#f7fffc] via-white to-[#dff8ef]">
+   
+      <div className="flex-center gap-5 pt-7 border-b border-ai w-full pb-5 z-10 bg-white">
+        
         <div className="flex gap-2">
           <div className="w-[50px] h-[7px] rounded-2xl bg-main" />
 
@@ -121,9 +123,10 @@ const Questionnaire = () => {
         [&::-webkit-scrollbar-thumb]:bg-main/30
         [&::-webkit-scrollbar-thumb]:rounded-full
         [&::-webkit-scrollbar-thumb:hover]:bg-main/60
-        [&::-webkit-scrollbar-button]:hidden"
+        [&::-webkit-scrollbar-button]:hidden bg-white"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
+        
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col ">
           {step === 1 && (
             <div className="flex flex-col py-10 px-10">
               <h3 className="font-semibold mb-10">

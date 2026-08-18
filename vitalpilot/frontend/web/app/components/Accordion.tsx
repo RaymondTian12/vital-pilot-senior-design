@@ -17,7 +17,7 @@ const Accordion = () => {
   };
 
   return (
-    <section className="flex-center mx-auto h-160 py-12 bg-[linear-gradient(180deg,rgba(0,0,0,0)_60%,rgba(205,231,127,0.7)_100%)]">
+    <section className="flex-center mx-auto h-160 py-12 bg-[linear-gradient(180deg,rgba(0,0,0,0)_60%,rgba(205,231,127,0.7)_100%)]" id="faq">
       <div className="flex justify-center w-[70%]">
         <h2 className="leading-none font-medium basis-2/5 ">
           Why{" "}

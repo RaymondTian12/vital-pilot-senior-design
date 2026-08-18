@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { PiSignInBold } from "react-icons/pi";
+import Link from "next/link";
 
 const Navbar = () => {
   const [navbar, setNavbar] = useState<boolean>(false);
@@ -41,10 +42,10 @@ const Navbar = () => {
       </a>
       <ul className="gap-6 flex items-center">
         <li>
-          <a
+          <Link
             className="bg-ai px-3 py-1 text-[16px] rounded-full font-bold drop-shadow-md
             font-quicksand flex-center gap-1 hover:text-black hover:bg-[#dce6fd]"
-            href=""
+            href="/chatbot"
           >
             <Image
               src="/assets/ai_black.png"
@@ -53,7 +54,7 @@ const Navbar = () => {
               alt="ai-logo"
             />
             PILOT AI
-          </a>
+          </Link>
         </li>
         <li>
           <a href="">Doctors</a>
@@ -62,23 +63,23 @@ const Navbar = () => {
           <a href="">Dashboard</a>
         </li>
         <li>
-          <a href="">Download App</a>
+          <a href="#download-app">Download App</a>
         </li>
       </ul>
       <div className="w-70 h-full flex-center gap-3">
         <button>
-          <a className="flex-center gap-1 font-semibold" href="">
+          <Link className="flex-center gap-1 font-semibold" href="/signin">
             <PiSignInBold />
             Sign in
-          </a>
+          </Link>
         </button>
         <button>
-          <a
+          <Link
             className="text-white px-5 py-2 bg-main rounded-[10px] hover:bg-secondary font-semibold"
-            href=""
+            href="/signup"
           >
             Get Started
-          </a>
+          </Link>
         </button>
       </div>
     </section>

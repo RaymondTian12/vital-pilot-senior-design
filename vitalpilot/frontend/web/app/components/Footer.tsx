@@ -1,6 +1,7 @@
 import React from "react";
 import { IoIosCheckmarkCircle } from "react-icons/io";
 import Image from "next/image";
+import Link from "next/link";
 const Footer = () => {
   let currentYear = new Date().getFullYear();
   return (
@@ -45,12 +46,12 @@ const Footer = () => {
           <h4 className="text-third">Website</h4>
           <ul>
             <li>
-              <a href="#" className="text-white hover:underline">
+              <a href="/" className="text-white hover:underline">
                 Home
               </a>
             </li>
             <li>
-              <a href="#" className="text-white hover:underline">
+              <a href="#description" className="text-white hover:underline">
                 Description
               </a>
             </li>
@@ -61,9 +62,9 @@ const Footer = () => {
           <h4 className="text-third">Resources</h4>
           <ul>
             <li>
-              <a href="#" className="text-white hover:underline">
+              <Link href="/chatbot" className="text-white hover:underline">
                 Pilot AI
-              </a>
+              </Link>
             </li>
             <li>
               <a href="#" className="text-white hover:underline">

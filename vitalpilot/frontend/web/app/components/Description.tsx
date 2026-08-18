@@ -7,7 +7,7 @@ import DescriptionChatbot from "./DescriptionComponent/DescriptionChatbot";
 
 const Description = () => {
   return (
-    <section className="w-[80%]  mx-auto pt-10 mb-10">
+    <section className="w-[80%]  mx-auto pt-10 mb-10" id="description"> 
       
       <DescriptionChatbot />
       <DescriptionDashboard />
