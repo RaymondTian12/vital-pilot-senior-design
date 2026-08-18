@@ -42,7 +42,7 @@ const DescriptionDashboard = () => {
             duration: 0.8,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="absolute top-[100px] left-[80px] z-0"
+          className="absolute top-[100px] left-[70px] z-0"
         >
           <Image
             src="/assets/man_running.png"
@@ -69,7 +69,7 @@ const DescriptionDashboard = () => {
             duration: 0.8,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="absolute top-[10px] left-[40px] z-0 bg-third/70 font-bold py-2 px-4 rounded-full"
+          className="absolute top-[10px] left-[10px] z-0 bg-third/70 font-bold py-2 px-4 rounded-full"
         >
           Track your movement
         </motion.div>
@@ -148,7 +148,7 @@ const DescriptionDashboard = () => {
             duration: 0.8,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="absolute top-[100px] right-[80px] -z-10"
+          className="absolute top-[100px] right-[70px] -z-10"
         >
           <Image
             src="/assets/watch.png"

@@ -113,7 +113,7 @@ const Questionnaire = () => {
           />
         </a>
       </div>
-      <div className="min-w-[700] min-h-[600] shadow-[5px_5px_10px,-5px_-5px_10px] shadow-ai/50 rounded-2xl mt-7">
+      <div className="min-w-[700] min-h-[600] max-h-[600] shadow-[5px_5px_10px,-5px_-5px_10px] shadow-ai/50 rounded-2xl mt-7 overflow-auto">
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
           {step === 1 && (
             <div className="flex flex-col py-10 px-10">
@@ -371,31 +371,201 @@ const Questionnaire = () => {
                 <h3 className="font-semibold mb-10">
                   What kinds of vitals are you interested in?
                 </h3>
-                <div>
-                  <div className="relative flex flex-col w-[180] h-[130] rounded-2xl border-2 border-ai pt-2 pl-5 cursor-pointer hover:bg-ai/50">
+                <div className="flex flex-wrap gap-x-7 gap-y-3 w-[600px] m-x-auto">
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
+                    <Image
+                      src="/assets/blood_glucose_questionnaire1.png"
+                      alt=""
+                      width={1000}
+                      height={1000}
+                      className="w-[100] h-[100] drop-shadow-2xl"
+                    />
+                    <p className="text-title font-semibold">Blood glucose</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
+                  </div>
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
+                    <Image
+                      src="/assets/blood_oxygen_questionnaire.png"
+                      alt=""
+                      width={1000}
+                      height={1000}
+                      className="w-[100] h-[100] drop-shadow-2xl"
+                    />
+                    <p className="text-title font-semibold">Blood oxygen</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
+                  </div>
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
                     <Image
                       src="/assets/chronic_obesity_questionnaire.png"
                       alt=""
                       width={1000}
                       height={1000}
-                      className="w-[80] h-[80] drop-shadow-2xl"
+                      className="w-[100] h-[100] drop-shadow-2xl"
                     />
-                    <p className="text-main font-medium">Chronic obesity</p>
-                    <span
-                      className="absolute bg-main"
-                      onClick={() => selectedItems()}
-                    >
-                      {selected}
-                    </span>
+                    <p className="text-title font-semibold">Chronic obesity</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
+                  </div>
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
+                    <Image
+                      src="/assets/hypertension_questionnaire.png"
+                      alt=""
+                      width={1000}
+                      height={1000}
+                      className="w-[100] h-[100] drop-shadow-2xl"
+                    />
+                    <p className="text-title font-semibold">Blood pressure</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
+                  </div>
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 pt-6 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
+                    <Image
+                      src="/assets/peak_flow_rate.png"
+                      alt=""
+                      width={1000}
+                      height={1000}
+                      className="w-[70] h-[50] drop-shadow-2xl mb-5"
+                    />
+                    <p className="text-title font-semibold">Peak flow rate</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
+                  </div>
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
+                    <Image
+                      src="/assets/physical_activity_questionnaire.png"
+                      alt=""
+                      width={1000}
+                      height={1000}
+                      className="w-[100] h-[100] drop-shadow-2xl"
+                    />
+                    <p className="text-title font-semibold">Physical activity</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
+                  </div>
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
+                    <Image
+                      src="/assets/water_intake_questionnaire.png"
+                      alt=""
+                      width={1000}
+                      height={1000}
+                      className="w-[100] h-[100] drop-shadow-2xl"
+                    />
+                    <p className="text-title font-semibold">Water intake</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
+                  </div>
+                  <div
+                    onClick={selectedItems}
+                    className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
+                    ${
+                      selected
+                        ? "border-main bg-main/10"
+                        : "border-ai hover:bg-ai/50"
+                    }
+                  `}
+                  >
+                    <Image
+                      src="/assets/sleep_duration_questionnaire.png"
+                      alt=""
+                      width={1000}
+                      height={1000}
+                      className="w-[100] h-[100] drop-shadow-2xl"
+                    />
+                    <p className="text-title font-semibold">Sleep duration</p>
+                    {selected && (
+                      <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
+                    )}
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="h-[40] rounded-full bg-amber-200 hover:bg-amber-300 cursor-pointer mt-5 font-semibold transition duration-300"
-                >
-                  {isSubmitting ? "Sending" : "Complete"}
-                </button>
+                <div className="flex flex-col gap-3 mt-5">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-[40px] rounded-full bg-amber-200 hover:bg-amber-300 cursor-pointer font-semibold transition duration-300"
+                  >
+                    {isSubmitting ? "Submitting..." : "Complete"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={previousStep}
+                    className="w-full h-[40px] rounded-full border-2 border-ai hover:bg-ai cursor-pointer font-semibold transition duration-300"
+                  >
+                    Back
+                  </button>
+                </div>
               </div>
             </div>
           )}

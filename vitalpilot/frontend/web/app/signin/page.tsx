@@ -38,10 +38,10 @@ const Signin = () => {
         className=" absolute drop-shadow-lg left-[80] -translate-x-1/2 top-10 -translate-y-1/2"
       >
         <Image
-          src="/assets/logo_black.png"
+          src="/assets/logo_green.png"
           alt="Vitalpilot"
-          width={85}
-          height={85}
+          width={50}
+          height={50}
         />
       </a>
       <div className="absolute w-[400] h-[100] bg-linear-to-r from-main from-25% to-third to-50% left-1/2 -translate-x-1/2 top-20 -translate-y-1/2 -z-10 blur-[100px]" />
@@ -91,7 +91,7 @@ const Signin = () => {
 
           <button
             type="submit"
-            className="w-full h-[60] pl-5 rounded-lg bg-main my-5 cursor-pointer font-semibold"
+            className="w-full h-[60] pl-5 rounded-lg bg-main hover:bg-secondary my-5 cursor-pointer font-semibold transition duration-300"
             disabled={isSubmitting}
           >
             <p className="text-white">

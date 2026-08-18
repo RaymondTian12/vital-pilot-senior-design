@@ -11,9 +11,9 @@ const DescriptionDoctor = () => {
           alt=""
           width={1489}
           height={1056}
-          className="absolute left-20 top-20  w-120 h-100 rounded-2xl shadow-[1px_1px_10px] shadow-black ml-15"
+          className="absolute left-10 top-20  w-120 h-100 rounded-2xl shadow-[1px_1px_10px] shadow-black ml-15"
         />
-        <div className="absolute left-20 top-50 w-60 h-90 bg-ai rounded-2xl z-20 shadow-[-4px_10px_20px] shadow-fourth">
+        <div className="absolute left-10 top-50 w-60 h-90 bg-ai rounded-2xl z-20 shadow-[-4px_10px_20px] shadow-fourth">
           <Image
             src="/assets/doctor_profile.png"
             alt=""
