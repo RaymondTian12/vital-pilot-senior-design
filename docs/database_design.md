@@ -195,6 +195,32 @@ Stores static, institutional health guidelines. This table uses a single row per
 | `file_size_kb` | `INT` | `NOT NULL` | File size in kilobytes for payload validation |
 | `created_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the report was compiled and persisted |
 
+### Badges
+
+*Stores system-wide milestone and gamification badge definitions, unlock criteria, and visual asset references.*
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `badge_id` | `VARCHAR(50)` | `PRIMARY KEY` | Unique programmatic identifier (e.g., `BADGE-STREAK-07`, `BADGE-STREAK-30`) |
+| `badge_name` | `VARCHAR(100)` | `NOT NULL` | User-facing title (e.g., '7-Day Consistency', '30-Day Sentinel') |
+| `description` | `TEXT` | `NOT NULL` | Description of milestone requirements and health significance |
+| `category` | `VARCHAR(50)` | `NOT NULL` | Category tag (e.g., 'STREAK', 'LIFESTYLE', 'MILESTONE') |
+| `icon_url` | `VARCHAR(255)` | `NULL` | Static path or URI to the badge graphic asset |
+| `created_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the badge definition was added |
+
+---
+
+### UserBadges
+
+*Records milestone achievements awarded to individual user health profiles upon meeting streak and behavioral criteria.*
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `user_badge_id` | `SERIAL` | `PRIMARY KEY` | Unique internal identifier for the awarded badge instance |
+| `profile_id` | `INT` | `FOREIGN KEY, NOT NULL` | References `UserHealthProfiles.profile_id` (`ON DELETE CASCADE`) |
+| `badge_id` | `VARCHAR(50)` | `FOREIGN KEY, NOT NULL` | References `Badges.badge_id` (`ON DELETE CASCADE`) |
+| `awarded_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Timestamp when the user achieved the milestone |
+
 ## 3. Design Logic & Architectural Decisions
 ### `Users`
 * **Purpose:** Stores a user's credentials and authentication data required for system access.
@@ -253,3 +279,7 @@ Stores static, institutional health guidelines. This table uses a single row per
 ### `ClinicalReports`
 * **Purpose:** Manages metadata, temporal scope parameters, and external object storage references for generated clinical summary reports exported by patients or reviewed by authorized providers.
 * **Design Decision:** In accordance with high-performance relational database design and HIPAA data partitioning standards, the database does not store raw binary PDF files. Instead, the PDF documents are compiled and stored in an isolated, secure object storage bucket, while this relation persists only the structured metadata, date boundaries, and file path pointers (`file_url`). This prevents database bloat, maintains fast query performance, and allows the platform to generate time-limited, signed URLs for secure document downloading.
+
+### `Badges` & `UserBadges`
+* **Purpose:** Implements behavioral gamification tracking and milestone rewards based on continuous logging streaks evaluated by the temporal analytics engine.
+* **Design Decision:** Milestone definitions are maintained in a standalone reference relation (`Badges`) keyed by standard semantic string identifiers (e.g., `BADGE-STREAK-07`) matching backend evaluation rules. A dedicated junction table (`UserBadges`) records user unlocks, enforcing a unique compound constraint `(profile_id, badge_id)` to prevent redundant badge awards while maintaining an immutable historical audit of user milestone achievements. In strict accordance with Safety Requirement 6.3 and SRS 3.14.3, gamification is confined exclusively to behavioral consistency metrics and strictly decoupled from clinical diagnoses or emergency alert states.
