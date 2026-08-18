@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { FaArrowUp } from "react-icons/fa6";
 import { IoChatboxEllipsesOutline } from "react-icons/io5";
+import { RiChatNewLine } from "react-icons/ri";
+
 import { VscLayoutSidebarRightDock } from "react-icons/vsc";
 import { VscLayoutSidebarLeftDock } from "react-icons/vsc";
 
@@ -27,20 +29,72 @@ const Chatbot = () => {
   };
 
   return (
-    <div className="flex  h-screen">
-      <div className="w-[200]">
+    <div className="flex h-screen">
+      <div
+        className={`flex flex-col justify-between border-r border-r-ai  ${clicked ? "w-[70px] px-3 py-5" : "w-[250px] px-5"}`}
+      >
         <div className="">
-          <IoChatboxEllipsesOutline className="" /> New chat
+          <div className="flex items-center justify-between mb-20">
+            <Link href="/">
+              {!clicked && (
+                <Image
+                  src="/assets/logo_hero.png"
+                  alt="Vitalpilot"
+                  width={120}
+                  height={120}
+                  className="-translate-x-5"
+                />
+              )}
+            </Link>{" "}
+            <button onClick={() => setClicked((prev) => !prev)}>
+              {clicked ? (
+                <VscLayoutSidebarRightDock className="text-[20px] text-gray-400 cursor-pointer transition duration-300 -translate-x-3" />
+              ) : (
+                <VscLayoutSidebarLeftDock className="text-[20px] text-gray-400 cursor-pointer transition duration-300" />
+              )}
+            </button>
+          </div>
+          <button className="flex gap-x-2 items-center font-semibold mb-3 hover:bg-fourth rounded-lg py-1 px-3 w-full cursor-pointer">
+            <RiChatNewLine className="" /> {!clicked && <span>New chat</span>}
+          </button>
+          <button className="flex gap-x-2 pl-3 items-center font-semibold">
+            <IoChatboxEllipsesOutline className="" />{" "}
+            {!clicked && <span>Recent chats</span>}
+          </button>
+        </div>
+        <div
+          className={`${clicked ? "invisible" : "mb-15 w-full mx-auto flex justify-center flex-col p-5 rounded-2xl bg-fourth/50"} `}
+        >
+          <Image
+            src="/assets/secure_logo.png"
+            alt=""
+            width={1312}
+            height={1199}
+            className="w-[80] h-[80] self-center"
+          />
+          <h4 className="font-bold mb-2 text-center">Your data is safe</h4>
+          <p className="font-semibold text-[14px]">
+            We use end-to-end encryption to keep your health data private and
+            secure
+          </p>
         </div>
       </div>
-      <div className="bg-amber-200 flex flex-1 items-center justify-between flex-col h-full ">
-        {/* <button className="absolute top-10 -translate-y-1/2">
-          <VscLayoutSidebarRightDock className="" />
-        </button> */}
-        <Link
-          href="/"
-          className="drop-shadow-lg mt-10 "
-        >
+      <div className="relative flex flex-1 items-center justify-between flex-col h-full ">
+        {/* background glow */}
+        <div
+          className="
+          absolute
+          bottom-5
+          left-1/2
+          h-10
+          w-[95%]
+          -translate-x-1/2
+          bg-main
+          blur-[100px]
+          -z-10
+        "
+        />
+        <Link href="/" className="drop-shadow-lg mt-10 ">
           <Image
             src="/assets/logo_green1.png"
             alt="Vitalpilot"
@@ -48,9 +102,7 @@ const Chatbot = () => {
             height={50}
           />
         </Link>
-        <div 
-        className=" drop-shadow-lg"
-        >
+        <div className=" drop-shadow-lg">
           <h2 className="font-medium font-[georgia]">Hello, Username</h2>
           <h4 className="font-semibold text-gray-600">
             I'm Pilot AI How can I help you today with your health today?
@@ -70,19 +122,6 @@ const Chatbot = () => {
             </button>
           </div>
         </div>
-        {/* background glow */}
-        <div
-          className="
-          absolute
-          bottom-5
-          left-1/2
-          h-10
-          w-full
-          -translate-x-1/2
-          bg-main
-          blur-[100px]
-        "
-        />
 
         {/* CHAT INPUT */}
         <div
