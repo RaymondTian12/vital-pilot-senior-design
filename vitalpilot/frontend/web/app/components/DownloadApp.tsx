@@ -2,9 +2,11 @@ import React from "react";
 import Image from "next/image";
 const DownloadApp = () => {
   return (
-    <section className="bg-third h-[600] text-white flex rounded-4xl mt-10" id="download-app">
+    <section
+      className="bg-third h-[600] text-white flex rounded-4xl mt-10 overflow-hidden"
+      id="download-app"
+    >
       <div className="w-[80%] mx-auto flex-center">
-
         <div className="basis-1/2">
           <h1 className="text-white leading-none font-semibold drop-shadow-lg">
             Take VitalPilot with you
@@ -40,7 +42,7 @@ const DownloadApp = () => {
           </div>
         </div>
 
-        <div className="relative basis-1/2 h-full drop-shadow-2xl flex-center scale-110">
+        <div className="relative basis-1/2 h-full drop-shadow-2xl  flex-center scale-110">
           <Image
             className="absolute left-15 top-3 mask-b-from-60%"
             src="/assets/iphone_download.png"
