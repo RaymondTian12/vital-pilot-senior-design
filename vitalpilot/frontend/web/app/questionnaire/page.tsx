@@ -113,7 +113,16 @@ const Questionnaire = () => {
           />
         </a>
       </div>
-      <div className="min-w-[700] min-h-[600] max-h-[600] shadow-[5px_5px_10px,-5px_-5px_10px] shadow-ai/50 rounded-2xl mt-7 overflow-auto">
+      <div
+        className="min-w-[700] min-h-[600] max-h-[600] shadow-[5px_5px_10px,-5px_-5px_10px] shadow-ai/50 rounded-2xl mt-7 
+        overflow-y-auto
+        [&::-webkit-scrollbar]:w-[6px]
+        [&::-webkit-scrollbar-track]:bg-transparent
+        [&::-webkit-scrollbar-thumb]:bg-main/30
+        [&::-webkit-scrollbar-thumb]:rounded-full
+        [&::-webkit-scrollbar-thumb:hover]:bg-main/60
+        [&::-webkit-scrollbar-button]:hidden"
+      >
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
           {step === 1 && (
             <div className="flex flex-col py-10 px-10">
@@ -371,7 +380,7 @@ const Questionnaire = () => {
                 <h3 className="font-semibold mb-10">
                   What kinds of vitals are you interested in?
                 </h3>
-                <div className="flex flex-wrap gap-x-7 gap-y-3 w-[600px] m-x-auto">
+                <div className="flex flex-wrap gap-x-7 gap-y-3 w-[600px] m-x-auto mb-5 ">
                   <div
                     onClick={selectedItems}
                     className={`relative flex flex-col w-[180px] h-[140px] rounded-3xl border-2 pl-5 cursor-pointer transition
@@ -405,11 +414,11 @@ const Questionnaire = () => {
                   `}
                   >
                     <Image
-                      src="/assets/blood_oxygen_questionnaire.png"
+                      src="/assets/blood_oxygen_questionnaire1.png"
                       alt=""
                       width={1000}
                       height={1000}
-                      className="w-[100] h-[100] drop-shadow-2xl"
+                      className="w-[60] h-[60] drop-shadow-2xl mt-4 mb-6"
                     />
                     <p className="text-title font-semibold">Blood oxygen</p>
                     {selected && (
@@ -475,7 +484,7 @@ const Questionnaire = () => {
                       alt=""
                       width={1000}
                       height={1000}
-                      className="w-[70] h-[50] drop-shadow-2xl mb-5"
+                      className="w-[70] h-[50] drop-shadow-2xl mb-6"
                     />
                     <p className="text-title font-semibold">Peak flow rate</p>
                     {selected && (
@@ -499,7 +508,9 @@ const Questionnaire = () => {
                       height={1000}
                       className="w-[100] h-[100] drop-shadow-2xl"
                     />
-                    <p className="text-title font-semibold">Physical activity</p>
+                    <p className="text-title font-semibold">
+                      Physical activity
+                    </p>
                     {selected && (
                       <FaCircleCheck className="absolute top-3 right-3 text-main text-xl" />
                     )}
