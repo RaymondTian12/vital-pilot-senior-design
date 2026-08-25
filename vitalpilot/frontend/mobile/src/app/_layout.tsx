@@ -31,6 +31,7 @@ export default function RootLayout() {
         <Stack.Screen name="signup" />
         <Stack.Screen name="questionnaire" />
         <Stack.Screen name="doctors" />
+        <Stack.Screen name="change-password" />
         <Stack.Screen name="(tabs)" />
       </Stack>
     </ThemeProvider>

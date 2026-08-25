@@ -1,108 +1,209 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
-import Animated, { Keyframe, Easing } from 'react-native-reanimated';
+import { useEffect, useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import classes from './animated-icon.module.css';
-const DURATION = 300;
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 export function AnimatedSplashOverlay() {
-  return null;
+  const [visible, setVisible] = useState(true);
+
+  const logoScale = useSharedValue(0.72);
+  const logoOpacity = useSharedValue(0);
+  const wordmarkOpacity = useSharedValue(0);
+  const overlayOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    logoOpacity.value = withTiming(1, {
+      duration: 350,
+      easing: Easing.out(Easing.cubic),
+    });
+
+    logoScale.value = withSequence(
+      withTiming(1.08, {
+        duration: 520,
+        easing: Easing.out(Easing.cubic),
+      }),
+      withTiming(1, {
+        duration: 170,
+        easing: Easing.out(Easing.ease),
+      })
+    );
+
+    wordmarkOpacity.value = withDelay(
+      350,
+      withTiming(1, {
+        duration: 350,
+      })
+    );
+
+    logoScale.value = withDelay(
+      1050,
+      withTiming(1.55, {
+        duration: 420,
+        easing: Easing.inOut(Easing.cubic),
+      })
+    );
+
+    overlayOpacity.value = withDelay(
+      1180,
+      withTiming(
+        0,
+        {
+          duration: 360,
+        },
+        (finished) => {
+          if (finished) {
+            runOnJS(setVisible)(false);
+          }
+        }
+      )
+    );
+  }, [
+    logoOpacity,
+    logoScale,
+    overlayOpacity,
+    wordmarkOpacity,
+  ]);
+
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [
+      {
+        scale: logoScale.value,
+      },
+    ],
+  }));
+
+  const wordmarkStyle = useAnimatedStyle(() => ({
+    opacity: wordmarkOpacity.value,
+  }));
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+  }));
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.overlay,
+        overlayStyle,
+      ]}
+    >
+      <View style={styles.center}>
+        <Animated.View
+          style={[
+            styles.logoWrapper,
+            logoStyle,
+          ]}
+        >
+          <Image
+            source={require('../../assets/images/vitalpilot/logo_green.png')}
+            style={styles.logo}
+            contentFit="contain"
+          />
+        </Animated.View>
+
+        <Animated.View style={wordmarkStyle}>
+          <Text style={styles.wordmark}>
+            VitalPilot
+          </Text>
+
+          <Text style={styles.tagline}>
+            Your health, clearly in view.
+          </Text>
+        </Animated.View>
+      </View>
+    </Animated.View>
+  );
 }
-
-const keyframe = new Keyframe({
-  0: {
-    transform: [{ scale: 0 }],
-  },
-  60: {
-    transform: [{ scale: 1.2 }],
-    easing: Easing.elastic(1.2),
-  },
-  100: {
-    transform: [{ scale: 1 }],
-    easing: Easing.elastic(1.2),
-  },
-});
-
-const logoKeyframe = new Keyframe({
-  0: {
-    opacity: 0,
-  },
-  60: {
-    transform: [{ scale: 1.2 }],
-    opacity: 0,
-    easing: Easing.elastic(1.2),
-  },
-  100: {
-    transform: [{ scale: 1 }],
-    opacity: 1,
-    easing: Easing.elastic(1.2),
-  },
-});
-
-const glowKeyframe = new Keyframe({
-  0: {
-    transform: [{ rotateZ: '-180deg' }, { scale: 0.8 }],
-    opacity: 0,
-  },
-  [DURATION / 1000]: {
-    transform: [{ rotateZ: '0deg' }, { scale: 1 }],
-    opacity: 1,
-    easing: Easing.elastic(0.7),
-  },
-  100: {
-    transform: [{ rotateZ: '7200deg' }],
-  },
-});
 
 export function AnimatedIcon() {
   return (
-    <View style={styles.iconContainer}>
-      <Animated.View entering={glowKeyframe.duration(60 * 1000 * 4)} style={styles.glow}>
-        <Image style={styles.glow} source={require('@/assets/images/logo-glow.png')} />
-      </Animated.View>
-
-      <Animated.View style={styles.background} entering={keyframe.duration(DURATION)}>
-        <div className={classes.expoLogoBackground} />
-      </Animated.View>
-
-      <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-        <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />
-      </Animated.View>
+    <View style={styles.staticIconWrap}>
+      <Image
+        source={require('../../assets/images/vitalpilot/logo_green.png')}
+        style={styles.staticIcon}
+        contentFit="contain"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+
+    backgroundColor: '#FFFFFF',
+
     alignItems: 'center',
+    justifyContent: 'center',
+
+    zIndex: 9999,
+  },
+
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  logoWrapper: {
+    width: 132,
+    height: 132,
+  },
+
+  logo: {
     width: '100%',
-    zIndex: 1000,
-    position: 'absolute',
-    top: 128 / 2 + 138,
+    height: '100%',
   },
-  imageContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+
+  wordmark: {
+    marginTop: 14,
+
+    color: '#101828',
+
+    fontSize: 28,
+    fontWeight: '900',
+
+    textAlign: 'center',
   },
-  glow: {
-    width: 201,
-    height: 201,
-    position: 'absolute',
+
+  tagline: {
+    marginTop: 5,
+
+    color: '#667085',
+
+    fontSize: 12,
+
+    textAlign: 'center',
   },
-  iconContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+
+  staticIconWrap: {
     width: 128,
     height: 128,
+
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  image: {
-    position: 'absolute',
-    width: 76,
-    height: 71,
-  },
-  background: {
-    width: 128,
-    height: 128,
-    position: 'absolute',
+
+  staticIcon: {
+    width: 86,
+    height: 86,
   },
 });
