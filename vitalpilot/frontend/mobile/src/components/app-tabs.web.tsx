@@ -1,115 +1,160 @@
+import { Link, Slot, usePathname } from 'expo-router';
 import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
-import { SymbolView } from 'expo-symbols';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import { ExternalLink } from './external-link';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
+import {
+  MaxContentWidth,
+  Spacing,
+} from '@/constants/theme';
+import { VitalPilotColors } from '@/constants/vitalpilot';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+const tabs = [
+  {
+    label: 'Home',
+    href: '/home',
+  },
+  {
+    label: 'Explore',
+    href: '/explore',
+  },
+  {
+    label: 'Log',
+    href: '/metrics',
+  },
+  {
+    label: 'Pilot AI',
+    href: '/chatbot',
+  },
+  {
+    label: 'Reports',
+    href: '/reports',
+  },
+  {
+    label: 'Profile',
+    href: '/profile',
+  },
+] as const;
 
 export default function AppTabs() {
-  return (
-    <Tabs>
-      <TabSlot style={{ height: '100%' }} />
-      <TabList asChild>
-        <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
-        </CustomTabList>
-      </TabList>
-    </Tabs>
-  );
-}
-
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
-  return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
-    </Pressable>
-  );
-}
-
-export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const pathname = usePathname();
 
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
-        </ThemedText>
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <Slot />
+      </View>
 
-        {props.children}
+      <View style={styles.tabBarWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabBar}
+        >
+          <Text style={styles.brand}>
+            VitalPilot
+          </Text>
 
-        <ExternalLink href="https://docs.expo.dev" asChild>
-          <Pressable style={styles.externalPressable}>
-            <ThemedText type="link">Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
-              size={12}
-            />
-          </Pressable>
-        </ExternalLink>
-      </ThemedView>
+          {tabs.map((tab) => {
+            const isActive =
+              pathname === tab.href;
+
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                asChild
+              >
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.tabButton,
+                    isActive &&
+                      styles.tabButtonActive,
+                    pressed &&
+                      styles.tabButtonPressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      isActive &&
+                        styles.tabTextActive,
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              </Link>
+            );
+          })}
+        </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#F7FBF9',
+  },
+
+  content: {
+    flex: 1,
+  },
+
+  tabBarWrapper: {
     width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
-  },
-  innerContainer: {
+    paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: VitalPilotColors.border,
+  },
+
+  tabBar: {
+    width: '100%',
     maxWidth: MaxContentWidth,
+    alignItems: 'center',
+    gap: Spacing.two,
   },
-  brandText: {
+
+  brand: {
     marginRight: 'auto',
+    color: VitalPilotColors.title,
+    fontSize: 16,
+    fontWeight: '800',
   },
-  pressed: {
+
+  tabButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 12,
+  },
+
+  tabButtonActive: {
+    backgroundColor:
+      VitalPilotColors.mintStrong,
+  },
+
+  tabButtonPressed: {
     opacity: 0.7,
   },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+
+  tabText: {
+    color: '#667085',
+    fontSize: 13,
+    fontWeight: '600',
   },
-  externalPressable: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
+
+  tabTextActive: {
+    color:
+      VitalPilotColors.primaryDark,
+    fontWeight: '800',
   },
 });
