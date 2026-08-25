@@ -1,31 +1,5 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Redirect } from 'expo-router';
 
 export default function IndexScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>
-        VitalPilot Router Test
-      </Text>
-    </View>
-  );
+  return <Redirect href="/welcome" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    minHeight: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-
-  text: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#000000',
-  },
-});
