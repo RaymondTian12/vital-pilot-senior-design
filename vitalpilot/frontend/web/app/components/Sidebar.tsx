@@ -66,7 +66,7 @@ const Sidebar = () => {
             <Link
               key={link.name}
               href={link.href}
-              className={`flex items-center gap-3 rounded-lg pl-3 py-3 mb-5 w-50 font-semibold ${active ? "bg-fourth/30 text-main" : "hover:bg-ai/50"}`}
+              className={`flex items-center gap-3 rounded-lg pl-3 py-3 mb-3 w-50 font-semibold ${active ? "bg-fourth/30 text-main" : "hover:bg-ai/50"}`}
             >
               {link.icon}
               {link.name}

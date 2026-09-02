@@ -3,6 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { IoNotificationsOutline } from "react-icons/io5";
 import { MdLockOutline } from "react-icons/md";
+import { IoChatboxEllipsesOutline } from "react-icons/io5";
+import { FaUserDoctor } from "react-icons/fa6";
+import { IoIosArrowForward } from "react-icons/io";
+
 
 const Dashboard = () => {
   return (
@@ -29,9 +33,9 @@ const Dashboard = () => {
       <div className="flex flex-col w-[90%] mx-auto gap-y-5 mb-10">
         <div className="vitals"></div>
         <div className="summary flex gap-x-5 ">
-          <div className="flex items-center justify-around basis-[65%] h-80 p-10 shadow-sm border border-ai rounded-xl bg-fourth/30">
+          <div className="flex items-center justify-around basis-[70%] h-80 p-10 shadow-sm border border-ai rounded-xl bg-fourth/30">
             <div className="flex flex-col w-[400] h-full">
-                <h4 className="font-bold text-lg flex items-center gap-2 mb-5">
+              <h4 className="font-bold text-lg flex items-center gap-2 mb-5">
                 <Image
                   src="/assets/ai_green.png"
                   width={240}
@@ -51,24 +55,47 @@ const Dashboard = () => {
               </p>
             </div>
             <div className="flex-center">
-              
               <Image
                 src="/assets/chatbot-img.png"
                 width={1199}
                 height={1312}
                 alt=""
-                className="w-55 h-65"
+                className="w-60 h-70"
               />
             </div>
           </div>
-          <div className="basis-[35%] h-80 bg-white shadow-sm border border-ai rounded-xl"></div>
+          <div className="basis-[30%] h-80 bg-white shadow-sm border border-ai rounded-xl py-5 px-5">
+            <h4 className="font-bold text-lg mb-3">Quick Actions</h4>
+            <div className="flex flex-col">
+              <Link
+                href="/chatbot"
+                className="flex justify-between items-center text-main font-bold bg-fourth/30 px-3 py-2 mb-2 rounded-lg "
+              >
+                <div>
+                  <IoChatboxEllipsesOutline className="inline mr-2" />
+                  Chat with Pilot AI
+                </div>
+              <IoIosArrowForward />
+              </Link>
+              <Link
+                href=""
+                className="flex justify-between items-center text-main font-bold bg-fourth/30 px-3 py-2 mb-2 rounded-lg "
+              >
+                <div>
+                  <FaUserDoctor className="inline mr-2" />
+                  Find a Doctor
+                </div>
+                <IoIosArrowForward />
+              </Link>
+            </div>
+            <h4 className="font-bold text-lg mb-3">Recent Alerts</h4>
+            <div className="bg-fourth/30 h-25 rounded-lg flex-center"></div>
+          </div>
         </div>
         <div className="h-80 bg-white shadow-sm border border-ai rounded-xl px-10 py-5">
           <div className="flex items-center justify-between">
             <h4 className="font-bold text-lg">Recommended Doctors For You</h4>
-            <button className=" text-main font-bold">
-              view all
-            </button>
+            <button className=" text-main font-bold">view all</button>
           </div>
         </div>
       </div>
