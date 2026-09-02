@@ -11,12 +11,8 @@
   /* --color-title: #1e2f23; */
   --color-title: #223f2b;
   --color-text: #333333;
-  /* --color-text: #4A5565; */
   --color-main: #19b788;
-  /* --color-main: #009999; */
   --color-secondary: #039387;
-  /* --color-third: #f8ffa1; */
-  /* --color-third: #E6F8B2; */
   --color-third: #CDE77F;
   --color-fourth: #c0f8e7;
   --color-footer: #0f5132;
@@ -29,13 +25,6 @@
   /* --spacing-section: 50px; */
 }
 
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: rgb(255, 255, 255);
-    --foreground: #ededed;
-
-  }
-} */
 
 body {
   font-family: var(--font-manrope);
