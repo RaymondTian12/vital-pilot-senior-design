@@ -13,9 +13,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { VitalButton } from '@/components/vitalpilot/button';
 import { VitalCard } from '@/components/vitalpilot/card';
+import { useNotifications } from '@/context/notification-context';
 import { BottomTabInset } from '@/constants/theme';
 import { VitalPilotColors } from '@/constants/vitalpilot';
 import { api } from '@/services/api';
+
+import type {
+  MetricEvaluation,
+} from '@/types/notification';
 
 type MetricType =
   | 'Blood Pressure'
@@ -38,45 +43,74 @@ type RecentMeasurement = {
   time: string;
 };
 
+type MetricSubmitResponse = {
+  success?: boolean;
+
+  measurement?: {
+    metric?: string;
+    value?: string;
+  };
+
+  evaluation?: MetricEvaluation;
+};
+
 const metricTypes: {
   name: MetricType;
   icon: string;
+  accent: string;
+  background: string;
 }[] = [
   {
     name: 'Blood Pressure',
     icon: '♥',
+    accent: '#2E7EEA',
+    background: '#EAF2FF',
   },
   {
     name: 'Blood Glucose',
     icon: '◈',
+    accent: '#F79009',
+    background: '#FFF4E5',
   },
   {
     name: 'Blood Oxygen',
     icon: '◉',
+    accent: '#15945C',
+    background: '#EAF8F0',
   },
   {
     name: 'Peak Flow',
     icon: '⌁',
+    accent: '#12B0A0',
+    background: '#E8F8F6',
   },
   {
     name: 'Sleep',
     icon: '☾',
+    accent: '#8752D4',
+    background: '#F1EBFC',
   },
   {
     name: 'Physical Activity',
     icon: '↗',
+    accent: '#15945C',
+    background: '#EAF8F0',
   },
   {
     name: 'Water Intake',
     icon: '◒',
+    accent: '#2E90FA',
+    background: '#EAF4FF',
   },
   {
     name: 'Weight',
     icon: '▣',
+    accent: '#5D6BD8',
+    background: '#EEF0FF',
   },
 ];
 
-const recentMeasurements: RecentMeasurement[] = [
+const initialRecentMeasurements: RecentMeasurement[] = [
   {
     id: '1',
     metric: 'Blood Pressure',
@@ -104,6 +138,10 @@ const recentMeasurements: RecentMeasurement[] = [
 ];
 
 export default function MetricsScreen() {
+  const {
+    addMetricEvaluation,
+  } = useNotifications();
+
   const [selectedMetric, setSelectedMetric] =
     useState<MetricType>('Blood Pressure');
 
@@ -113,7 +151,8 @@ export default function MetricsScreen() {
   const [secondaryValue, setSecondaryValue] =
     useState('');
 
-  const [note, setNote] = useState('');
+  const [note, setNote] =
+    useState('');
 
   const [weightUnit, setWeightUnit] =
     useState<WeightUnit>('kg');
@@ -124,8 +163,31 @@ export default function MetricsScreen() {
   const [message, setMessage] =
     useState('');
 
+  const [messageType, setMessageType] =
+    useState<
+      'success' | 'error' | ''
+    >('');
+
   const [isSaving, setIsSaving] =
     useState(false);
+
+  const [
+    recentMeasurements,
+    setRecentMeasurements,
+  ] = useState<RecentMeasurement[]>(
+    initialRecentMeasurements
+  );
+
+  const selectedMetricStyle =
+    useMemo(() => {
+      return (
+        metricTypes.find(
+          (metric) =>
+            metric.name ===
+            selectedMetric
+        ) ?? metricTypes[0]
+      );
+    }, [selectedMetric]);
 
   const metricConfig = useMemo(() => {
     switch (selectedMetric) {
@@ -142,14 +204,16 @@ export default function MetricsScreen() {
 
       case 'Blood Glucose':
         return {
-          primaryLabel: 'Blood Glucose',
+          primaryLabel:
+            'Blood Glucose',
           primaryPlaceholder: '102',
           primaryUnit: 'mg/dL',
         };
 
       case 'Blood Oxygen':
         return {
-          primaryLabel: 'Blood Oxygen',
+          primaryLabel:
+            'Blood Oxygen',
           primaryPlaceholder: '98',
           primaryUnit: '%',
         };
@@ -174,14 +238,16 @@ export default function MetricsScreen() {
 
       case 'Physical Activity':
         return {
-          primaryLabel: 'Activity Duration',
+          primaryLabel:
+            'Activity Duration',
           primaryPlaceholder: '30',
           primaryUnit: 'min',
         };
 
       case 'Water Intake':
         return {
-          primaryLabel: 'Water Intake',
+          primaryLabel:
+            'Water Intake',
 
           primaryPlaceholder:
             waterUnit === 'mL'
@@ -217,7 +283,9 @@ export default function MetricsScreen() {
     setPrimaryValue('');
     setSecondaryValue('');
     setNote('');
+
     setMessage('');
+    setMessageType('');
   }
 
   function poundsToKilograms(
@@ -240,7 +308,9 @@ export default function MetricsScreen() {
     const primaryNumber =
       Number(primaryValue);
 
-    if (Number.isNaN(primaryNumber)) {
+    if (
+      Number.isNaN(primaryNumber)
+    ) {
       return 'Enter a valid numeric value.';
     }
 
@@ -259,7 +329,9 @@ export default function MetricsScreen() {
       const diastolic =
         Number(secondaryValue);
 
-      if (Number.isNaN(diastolic)) {
+      if (
+        Number.isNaN(diastolic)
+      ) {
         return 'Enter a valid diastolic value.';
       }
 
@@ -312,7 +384,8 @@ export default function MetricsScreen() {
     }
 
     if (
-      selectedMetric === 'Weight' &&
+      selectedMetric ===
+        'Weight' &&
       weightUnit === 'kg' &&
       primaryNumber > 500
     ) {
@@ -320,7 +393,8 @@ export default function MetricsScreen() {
     }
 
     if (
-      selectedMetric === 'Weight' &&
+      selectedMetric ===
+        'Weight' &&
       weightUnit === 'lb' &&
       primaryNumber > 1100
     ) {
@@ -388,6 +462,60 @@ export default function MetricsScreen() {
     return primaryValue.trim();
   }
 
+  function buildDisplayValue() {
+    if (
+      selectedMetric ===
+      'Blood Pressure'
+    ) {
+      return `${primaryValue.trim()}/${secondaryValue.trim()} mmHg`;
+    }
+
+    if (
+      selectedMetric === 'Sleep'
+    ) {
+      return `${primaryValue.trim()}h ${
+        secondaryValue.trim() || '0'
+      }m`;
+    }
+
+    if (
+      selectedMetric === 'Weight'
+    ) {
+      return `${primaryValue.trim()} ${weightUnit}`;
+    }
+
+    if (
+      selectedMetric ===
+      'Water Intake'
+    ) {
+      return `${primaryValue.trim()} ${waterUnit}`;
+    }
+
+    return `${primaryValue.trim()} ${metricConfig.primaryUnit}`;
+  }
+
+  function addToRecentMeasurements(
+    value: string
+  ) {
+    const measurement: RecentMeasurement =
+      {
+        id: `measurement-${Date.now()}`,
+
+        metric: selectedMetric,
+
+        value,
+
+        time: 'Just now',
+      };
+
+    setRecentMeasurements(
+      (current) => [
+        measurement,
+        ...current,
+      ]
+    );
+  }
+
   async function saveMeasurement() {
     const validationError =
       validateMeasurement();
@@ -396,29 +524,99 @@ export default function MetricsScreen() {
       setMessage(
         validationError
       );
+
+      setMessageType('error');
+
       return;
     }
 
     setMessage('');
+    setMessageType('');
+
     setIsSaving(true);
 
     const measurementValue =
       buildMeasurementValue();
 
+    const displayValue =
+      buildDisplayValue();
+
     try {
+      let evaluation:
+        MetricEvaluation = {
+          severity: 'normal',
+        };
+
+      /*
+       * When the backend is connected,
+       * Health Analytics should return
+       * the evaluation.
+       *
+       * The React Native frontend should
+       * NOT contain permanent clinical
+       * threshold rules.
+       */
       if (
         process.env
           .EXPO_PUBLIC_API_BASE_URL
       ) {
-        await api.submitMetric(
-          selectedMetric,
-          measurementValue
-        );
+        const response =
+          (await api.submitMetric(
+            selectedMetric,
+            measurementValue
+          )) as MetricSubmitResponse;
+
+        if (response?.evaluation) {
+          evaluation =
+            response.evaluation;
+        }
       }
 
-      setMessage(
-        'Measurement saved successfully.'
+      /*
+       * Send the evaluation to the
+       * Notification & Reporting UI.
+       *
+       * normal   -> success notification
+       * warning  -> orange warning banner
+       * critical -> critical modal
+       */
+      addMetricEvaluation(
+        selectedMetric,
+        displayValue,
+        evaluation
       );
+
+      addToRecentMeasurements(
+        displayValue
+      );
+
+      if (
+        evaluation.severity ===
+        'critical'
+      ) {
+        setMessage(
+          'Measurement recorded. A critical health alert was generated.'
+        );
+
+        setMessageType('error');
+      } else if (
+        evaluation.severity ===
+        'warning'
+      ) {
+        setMessage(
+          'Measurement recorded. Please review the health notification.'
+        );
+
+        setMessageType('error');
+      } else {
+        setMessage(
+          'Measurement saved successfully.'
+        );
+
+        setMessageType(
+          'success'
+        );
+      }
 
       setPrimaryValue('');
       setSecondaryValue('');
@@ -427,6 +625,8 @@ export default function MetricsScreen() {
       setMessage(
         'Unable to save the measurement right now.'
       );
+
+      setMessageType('error');
     } finally {
       setIsSaving(false);
     }
@@ -438,7 +638,9 @@ export default function MetricsScreen() {
       edges={['top']}
     >
       <KeyboardAvoidingView
-        style={styles.keyboardView}
+        style={
+          styles.keyboardView
+        }
         behavior={
           Platform.OS === 'ios'
             ? 'padding'
@@ -454,6 +656,7 @@ export default function MetricsScreen() {
           }
           keyboardShouldPersistTaps="handled"
         >
+          {/* Header */}
           <View>
             <Text style={styles.title}>
               Log Health Data
@@ -467,6 +670,50 @@ export default function MetricsScreen() {
             </Text>
           </View>
 
+          {/* Safety information */}
+          <View style={styles.safetyCard}>
+            <View
+              style={
+                styles.safetyIcon
+              }
+            >
+              <Text
+                style={
+                  styles.safetyIconText
+                }
+              >
+                i
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.safetyContent
+              }
+            >
+              <Text
+                style={
+                  styles.safetyTitle
+                }
+              >
+                Health monitoring
+              </Text>
+
+              <Text
+                style={
+                  styles.safetyText
+                }
+              >
+                After a measurement is
+                submitted, VitalPilot's
+                Health Analytics service
+                can evaluate the result and
+                send normal, warning, or
+                critical notifications.
+              </Text>
+            </View>
+          </View>
+
           <Text
             style={styles.sectionTitle}
           >
@@ -474,6 +721,7 @@ export default function MetricsScreen() {
             record?
           </Text>
 
+          {/* Metric selector */}
           <View
             style={styles.metricGrid}
           >
@@ -493,36 +741,59 @@ export default function MetricsScreen() {
                     }
                     accessibilityRole="button"
                     accessibilityLabel={`Log ${metric.name}`}
-                    style={
+                    style={[
                       selected
                         ? styles.metricChoiceSelected
-                        : styles.metricChoice
-                    }
+                        : styles.metricChoice,
+
+                      selected && {
+                        borderColor:
+                          metric.accent,
+
+                        backgroundColor:
+                          metric.background,
+                      },
+                    ]}
                   >
                     <View
-                      style={
+                      style={[
                         selected
                           ? styles.metricIconSelected
-                          : styles.metricIcon
-                      }
+                          : styles.metricIcon,
+
+                        {
+                          backgroundColor:
+                            metric.background,
+                        },
+                      ]}
                     >
                       <Text
-                        style={
+                        style={[
                           selected
                             ? styles.metricIconTextSelected
-                            : styles.metricIconText
-                        }
+                            : styles.metricIconText,
+
+                          {
+                            color:
+                              metric.accent,
+                          },
+                        ]}
                       >
                         {metric.icon}
                       </Text>
                     </View>
 
                     <Text
-                      style={
+                      style={[
                         selected
                           ? styles.metricChoiceTextSelected
-                          : styles.metricChoiceText
-                      }
+                          : styles.metricChoiceText,
+
+                        selected && {
+                          color:
+                            metric.accent,
+                        },
+                      ]}
                     >
                       {metric.name}
                     </Text>
@@ -532,6 +803,7 @@ export default function MetricsScreen() {
             )}
           </View>
 
+          {/* Entry card */}
           <VitalCard
             style={styles.entryCard}
           >
@@ -540,23 +812,53 @@ export default function MetricsScreen() {
                 styles.entryHeader
               }
             >
-              <View>
-                <Text
-                  style={
-                    styles.entryTitle
-                  }
+              <View
+                style={
+                  styles.entryHeaderLeft
+                }
+              >
+                <View
+                  style={[
+                    styles.entryMetricIcon,
+                    {
+                      backgroundColor:
+                        selectedMetricStyle.background,
+                    },
+                  ]}
                 >
-                  {selectedMetric}
-                </Text>
+                  <Text
+                    style={[
+                      styles.entryMetricIconText,
+                      {
+                        color:
+                          selectedMetricStyle.accent,
+                      },
+                    ]}
+                  >
+                    {
+                      selectedMetricStyle.icon
+                    }
+                  </Text>
+                </View>
 
-                <Text
-                  style={
-                    styles.entrySubtitle
-                  }
-                >
-                  Enter your latest
-                  measurement.
-                </Text>
+                <View>
+                  <Text
+                    style={
+                      styles.entryTitle
+                    }
+                  >
+                    {selectedMetric}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.entrySubtitle
+                    }
+                  >
+                    Enter your latest
+                    measurement.
+                  </Text>
+                </View>
               </View>
 
               <View
@@ -570,6 +872,7 @@ export default function MetricsScreen() {
               </View>
             </View>
 
+            {/* Weight Unit */}
             {selectedMetric ===
             'Weight' ? (
               <View
@@ -596,11 +899,15 @@ export default function MetricsScreen() {
                       weightUnit ===
                       'kg'
                     }
-                    onPress={() =>
+                    onPress={() => {
                       setWeightUnit(
                         'kg'
-                      )
-                    }
+                      );
+
+                      setPrimaryValue(
+                        ''
+                      );
+                    }}
                   />
 
                   <UnitButton
@@ -609,16 +916,21 @@ export default function MetricsScreen() {
                       weightUnit ===
                       'lb'
                     }
-                    onPress={() =>
+                    onPress={() => {
                       setWeightUnit(
                         'lb'
-                      )
-                    }
+                      );
+
+                      setPrimaryValue(
+                        ''
+                      );
+                    }}
                   />
                 </View>
               </View>
             ) : null}
 
+            {/* Water Unit */}
             {selectedMetric ===
             'Water Intake' ? (
               <View
@@ -645,11 +957,15 @@ export default function MetricsScreen() {
                       waterUnit ===
                       'mL'
                     }
-                    onPress={() =>
+                    onPress={() => {
                       setWaterUnit(
                         'mL'
-                      )
-                    }
+                      );
+
+                      setPrimaryValue(
+                        ''
+                      );
+                    }}
                   />
 
                   <UnitButton
@@ -658,16 +974,21 @@ export default function MetricsScreen() {
                       waterUnit ===
                       'oz'
                     }
-                    onPress={() =>
+                    onPress={() => {
                       setWaterUnit(
                         'oz'
-                      )
-                    }
+                      );
+
+                      setPrimaryValue(
+                        ''
+                      );
+                    }}
                   />
                 </View>
               </View>
             ) : null}
 
+            {/* Primary Measurement */}
             <MeasurementInput
               label={
                 metricConfig.primaryLabel
@@ -684,6 +1005,7 @@ export default function MetricsScreen() {
               }
             />
 
+            {/* Secondary Measurement */}
             {metricConfig.secondaryLabel ? (
               <MeasurementInput
                 label={
@@ -704,6 +1026,7 @@ export default function MetricsScreen() {
               />
             ) : null}
 
+            {/* Weight Conversion */}
             {selectedMetric ===
               'Weight' &&
             primaryValue.trim() ? (
@@ -713,6 +1036,7 @@ export default function MetricsScreen() {
               />
             ) : null}
 
+            {/* Water Conversion */}
             {selectedMetric ===
               'Water Intake' &&
             primaryValue.trim() ? (
@@ -722,8 +1046,11 @@ export default function MetricsScreen() {
               />
             ) : null}
 
+            {/* Notes */}
             <View
-              style={styles.noteSection}
+              style={
+                styles.noteSection
+              }
             >
               <Text
                 style={
@@ -754,21 +1081,20 @@ export default function MetricsScreen() {
               />
             </View>
 
+            {/* Validation / Save message */}
             {message ? (
               <View
                 style={
-                  message.includes(
-                    'successfully'
-                  )
+                  messageType ===
+                  'success'
                     ? styles.successBox
                     : styles.messageBox
                 }
               >
                 <Text
                   style={
-                    message.includes(
-                      'successfully'
-                    )
+                    messageType ===
+                    'success'
                       ? styles.successText
                       : styles.messageText
                   }
@@ -790,6 +1116,86 @@ export default function MetricsScreen() {
             </VitalButton>
           </VitalCard>
 
+          {/* Analytics explanation */}
+          <View
+            style={
+              styles.analyticsCard
+            }
+          >
+            <View
+              style={
+                styles.analyticsHeader
+              }
+            >
+              <View
+                style={
+                  styles.analyticsIcon
+                }
+              >
+                <Text
+                  style={
+                    styles.analyticsIconText
+                  }
+                >
+                  ✓
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.analyticsContent
+                }
+              >
+                <Text
+                  style={
+                    styles.analyticsTitle
+                  }
+                >
+                  Automatic health analysis
+                </Text>
+
+                <Text
+                  style={
+                    styles.analyticsText
+                  }
+                >
+                  Submitted measurements
+                  can be evaluated by the
+                  VitalPilot Health Analytics
+                  layer. If attention is
+                  required, an alert appears
+                  and is added to your
+                  Notification Center.
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={
+                styles.severityRow
+              }
+            >
+              <SeverityItem
+                color="#15945C"
+                background="#EAF8F0"
+                label="Normal"
+              />
+
+              <SeverityItem
+                color="#F79009"
+                background="#FFF4E5"
+                label="Warning"
+              />
+
+              <SeverityItem
+                color="#D92D20"
+                background="#FEF3F2"
+                label="Critical"
+              />
+            </View>
+          </View>
+
+          {/* Recent */}
           <View
             style={
               styles.recentHeader
@@ -803,82 +1209,88 @@ export default function MetricsScreen() {
               Recent Measurements
             </Text>
 
-            <Pressable>
-              <Text
-                style={styles.viewAll}
-              >
-                View all
-              </Text>
-            </Pressable>
+            <Text
+              style={
+                styles.recentCount
+              }
+            >
+              {
+                recentMeasurements.length
+              }{' '}
+              logged
+            </Text>
           </View>
 
           <View
             style={styles.recentList}
           >
-            {recentMeasurements.map(
-              (measurement) => (
-                <View
-                  key={
-                    measurement.id
-                  }
-                  style={
-                    styles.recentItem
-                  }
-                >
+            {recentMeasurements
+              .slice(0, 6)
+              .map(
+                (measurement) => (
                   <View
+                    key={
+                      measurement.id
+                    }
                     style={
-                      styles.recentIcon
+                      styles.recentItem
                     }
                   >
-                    <Text
+                    <View
                       style={
-                        styles.recentIconText
+                        styles.recentIcon
                       }
                     >
-                      ✓
-                    </Text>
-                  </View>
+                      <Text
+                        style={
+                          styles.recentIconText
+                        }
+                      >
+                        ✓
+                      </Text>
+                    </View>
 
-                  <View
-                    style={
-                      styles.recentInfo
-                    }
-                  >
+                    <View
+                      style={
+                        styles.recentInfo
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.recentMetric
+                        }
+                      >
+                        {
+                          measurement.metric
+                        }
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.recentTime
+                        }
+                      >
+                        {
+                          measurement.time
+                        }
+                      </Text>
+                    </View>
+
                     <Text
                       style={
-                        styles.recentMetric
+                        styles.recentValue
                       }
                     >
                       {
-                        measurement.metric
-                      }
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.recentTime
-                      }
-                    >
-                      {
-                        measurement.time
+                        measurement.value
                       }
                     </Text>
                   </View>
-
-                  <Text
-                    style={
-                      styles.recentValue
-                    }
-                  >
-                    {
-                      measurement.value
-                    }
-                  </Text>
-                </View>
-              )
-            )}
+                )
+              )}
           </View>
 
+          {/* Accuracy reminder */}
           <View
             style={
               styles.reminderCard
@@ -902,6 +1314,35 @@ export default function MetricsScreen() {
               exactly as shown on your
               device or provided by your
               healthcare professional.
+            </Text>
+          </View>
+
+          {/* Emergency disclaimer */}
+          <View
+            style={
+              styles.emergencyDisclaimer
+            }
+          >
+            <Text
+              style={
+                styles.emergencyDisclaimerTitle
+              }
+            >
+              Medical emergency?
+            </Text>
+
+            <Text
+              style={
+                styles.emergencyDisclaimerText
+              }
+            >
+              VitalPilot is a health
+              monitoring tool and is not
+              an emergency service. If you
+              believe you are experiencing
+              a medical emergency, seek
+              immediate medical assistance
+              or contact emergency services.
             </Text>
           </View>
         </ScrollView>
@@ -1068,7 +1509,8 @@ function WaterConversionPreview({
 
   if (unit === 'mL') {
     const ounces =
-      numericValue / 29.5735;
+      numericValue /
+      29.5735;
 
     return (
       <ConversionPreview
@@ -1082,7 +1524,8 @@ function WaterConversionPreview({
   }
 
   const milliliters =
-    numericValue * 29.5735;
+    numericValue *
+    29.5735;
 
   return (
     <ConversionPreview
@@ -1125,9 +1568,53 @@ function ConversionPreview({
   );
 }
 
+function SeverityItem({
+  color,
+  background,
+  label,
+}: {
+  color: string;
+  background: string;
+  label: string;
+}) {
+  return (
+    <View
+      style={[
+        styles.severityItem,
+        {
+          backgroundColor:
+            background,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.severityDot,
+          {
+            backgroundColor:
+              color,
+          },
+        ]}
+      />
+
+      <Text
+        style={[
+          styles.severityLabel,
+          {
+            color,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+
     backgroundColor: '#F7FAF8',
   },
 
@@ -1137,33 +1624,104 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 20,
+
     paddingBottom:
       BottomTabInset + 36,
+
     gap: 18,
   },
 
   title: {
     color:
       VitalPilotColors.title,
+
     fontSize: 28,
     fontWeight: '800',
   },
 
   subtitle: {
     color: '#667085',
+
     fontSize: 15,
+
     marginTop: 4,
   },
 
   sectionTitle: {
     color: '#101828',
+
     fontSize: 17,
     fontWeight: '800',
   },
 
+  /*
+   * Safety
+   */
+
+  safetyCard: {
+    flexDirection: 'row',
+
+    alignItems: 'flex-start',
+
+    backgroundColor: '#EFF4FF',
+
+    borderWidth: 1,
+    borderColor: '#D1E0FF',
+
+    borderRadius: 16,
+
+    padding: 13,
+
+    gap: 10,
+  },
+
+  safetyIcon: {
+    width: 34,
+    height: 34,
+
+    borderRadius: 17,
+
+    backgroundColor: '#DCE6FF',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  safetyIconText: {
+    color: '#175CD3',
+
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
+  safetyContent: {
+    flex: 1,
+  },
+
+  safetyTitle: {
+    color: '#1849A9',
+
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  safetyText: {
+    color: '#475467',
+
+    fontSize: 10,
+    lineHeight: 16,
+
+    marginTop: 3,
+  },
+
+  /*
+   * Metric selector
+   */
+
   metricGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+
     gap: 10,
   },
 
@@ -1176,6 +1734,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
     borderColor: '#E0E6E3',
+
     borderRadius: 16,
 
     padding: 12,
@@ -1188,12 +1747,8 @@ const styles = StyleSheet.create({
     width: '48%',
     minHeight: 94,
 
-    backgroundColor:
-      '#ECF8F2',
-
     borderWidth: 1.5,
-    borderColor:
-      VitalPilotColors.primary,
+
     borderRadius: 16,
 
     padding: 12,
@@ -1208,9 +1763,6 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor:
-      '#F2F4F7',
-
     alignItems: 'center',
     justifyContent: 'center',
 
@@ -1223,9 +1775,6 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor:
-      '#DDF3E8',
-
     alignItems: 'center',
     justifyContent: 'center',
 
@@ -1233,31 +1782,33 @@ const styles = StyleSheet.create({
   },
 
   metricIconText: {
-    color: '#667085',
     fontSize: 17,
   },
 
   metricIconTextSelected: {
-    color:
-      VitalPilotColors.primaryDark,
     fontSize: 17,
     fontWeight: '800',
   },
 
   metricChoiceText: {
     color: '#475467',
+
     fontSize: 12,
     fontWeight: '600',
+
     textAlign: 'center',
   },
 
   metricChoiceTextSelected: {
-    color:
-      VitalPilotColors.primaryDark,
     fontSize: 12,
     fontWeight: '800',
+
     textAlign: 'center',
   },
+
+  /*
+   * Entry
+   */
 
   entryCard: {
     gap: 17,
@@ -1265,20 +1816,52 @@ const styles = StyleSheet.create({
 
   entryHeader: {
     flexDirection: 'row',
+
     alignItems: 'center',
+
     justifyContent:
       'space-between',
+
+    gap: 10,
+  },
+
+  entryHeaderLeft: {
+    flex: 1,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    gap: 10,
+  },
+
+  entryMetricIcon: {
+    width: 42,
+    height: 42,
+
+    borderRadius: 21,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  entryMetricIconText: {
+    fontSize: 18,
+    fontWeight: '900',
   },
 
   entryTitle: {
     color: '#101828',
+
     fontSize: 19,
     fontWeight: '800',
   },
 
   entrySubtitle: {
     color: '#667085',
+
     fontSize: 12,
+
     marginTop: 3,
   },
 
@@ -1295,9 +1878,14 @@ const styles = StyleSheet.create({
   nowText: {
     color:
       VitalPilotColors.primaryDark,
+
     fontSize: 11,
     fontWeight: '700',
   },
+
+  /*
+   * Units
+   */
 
   unitSection: {
     gap: 8,
@@ -1305,6 +1893,7 @@ const styles = StyleSheet.create({
 
   unitSelector: {
     flexDirection: 'row',
+
     gap: 8,
   },
 
@@ -1316,6 +1905,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
     borderColor: '#D0D5DD',
+
     borderRadius: 12,
 
     backgroundColor:
@@ -1333,6 +1923,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor:
       VitalPilotColors.primary,
+
     borderRadius: 12,
 
     backgroundColor:
@@ -1343,6 +1934,7 @@ const styles = StyleSheet.create({
 
   unitOptionText: {
     color: '#667085',
+
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1350,9 +1942,14 @@ const styles = StyleSheet.create({
   unitOptionTextSelected: {
     color:
       VitalPilotColors.primaryDark,
+
     fontSize: 13,
     fontWeight: '800',
   },
+
+  /*
+   * Measurement input
+   */
 
   measurementSection: {
     gap: 7,
@@ -1360,12 +1957,14 @@ const styles = StyleSheet.create({
 
   inputLabel: {
     color: '#344054',
+
     fontSize: 13,
     fontWeight: '700',
   },
 
   optional: {
     color: '#98A2B3',
+
     fontWeight: '400',
   },
 
@@ -1373,10 +1972,12 @@ const styles = StyleSheet.create({
     minHeight: 56,
 
     flexDirection: 'row',
+
     alignItems: 'center',
 
     borderWidth: 1,
     borderColor: '#D0D5DD',
+
     borderRadius: 14,
 
     backgroundColor:
@@ -1387,6 +1988,7 @@ const styles = StyleSheet.create({
 
   input: {
     flex: 1,
+
     minHeight: 54,
 
     paddingHorizontal: 16,
@@ -1414,9 +2016,14 @@ const styles = StyleSheet.create({
 
   unitText: {
     color: '#667085',
+
     fontSize: 12,
     fontWeight: '700',
   },
+
+  /*
+   * Conversion
+   */
 
   conversionPreview: {
     backgroundColor:
@@ -1433,6 +2040,7 @@ const styles = StyleSheet.create({
 
   conversionLabel: {
     color: '#667085',
+
     fontSize: 10,
     fontWeight: '600',
 
@@ -1447,6 +2055,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
+  /*
+   * Notes
+   */
+
   noteSection: {
     gap: 7,
   },
@@ -1456,6 +2068,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
     borderColor: '#D0D5DD',
+
     borderRadius: 14,
 
     backgroundColor:
@@ -1468,6 +2081,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
+  /*
+   * Messages
+   */
+
   messageBox: {
     backgroundColor:
       '#FFF4ED',
@@ -1479,6 +2096,7 @@ const styles = StyleSheet.create({
 
   messageText: {
     color: '#B54708',
+
     fontSize: 12,
   },
 
@@ -1498,19 +2116,125 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  /*
+   * Analytics
+   */
+
+  analyticsCard: {
+    backgroundColor:
+      '#FFFFFF',
+
+    borderWidth: 1,
+    borderColor: '#E2E8E5',
+
+    borderRadius: 18,
+
+    padding: 15,
+
+    gap: 14,
+  },
+
+  analyticsHeader: {
+    flexDirection: 'row',
+
+    alignItems: 'flex-start',
+
+    gap: 11,
+  },
+
+  analyticsIcon: {
+    width: 40,
+    height: 40,
+
+    borderRadius: 20,
+
+    backgroundColor:
+      '#EAF8F0',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  analyticsIconText: {
+    color: '#137A53',
+
+    fontSize: 15,
+    fontWeight: '900',
+  },
+
+  analyticsContent: {
+    flex: 1,
+  },
+
+  analyticsTitle: {
+    color: '#101828',
+
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  analyticsText: {
+    color: '#667085',
+
+    fontSize: 10,
+    lineHeight: 16,
+
+    marginTop: 4,
+  },
+
+  severityRow: {
+    flexDirection: 'row',
+
+    gap: 7,
+  },
+
+  severityItem: {
+    flex: 1,
+
+    minHeight: 36,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderRadius: 11,
+
+    paddingHorizontal: 6,
+  },
+
+  severityDot: {
+    width: 7,
+    height: 7,
+
+    borderRadius: 4,
+
+    marginRight: 5,
+  },
+
+  severityLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+
+  /*
+   * Recent
+   */
+
   recentHeader: {
     flexDirection: 'row',
+
     justifyContent:
       'space-between',
+
     alignItems: 'center',
   },
 
-  viewAll: {
-    color:
-      VitalPilotColors.primaryDark,
+  recentCount: {
+    color: '#98A2B3',
 
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
   },
 
   recentList: {
@@ -1529,6 +2253,7 @@ const styles = StyleSheet.create({
     minHeight: 70,
 
     flexDirection: 'row',
+
     alignItems: 'center',
 
     paddingHorizontal: 14,
@@ -1556,6 +2281,7 @@ const styles = StyleSheet.create({
   recentIconText: {
     color:
       VitalPilotColors.primaryDark,
+
     fontWeight: '900',
   },
 
@@ -1574,6 +2300,7 @@ const styles = StyleSheet.create({
     color: '#98A2B3',
 
     fontSize: 11,
+
     marginTop: 2,
   },
 
@@ -1583,6 +2310,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+
+  /*
+   * Reminder
+   */
 
   reminderCard: {
     backgroundColor:
@@ -1608,6 +2339,38 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
     lineHeight: 18,
+
+    marginTop: 4,
+  },
+
+  /*
+   * Emergency disclaimer
+   */
+
+  emergencyDisclaimer: {
+    backgroundColor:
+      '#FFF8EB',
+
+    borderWidth: 1,
+    borderColor: '#FEDF89',
+
+    borderRadius: 16,
+
+    padding: 14,
+  },
+
+  emergencyDisclaimerTitle: {
+    color: '#B54708',
+
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+  emergencyDisclaimerText: {
+    color: '#7A2E0E',
+
+    fontSize: 10,
+    lineHeight: 16,
 
     marginTop: 4,
   },
