@@ -22,7 +22,7 @@ export default function AppTabs() {
       }}
     >
       <NativeTabs.Trigger name="home">
-        <Label>Home</Label>
+        <Label>Dashboard</Label>
 
         <Icon
           src={require('../../assets/images/tabIcons/home.png')}
@@ -38,7 +38,7 @@ export default function AppTabs() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="metrics">
-        <Label>Log</Label>
+        <Label>Vitals</Label>
 
         <Icon sf="plus.circle" />
       </NativeTabs.Trigger>
