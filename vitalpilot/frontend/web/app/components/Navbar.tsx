@@ -32,14 +32,14 @@ const Navbar = () => {
       className={`fixed w-[70%] mx-auto mt-5 left-1/2 -translate-x-1/2 rounded-2xl h-17 flex justify-around items-center z-40 shadow-xl 
         ${navbar ? "bg-white/50 backdrop-blur-sm transition-all duration-300" : "bg-white transition-all duration-300"}`}
     >
-      <a href="" className="drop-shadow-lg">
+      <Link href="/" className="drop-shadow-lg">
         <Image
           src="/assets/logo_hero.png"
           alt="Vitalpilot"
           width={160}
           height={150}
         />
-      </a>
+      </Link>
       <ul className="gap-6 flex items-center">
         <li>
           <Link
@@ -57,10 +57,10 @@ const Navbar = () => {
           </Link>
         </li>
         <li>
-          <a href="">Doctors</a>
+          <a href="/doctors">Doctors</a>
         </li>
         <li>
-          <a href="">Dashboard</a>
+          <a href="/dashboard">Dashboard</a>
         </li>
         <li>
           <a href="#download-app">Download App</a>

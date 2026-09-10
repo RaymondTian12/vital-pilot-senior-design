@@ -7,21 +7,21 @@ const DescriptionDoctor = () => {
     <div className="flex h-[600]">
       <div className="relative basis-3/5">
         <Image
-          src="/assets/phone_scrolling.png"
+          src="/assets/doctor_patient.png"
           alt=""
           width={1489}
           height={1056}
-          className="absolute left-10 top-20  w-120 h-100 rounded-2xl shadow-[1px_1px_10px] shadow-black ml-15"
+          className="absolute left-10 top-20  w-120 h-100 rounded-2xl shadow-[1px_1px_20px] shadow-fourth ml-15"
         />
-        <div className="absolute left-10 top-50 w-60 h-90 bg-ai rounded-2xl z-20 shadow-[-4px_10px_20px] shadow-fourth">
+        <div className="absolute left-10 top-70 w-50 h-70 bg-ai rounded-2xl z-20 shadow-[-4px_10px_20px] shadow-fourth">
           <Image
             src="/assets/doctor_profile.png"
             alt=""
             width={1086}
             height={1448}
-            className="w-full h-75 rounded-t-2xl "
+            className="w-full h-55 rounded-t-2xl "
           />
-          <p className="flex-center font-semibold mt-4 text-[16px] drop-shadow-2xl gap-x-2">
+          <p className="flex-center font-semibold mt-4 text-[14px] drop-shadow-2xl gap-x-1">
             Find a doctor in one-click{" "}
             <HiCursorClick className=" text-[20px]" />
           </p>

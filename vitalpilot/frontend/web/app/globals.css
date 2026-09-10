@@ -45,7 +45,7 @@ body {
     @apply text-title;
   }
   h1 {
-    @apply text-title text-[40px] font-bold;
+    @apply text-title text-[36px] font-bold;
   }
 
   h2 {

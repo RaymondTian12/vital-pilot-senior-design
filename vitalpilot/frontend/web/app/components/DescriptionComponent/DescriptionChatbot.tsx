@@ -1,7 +1,10 @@
-import React from 'react'
+import React from "react";
 import { GoGraph } from "react-icons/go";
 import { LuUpload } from "react-icons/lu";
 import { IoChatboxEllipses } from "react-icons/io5";
+import { IoIosArrowDroprightCircle } from "react-icons/io";
+import Link from "next/link";
+
 import Image from "next/image";
 const DescriptionChatbot = () => {
   return (
@@ -19,10 +22,10 @@ const DescriptionChatbot = () => {
         <br /> prepare for better conversations with your doctor.
       </p>
       <div className="flex-center gap-4 my-10">
-        <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
+        <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl border-1 border-gray-100 shadow-xl bg-ai/50">
           <div className="flex-center w-[97%] h-[60%]">
             <Image
-              src="/assets/ai_description_11.png"
+              src="/assets/ai_chat1.png"
               alt=""
               width={1536}
               height={1024}
@@ -43,10 +46,10 @@ const DescriptionChatbot = () => {
           </div>
         </div>
 
-        <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100">
+        <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100 bg-ai/50">
           <div className="w-[97%] h-[60%] flex-center">
             <Image
-              src="/assets/ai_description_2.png"
+              src="/assets/ai_chat2.png"
               alt=""
               width={1400}
               height={1100}
@@ -54,7 +57,7 @@ const DescriptionChatbot = () => {
             />
           </div>
           <div className="flex-center text-center flex-col py-5 px-3">
-            <div className="w-10 h-10 bg-[#CDE77F] rounded-full flex-center text-main">
+            <div className="w-10 h-10 bg-[#CAE9F3] rounded-full flex-center text-main">
               <IoChatboxEllipses className="w-5 h-5" />
             </div>
 
@@ -68,10 +71,10 @@ const DescriptionChatbot = () => {
           </div>
         </div>
 
-        <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl  border-1 border-gray-100">
+        <div className="flex-center flex-col w-[360px] h-[420px] rounded-2xl  shadow-xl border-1 border-gray-100 bg-ai/50">
           <div className=" w-[97%] h-[60%] flex-center">
             <Image
-              src="/assets/ai_description_3.png"
+              src="/assets/ai_chat3.png"
               alt=""
               width={1448}
               height={1086}
@@ -79,7 +82,7 @@ const DescriptionChatbot = () => {
             />
           </div>
           <div className="flex-center text-center flex-col py-5 px-3">
-            <div className="w-10 h-10 bg-[#f4e285] rounded-full flex-center text-main">
+            <div className="w-10 h-10 bg-[#CAE9F3] rounded-full flex-center text-main">
               <LuUpload className="w-5 h-5" />
             </div>
 
@@ -95,22 +98,25 @@ const DescriptionChatbot = () => {
       </div>
       <div className="w-fit rounded-full bg-[linear-gradient(90deg,#C0D769_0%,#C7C4BE_50%,#38EE91_100%)] p-[1.5px] drop-shadow-md">
         <a
-          href=""
-          className="flex-center gap-x-1 bg-ai py-2 px-10 rounded-full"
+          href="/chatbot"
+          className="flex-center gap-x-4 bg-ai py-2 px-5 rounded-full"
         >
-          <Image
-            src="/assets/ai_green.png"
-            alt=""
-            width={240}
-            height={240}
-            className="w-5 h-5"
-          />
+          <div className="flex-center gap-x-1">
+            <Image
+              src="/assets/ai_green.png"
+              alt=""
+              width={240}
+              height={240}
+              className="w-5 h-5"
+            />
 
-          <p className="font-quicksand font-bold text-[20px]">PILOT AI</p>
+            <p className="font-quicksand font-bold text-[20px]">PILOT AI</p>
+          </div>
+          <IoIosArrowDroprightCircle className="text-[26px] hover:text-main" />
         </a>
       </div>
     </div>
   );
-}
+};
 
-export default DescriptionChatbot
+export default DescriptionChatbot;
