@@ -70,7 +70,7 @@ const Hero = () => {
 
       <div
         className="w-full h-full absolute rounded-b-[50px] top-0
-      bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.3)_50%,rgba(0,0,0,0.7)_90%)]"
+      bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.3)_50%,rgba(0,0,0,0.8)_90%)]"
       ></div>
     </section>
   );
