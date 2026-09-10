@@ -4,6 +4,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+
 import { useState, useEffect } from "react";
 const Hero = () => {
   const messages: string[] = [
@@ -25,15 +26,15 @@ const Hero = () => {
   return (
     <section className="relative h-[700]">
       <Image
-        src="/assets/hero_pic.png"
+        src="/assets/hero1.png"
         alt="Image showing senior citizens using the app"
         width={1678}
         height={937}
-        className="w-full h-full"
+        className="w-full h-full rounded-b-[50px]"
       />
 
       <div className="hero-content flex-center flex-col w-full absolute z-20 -bottom-5 left-1/2 -translate-1/2">
-        <h1 className="text-white drop-shadow-lg">
+        <h1 className="text-white drop-shadow-lg text-[46px]">
           Stay connected to your health.
         </h1>
 
@@ -68,8 +69,8 @@ const Hero = () => {
       </div>
 
       <div
-        className="w-full h-full absolute  top-0
-      bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.2)_50%,rgba(0,0,0,0.7)_90%)]"
+        className="w-full h-full absolute rounded-b-[50px] top-0
+      bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.3)_50%,rgba(0,0,0,0.7)_90%)]"
       ></div>
     </section>
   );

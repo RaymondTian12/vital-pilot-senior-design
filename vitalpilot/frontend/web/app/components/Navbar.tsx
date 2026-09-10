@@ -57,10 +57,10 @@ const Navbar = () => {
           </Link>
         </li>
         <li>
-          <a href="">Doctors</a>
+          <a href="/doctors">Doctors</a>
         </li>
         <li>
-          <a href="">Dashboard</a>
+          <a href="/dashboard">Dashboard</a>
         </li>
         <li>
           <a href="#download-app">Download App</a>
