@@ -1,5 +1,7 @@
-fastapi
+fastapi[standard]
 uvicorn
 python-dotenv
 pymysql
 cryptography
+argon2-cffi
+pyjwt
