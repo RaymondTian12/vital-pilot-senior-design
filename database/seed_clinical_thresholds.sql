@@ -20,7 +20,7 @@ INSERT INTO ClinicalThresholds (metric_type, sub_metric, classification, min_val
 INSERT INTO ClinicalThresholds (metric_type, sub_metric, classification, min_value, max_value, alert_state, alert_message) VALUES
 ('BODY_MASS_INDEX', 'UNIVERSAL', 'Underweight', -999.99, 18.5, 'LOG_WARNING_AND_BANNER', 'Your BMI falls below the healthy weight range. If this is unexpected or you''re concerned about your weight or health, consider speaking with a healthcare professional.'),
 ('BODY_MASS_INDEX', 'UNIVERSAL', 'Healthy Weight', 18.5, 25.0, 'LOG_SUCCESS_AND_BANNER', 'Your BMI falls within the healthy weight range. Maintaining a balanced diet and regular physical activity can support your overall health.'),
-('BODY_MASS_INDEX', 'UNIVERSAL', 'Overweight', 25.0, 30.0, 'LOG_WARNING_AND_BANNER', 'Your BMI falls within the overweight range.. Small, sustainable lifestyle changes can help improve your overall health. Consider discussing your health goals with a professional if needed.'),
+('BODY_MASS_INDEX', 'UNIVERSAL', 'Overweight', 25.0, 30.0, 'LOG_WARNING_AND_BANNER', 'Your BMI falls within the overweight range. Small, sustainable lifestyle changes can help improve your overall health. Consider discussing your health goals with a professional if needed.'),
 ('BODY_MASS_INDEX', 'UNIVERSAL', 'Obesity', 30.0, 99999.99, 'LOG_WARNING_AND_BANNER', 'Your BMI falls within the obesity range. BMI is a screening tool and does not diagnose health conditions. If you''re concerned about your weight or health, consider speaking with a healthcare professional.');
 
 -- Table 5: Blood Pressure (source: https://www.heart.org/en/health-topics/high-blood-pressure/understanding-blood-pressure-readings)
