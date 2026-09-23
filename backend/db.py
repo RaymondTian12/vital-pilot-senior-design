@@ -11,6 +11,10 @@ def get_db_connection():
     user = os.getenv("dbuser")
     password = os.getenv("dbpassword")
 
+    # have to do it this way instead of all[] because pylance is annoying
+    if not name or not host or not port or not user or not password:
+        raise RuntimeError("Database connection parameters are not fully set in the environment variables.")
+
     try:
         connection = pymysql.connect(
             host=host,
