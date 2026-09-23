@@ -38,7 +38,7 @@ class User:
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    query = "SELECT user_id, firstname, lastname, email, password_hash, role, created_at FROM users WHERE email = %s"
+                    query = "SELECT user_id, first_name, last_name, email, password_hash, role, date_created FROM Users WHERE email = %s"
                     cursor.execute(query, (email,))
                     result = cursor.fetchone()
                     if result:
@@ -56,14 +56,18 @@ class User:
                 print(f"Error occurred while fetching user by email. Error: {e}")
         return None
 
-    def save_user_to_database(self) -> None:
+    def save_user_to_database(self) -> bool:
         conn = get_db_connection()
-        if conn:
-            try:
-                with conn.cursor() as cursor:
-                    query = "INSERT INTO users (firstname, lastname, email, password_hash, role, created_at) VALUES (%s, %s, %s, %s, %s, %s)"
-                    cursor.execute(query, (self.firstname, self.lastname, self.email, self.password_hash, self.role.value, self.created_at))
-                    conn.commit()
-                    self.user_id = cursor.lastrowid
-            except Exception as e:
-                print(f"Error occurred while saving user to database. Error: {e}")
+        if not conn:
+            return False
+
+        try:
+            with conn.cursor() as cursor:
+                query = "INSERT INTO Users (first_name, last_name, email, password_hash, role, date_created) VALUES (%s, %s, %s, %s, %s, %s)"
+                cursor.execute(query, (self.firstname, self.lastname, self.email, self.password_hash, self.role.value, self.created_at))
+                conn.commit()
+                self.user_id = cursor.lastrowid
+                return True
+        except Exception as e:
+            print(f"Error occurred while saving user to database. Error: {e}")
+            return False

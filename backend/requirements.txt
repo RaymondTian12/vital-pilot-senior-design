@@ -4,3 +4,4 @@ python-dotenv
 pymysql
 cryptography
 argon2-cffi
+pyjwt
