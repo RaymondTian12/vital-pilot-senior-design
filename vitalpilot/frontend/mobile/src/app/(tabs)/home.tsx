@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/auth-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -172,6 +173,7 @@ const doctors = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const {
     unreadCount,
@@ -258,7 +260,7 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>
             👋 Welcome back,{' '}
             <Text style={styles.userName}>
-              John
+              {user?.firstname ?? ''}
             </Text>
           </Text>
 

@@ -6,11 +6,16 @@ from backend.routers import auth
 
 app = FastAPI(title="Vital Pilot API", version="1.0.0")
 
-allow_origins = [] # empty for now
+allow_origins = [
+    "http://localhost:8081",
+    "http://localhost:8082",
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
     allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])

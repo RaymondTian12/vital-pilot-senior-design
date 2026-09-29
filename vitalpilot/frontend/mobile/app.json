@@ -7,11 +7,9 @@
     "icon": "./assets/images/vitalpilot/logo_green.png",
     "scheme": "vitalpilot",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "icon": "./assets/images/vitalpilot/logo_green.png"
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -20,15 +18,12 @@
       },
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/vitalpilot/logo_green.png"
     },
-
     "plugins": [
       "expo-router",
-
       [
         "expo-splash-screen",
         {
@@ -37,11 +32,10 @@
           "imageWidth": 132
         }
       ],
-
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

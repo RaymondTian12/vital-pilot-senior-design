@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/auth-context';
 import { useState } from 'react';
 import {
   Pressable,
@@ -27,11 +28,12 @@ const selectedMetrics = [
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
 
-  const [name, setName] = useState('John Doe');
-  const [email, setEmail] = useState('patient@example.com');
+  const [name, setName] = useState(`${user?.firstname ?? ''} ${user?.lastname ?? ''}`.trim());
+  const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState('(817) 555-0123');
   const [dateOfBirth, setDateOfBirth] = useState('01/15/1998');
 
@@ -76,7 +78,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    setMessage('Profile updated successfully.');
+    setMessage('Changes apply to this preview only. Profile saving is not available yet.');
     setIsEditing(false);
   }
 
@@ -85,8 +87,13 @@ export default function ProfileScreen() {
     setIsEditing(false);
   }
 
-  function handleLogout() {
-    router.replace('/welcome');
+  async function handleLogout() {
+    try {
+      await signOut();
+      router.replace('/welcome');
+    } catch {
+      setMessage('Unable to clear your session. Please try again.');
+    }
   }
 
   return (
@@ -101,7 +108,7 @@ export default function ProfileScreen() {
       >
         <View style={styles.header}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
+            <Text style={styles.avatarText}>{`${user?.firstname?.[0] ?? ''}${user?.lastname?.[0] ?? ''}`}</Text>
           </View>
 
           <View style={styles.headerText}>

@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -28,11 +29,12 @@ const metrics = [
 
 export default function QuestionnaireScreen() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [step, setStep] = useState(1);
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState(user?.firstname ?? '');
+  const [lastName, setLastName] = useState(user?.lastname ?? '');
 
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
     'Blood Pressure',

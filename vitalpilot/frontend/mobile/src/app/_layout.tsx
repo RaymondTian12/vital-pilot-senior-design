@@ -1,3 +1,4 @@
+import { AuthProvider, useAuth } from '@/context/auth-context';
 import {
   DarkTheme,
   DefaultTheme,
@@ -29,33 +30,36 @@ export default function RootLayout() {
           : DefaultTheme
       }
     >
-      <NotificationProvider>
-        <AnimatedSplashOverlay />
+      <AuthProvider>
+        <AuthenticatedNavigation />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
 
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
+function AuthenticatedNavigation() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return (
+    <>
+      <AnimatedSplashOverlay />
+      <NotificationProvider key={user?.user_id ?? 'guest'}>
+        <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
-
-          <Stack.Screen name="welcome" />
-
-          <Stack.Screen name="signin" />
-
-          <Stack.Screen name="signup" />
-
-          <Stack.Screen name="questionnaire" />
-
-          <Stack.Screen name="doctors" />
-
-          <Stack.Screen name="change-password" />
-
-          <Stack.Screen name="notifications" />
-
-          <Stack.Screen name="(tabs)" />
+          <Stack.Protected guard={!user}>
+            <Stack.Screen name="welcome" />
+            <Stack.Screen name="signin" />
+            <Stack.Screen name="signup" />
+          </Stack.Protected>
+          <Stack.Protected guard={!!user}>
+            <Stack.Screen name="questionnaire" />
+            <Stack.Screen name="doctors" />
+            <Stack.Screen name="change-password" />
+            <Stack.Screen name="notifications" />
+            <Stack.Screen name="(tabs)" />
+          </Stack.Protected>
         </Stack>
       </NotificationProvider>
-    </ThemeProvider>
+    </>
   );
 }

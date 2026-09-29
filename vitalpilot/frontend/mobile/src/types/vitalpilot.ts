@@ -6,16 +6,24 @@ export type ChatMessage = {
   text: string;
 };
 
+export type AuthUser = {
+  user_id: number;
+  firstname: string;
+  lastname: string;
+  email: string;
+  role: 'patient' | 'provider' | 'admin';
+  created_at: string;
+};
+
 export type SignInResponse = {
-  success: boolean;
-  token?: string;
-  message?: string;
+  message: string;
+  access_token: string;
+  user: AuthUser;
 };
 
 export type SignUpResponse = {
-  success: boolean;
-  userId?: string;
-  message?: string;
+  message: string;
+  user: AuthUser;
 };
 
 export type ChatResponse = {

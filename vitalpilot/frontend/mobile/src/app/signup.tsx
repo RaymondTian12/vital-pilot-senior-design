@@ -1,3 +1,4 @@
+import { api } from '@/services/api';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -139,31 +140,11 @@ export default function SignUpScreen() {
     setIsSubmitting(true);
 
     try {
-      /*
-       * FRONTEND PROTOTYPE
-       *
-       * Replace this with your FastAPI
-       * registration request when the
-       * authentication backend is ready.
-       */
-
-      await new Promise(
-        (resolve) =>
-          setTimeout(
-            resolve,
-            600
-          )
-      );
-
-      /*
-       * After account creation, keep
-       * health-specific onboarding in
-       * the Questionnaire screen.
-       */
-      router.replace('/questionnaire');
-    } catch {
+      await api.signUp(firstName.trim(), lastName.trim(), email.trim(), password);
+      router.replace({ pathname: '/signin', params: { registered: 'true' } });
+    } catch (error) {
       setMessage(
-        'Unable to create your account right now. Please try again.'
+        error instanceof Error ? error.message : 'Unable to create your account right now. Please try again.'
       );
     } finally {
       setIsSubmitting(false);

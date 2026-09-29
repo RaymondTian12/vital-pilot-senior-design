@@ -1,5 +1,6 @@
+import { useAuth } from '@/context/auth-context';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -17,6 +18,8 @@ import { VitalPilotColors } from '@/constants/vitalpilot';
 
 export default function SignInScreen() {
   const router = useRouter();
+  const { signIn } = useAuth();
+  const { registered } = useLocalSearchParams<{ registered?: string }>();
 
   const [email, setEmail] =
     useState('');
@@ -28,7 +31,7 @@ export default function SignInScreen() {
     useState(false);
 
   const [message, setMessage] =
-    useState('');
+    useState(registered === 'true' ? 'Account created. Sign in to continue.' : '');
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
@@ -83,26 +86,12 @@ export default function SignInScreen() {
     setIsSubmitting(true);
 
     try {
-      /*
-       * FRONTEND PROTOTYPE:
-       *
-       * Replace this with your actual
-       * FastAPI authentication request
-       * when the backend is ready.
-       */
+      await signIn(email.trim(), password);
 
-      await new Promise(
-        (resolve) =>
-          setTimeout(
-            resolve,
-            500
-          )
-      );
-
-      router.replace('/home');
-    } catch {
+      router.replace(registered === 'true' ? '/questionnaire' : '/home');
+    } catch (error) {
       setMessage(
-        'Unable to sign in right now. Please try again.'
+        error instanceof Error ? error.message : 'Unable to sign in right now. Please try again.'
       );
     } finally {
       setIsSubmitting(false);
