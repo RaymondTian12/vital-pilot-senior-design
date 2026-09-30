@@ -13,6 +13,25 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface Doctor {
+  npi: string;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  specialty: string;
+  city: string;
+  state: string;
+  phone: string;
+  address: string;
+}
+
+export interface DoctorSearchParams {
+  specialty?: string;
+  city?: string;
+  state?: string;
+  gender?: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -44,6 +63,31 @@ function demoUser(overrides: Partial<AuthUser> = {}): AuthUser {
     ...overrides,
   };
 }
+
+const DEMO_DOCTORS: Doctor[] = [
+  {
+    npi: "0000000001",
+    first_name: "Alex",
+    last_name: "Rivera",
+    gender: "F",
+    specialty: "Cardiovascular Disease",
+    city: "Arlington",
+    state: "TX",
+    phone: "555-010-0001",
+    address: "100 Demo Way",
+  },
+  {
+    npi: "0000000002",
+    first_name: "Sam",
+    last_name: "Chen",
+    gender: "M",
+    specialty: "Nephrology",
+    city: "Arlington",
+    state: "TX",
+    phone: "555-010-0002",
+    address: "200 Demo Way",
+  },
+];
 
 export const api = {
   isDemoMode(): boolean {
@@ -105,5 +149,30 @@ export const api = {
     }
 
     await request("/auth/logout", { method: "POST" });
+  },
+
+  async searchDoctors(params: DoctorSearchParams): Promise<Doctor[]> {
+    if (!API_BASE_URL) {
+      return DEMO_DOCTORS.filter((doctor) => {
+        if (params.specialty && doctor.specialty !== params.specialty) {
+          return false;
+        }
+        if (params.gender && doctor.gender !== params.gender) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    const query = new URLSearchParams();
+    if (params.specialty) query.set("specialty", params.specialty);
+    if (params.city) query.set("city", params.city);
+    if (params.state) query.set("state", params.state);
+    if (params.gender) query.set("gender", params.gender);
+
+    const result = await request<{ count: number; doctors: Doctor[] }>(
+      `/doctors/search?${query.toString()}`
+    );
+    return result.doctors;
   },
 };
