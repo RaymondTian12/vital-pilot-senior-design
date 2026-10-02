@@ -3,9 +3,12 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { toast } from "react-toastify";
+
+import { api } from "../services/api";
 
 interface FormData {
   email: string;
@@ -13,6 +16,7 @@ interface FormData {
 }
 
 const Signin = () => {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -22,12 +26,15 @@ const Signin = () => {
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
-      console.log(data);
+      await api.signIn(data.email, data.password);
 
       toast.success("Welcome back!");
       reset();
+      router.push("/dashboard");
     } catch (error: unknown) {
-      toast.error("Failed to sign in.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to sign in."
+      );
     }
   };
 

@@ -3,17 +3,23 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { toast } from "react-toastify";
 
+import { api } from "../services/api";
+
 interface FormData {
+  firstname: string;
+  lastname: string;
   email: string;
   password: string;
   confirmPassword: string;
 }
 
 const Signup = () => {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -23,12 +29,20 @@ const Signup = () => {
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
-      console.log(data);
+      await api.signUp(
+        data.firstname,
+        data.lastname,
+        data.email,
+        data.password
+      );
 
       toast.success("Account created successfully!");
       reset();
+      router.push("/dashboard");
     } catch (error: unknown) {
-      toast.error("Failed to create account.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create account."
+      );
     }
   };
 
@@ -58,6 +72,34 @@ const Signup = () => {
           Create your account to start tracking your health
         </h3>
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+          <input
+            type="text"
+            autoComplete="given-name"
+            id="firstname"
+            placeholder="First Name *"
+            className="w-full h-[60] pl-5 outline-none rounded-lg border-2 border-gray focus:border-none focus:ring-3 focus:ring-main my-2"
+            {...register("firstname", {
+              required: "Please enter your first name.",
+            })}
+          />
+          {errors.firstname && (
+            <p className="error-message">{errors.firstname.message}</p>
+          )}
+
+          <input
+            type="text"
+            autoComplete="family-name"
+            id="lastname"
+            placeholder="Last Name *"
+            className="w-full h-[60] pl-5 outline-none rounded-lg border-2 border-gray focus:border-none focus:ring-3 focus:ring-main my-2"
+            {...register("lastname", {
+              required: "Please enter your last name.",
+            })}
+          />
+          {errors.lastname && (
+            <p className="error-message">{errors.lastname.message}</p>
+          )}
+
           <input
             type="email"
             autoComplete="email"

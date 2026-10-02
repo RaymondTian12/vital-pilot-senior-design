@@ -3,6 +3,7 @@ import os
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from pydantic import BaseModel
 from backend.models.User import User, UserRole
 from backend.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user
 
@@ -10,23 +11,36 @@ router = APIRouter()
 
 COOKIE_SECURE = os.getenv("environment") == "production"
 
+
+class RegisterRequest(BaseModel):
+    firstname: str
+    lastname: str
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 @router.post("/register")
-def register_user(firstname: str, lastname: str, email: str, password: str):
+def register_user(payload: RegisterRequest):
     # Check if the user already exists in the database
-    existing_user = User.get_user_by_email(email)
+    existing_user = User.get_user_by_email(payload.email)
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
 
     # Hash the password using Argon2
     ph = PasswordHasher()
-    password_hash = ph.hash(password)
+    password_hash = ph.hash(payload.password)
 
     # Create a new user object
     new_user = User(
         user_id=None,
-        firstname=firstname,
-        lastname=lastname,
-        email=email,
+        firstname=payload.firstname,
+        lastname=payload.lastname,
+        email=payload.email,
         password_hash=password_hash,
         role=UserRole.default()
     )
@@ -40,16 +54,16 @@ def register_user(firstname: str, lastname: str, email: str, password: str):
 
 # login route
 @router.post("/login")
-def login_user(email: str, password: str, response: Response):
+def login_user(payload: LoginRequest, response: Response):
     # Fetch the user from the database
-    user = User.get_user_by_email(email)
+    user = User.get_user_by_email(payload.email)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     # Verify the password using Argon2
     ph = PasswordHasher()
     try:
-        ph.verify(user.password_hash, password)
+        ph.verify(user.password_hash, payload.password)
     except VerifyMismatchError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
