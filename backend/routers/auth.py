@@ -92,3 +92,5 @@ def logout_user(response: Response):
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user.to_dict()
 
+@router.post("/questionnare")
+def fill_questionnare(current_user: User)

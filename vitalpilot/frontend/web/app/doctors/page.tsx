@@ -13,7 +13,10 @@ import { api, type Doctor } from "../services/api";
 const SPECIALTY_OPTIONS: { label: string; taxonomy: string }[] = [
   { label: "Bariatrician", taxonomy: "Obesity Medicine" },
   { label: "Cardiologist", taxonomy: "Cardiovascular Disease" },
-  { label: "Endocrinologist", taxonomy: "Endocrinology, Diabetes & Metabolism" },
+  {
+    label: "Endocrinologist",
+    taxonomy: "Endocrinology, Diabetes & Metabolism",
+  },
   { label: "Nephrologist", taxonomy: "Nephrology" },
   { label: "Sleep Medicine Physician", taxonomy: "Sleep Medicine" },
   { label: "Sport Medicine Physician", taxonomy: "Sports Medicine" },
@@ -35,7 +38,7 @@ const Page = () => {
     setSelectedSpecialties((prev) =>
       prev.includes(taxonomy)
         ? prev.filter((t) => t !== taxonomy)
-        : [...prev, taxonomy]
+        : [...prev, taxonomy],
     );
   };
 
@@ -71,8 +74,8 @@ const Page = () => {
             city: city || undefined,
             state: state || undefined,
             gender: genderParam,
-          })
-        )
+          }),
+        ),
       );
 
       const merged = new Map<string, Doctor>();
@@ -83,7 +86,9 @@ const Page = () => {
       }
       setDoctors(Array.from(merged.values()));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to search for doctors.");
+      setError(
+        err instanceof Error ? err.message : "Failed to search for doctors.",
+      );
       setDoctors([]);
     } finally {
       setIsSearching(false);
@@ -134,7 +139,7 @@ const Page = () => {
           </div>
         </div>
       </div>
-      <div className="flex bg-ai/30 h-200 w-[80%] mx-auto mt-10 gap-5 p-5">
+      <div className="flex bg-ai/30 h-200 w-[90%] max-w-[1500px] mx-auto mt-10 gap-5 p-5">
         <aside className="flex flex-col basis-2/7 border border-gray bg-white p-4 font-medium rounded-lg gap-5">
           <div className="flex justify-between mb-5">
             Filter{" "}
@@ -151,7 +156,7 @@ const Page = () => {
                 placeholder="City"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full border border-gray rounded-lg px-3 py-2 text-[14px]"
+                className="w-[60%] border border-gray rounded-lg px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-main"
               />
               <input
                 type="text"
@@ -159,7 +164,7 @@ const Page = () => {
                 value={state}
                 onChange={(e) => setState(e.target.value.toUpperCase())}
                 maxLength={2}
-                className="w-20 border border-gray rounded-lg px-3 py-2 text-[14px]"
+                className="w-[40%] border border-gray rounded-lg px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-main"
               />
             </div>
           </div>
@@ -220,8 +225,8 @@ const Page = () => {
 
           {!hasSearched && !error && (
             <p className="text-gray-500">
-              Select a specialty or enter a location, then click Search to
-              find real, verified providers from the CMS NPI Registry.
+              Select a specialty or enter a location, then click Search to find
+              real, verified providers from the CMS NPI Registry.
             </p>
           )}
 
