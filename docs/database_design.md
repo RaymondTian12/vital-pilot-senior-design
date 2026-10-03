@@ -29,6 +29,14 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `date_of_birth` | `DATE` | `NOT NULL` | The user's birthdate which is used to dynamically calculate age if needed |
 | `updated_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Tracks the last modification of physical profile characteristics. |
 
+### UserTrackedVitals
+*Records which vitals a user opted to track during the onboarding questionnaire. This is distinct from `MetricGoals` (a user-configured target value, which only exists for `Sleep`, `Steps`, `Water`, and `Peak Flow`) and from `ClinicalThresholds` (fixed institutional reference ranges, identical for every user). This table is the only place that records a tracking preference across all 8 metric types, including the 4 that have no user-configurable goal (`Blood Pressure`, `Blood Glucose`, `Blood Oxygen`, `Body Mass Index`).*
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `user_id` | `INT` | `FOREIGN KEY`, `NOT NULL` | References `Users.user_id` (`ON DELETE CASCADE`) |
+| `metric_type` | `ENUM('BLOOD_PRESSURE', 'BLOOD_GLUCOSE', 'BLOOD_OXYGEN', 'BODY_MASS_INDEX', 'PEAK_FLOW_RATE', 'WATER_INTAKE', 'PHYSICAL_ACTIVITY', 'SLEEP')` | `NOT NULL`, part of composite `PRIMARY KEY (user_id, metric_type)` | The vital the user selected to track |
+| `selected_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | When the user opted into tracking this vital |
+
 ### Providers
 
 *Stores professional credentials, clinical identification numbers, and contact information for healthcare providers authorized to access patient records.*
@@ -229,6 +237,10 @@ Stores static, institutional health guidelines. This table uses a single row per
 ### `UserHealthProfiles`
 * **Purpose:** Stores health-specific attributes required for clinical calculations such as sex for daily water intake goals and height for BMI.
 * **Design Decision:** By keeping health attributes separate from the `Users` table, the system avoids mixing authentication records with clinical data if not needed. While height is usually a stable physical trait for adults, the schema uses an `updated_at` field
+
+### `UserTrackedVitals`
+* **Purpose:** Records which of the 8 trackable metrics a user selected during the onboarding questionnaire, so the app knows which logging forms and dashboard widgets to present to that user.
+* **Design Decision:** Modeled as a junction table keyed on the composite `(user_id, metric_type)` rather than reusing `MetricGoals`, because `MetricGoals` only exists for the 4 metrics with a user-configurable target (`Sleep`, `Steps`, `Water`, `Peak Flow`). The other 4 metrics (`Blood Pressure`, `Blood Glucose`, `Blood Oxygen`, `Body Mass Index`) are evaluated against fixed `ClinicalThresholds` and never have a `MetricGoals` row, so they need a separate mechanism to express that a user still wants them tracked. No history table is needed since this reflects a current-state toggle rather than a clinical value; a user changing their mind simply deletes and re-inserts rows.
 
 ### `Providers`
 * **Purpose:** Stores professional licensing credentials, clinical identification numbers, and practice contact information for healthcare providers authorized to access and review patient records.
