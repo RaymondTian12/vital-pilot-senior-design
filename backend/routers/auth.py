@@ -3,9 +3,11 @@ import os
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from backend.models.User import User, UserRole
 from backend.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user
+from typing import Literal
+from enum import Enum
 
 router = APIRouter()
 
@@ -17,12 +19,21 @@ class RegisterRequest(BaseModel):
     lastname: str
     email: str
     password: str
-
-
+    
+class Vitals(Enum):
+    BLOOD_PRESSURE = "Blood Pressure"
+    
+   
 class LoginRequest(BaseModel):
     email: str
     password: str
 
+class QuestionnaireRequest(BaseModel):
+    gender: Literal["male", "female", "other"]
+    height_feet: int = Field(ge=0, le=9) 
+    height_inches: int = Field(ge=0, le= 11) 
+    weight: float = Field(gt=0)
+    selectedVitals: list[str] # list[Vitals]
 
 @router.post("/register")
 def register_user(payload: RegisterRequest):
@@ -93,4 +104,5 @@ def get_me(current_user: User = Depends(get_current_user)):
     return current_user.to_dict()
 
 @router.post("/questionnare")
-def fill_questionnare(current_user: User)
+def fill_questionnare(payload: QuestionnaireRequest, current_user: User = Depends(get_current_user)):
+    
