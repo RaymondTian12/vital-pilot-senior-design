@@ -46,7 +46,7 @@ The National Academies of Science, Engineering, and Medicine (NASEM) water intak
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `calculated_bmi < 18.5` | Weight Log Entry | Underweight | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your BMI falls below the healthy weight range. If this is unexpected or you're concerned about your weight or health, consider speaking with a healthcare professional." |
 | `18.5 <= calculated_bmi < 25.0` | Weight Log Entry | Healthy Weight | Fixed Baseline | LOG_SUCCESS_AND_BANNER | "Your BMI falls within the healthy weight range. Maintaining a balanced diet and regular physical activity can support your overall health." |
-| `25.0 <= calculated_bmi < 30.0` | Weight Log Entry | Overweight | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your BMI falls within the overweight range.. Small, sustainable lifestyle changes can help improve your overall health. Consider discussing your health goals with a professional if needed." |
+| `25.0 <= calculated_bmi < 30.0` | Weight Log Entry | Overweight | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your BMI falls within the overweight range. Small, sustainable lifestyle changes can help improve your overall health. Consider discussing your health goals with a professional if needed." |
 | `calculated_bmi >= 30.0` | Weight Log Entry | Obesity | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your BMI falls within the obesity range. BMI is a screening tool and does not diagnose health conditions. If you're concerned about your weight or health, consider speaking with a healthcare professional." |
 
 **Source:** https://www.cdc.gov/bmi/adult-calculator/bmi-categories.html
@@ -97,7 +97,7 @@ These thresholds are modeled directly from peer-reviewed clinical guidelines pub
 | Condition | Evaluation Target | Classification | Logic Type | Alert State | Alert Message |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `pef_percentage >= 80` | Peak Flow Log | Green Zone (Stable) | Dynamic User Baseline | LOG_SUCCESS_AND_BANNER | "Your peak flow rate falls within the normal green zone (80% or higher of your personal best). Continue monitoring as recommended by your healthcare provider." |
-| `50 <= pef_percentage < 80` | Peak Flow Log | Yellow Zone (Caution) | Dynamic User Baseline | LOG_WARNING_AND_BANNER | "Your peak flow rate falls within the caution yellow zone (50% to 79% of your personal best). Monitor your symptoms closely and consult your personal asthma action plan or healthcare provider". |
+| `50 <= pef_percentage < 80` | Peak Flow Log | Yellow Zone (Caution) | Dynamic User Baseline | LOG_WARNING_AND_BANNER | "Your peak flow rate falls within the caution yellow zone (50% to 79% of your personal best). Monitor your symptoms closely and consult your personal asthma action plan or healthcare provider." |
 | `pef_percentage < 50` | Peak Flow Log | Red Zone (Medical Alert) | Dynamic User Baseline | LOG_CRITICAL_AND_BANNER | "Your peak flow rate is critically low, falling within the red zone (below 50% of your personal best). Seek immediate medical evaluation or emergency care as directed by your healthcare professional." |
 
 **Source:** https://www.lung.org/lung-health-diseases/lung-disease-lookup/asthma/treatment/devices/peak-flow

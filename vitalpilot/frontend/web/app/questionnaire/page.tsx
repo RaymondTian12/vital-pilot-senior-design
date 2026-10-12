@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -11,75 +11,214 @@ interface QuestionnaireData {
   lastName: string;
   date: string;
   gender: string;
-  feet: string;
-  inch: string;
-  pound: string;
+  feet: number;
+  inch: number;
+  pound: number;
+
+  stepGoal?: number;
+  waterGoal?: number;
+  sleepGoal?: number;
+  weightGoal?: number;
+  peakFlowGoal?: number;
 }
 
+type GoalField =
+  | "stepGoal"
+  | "waterGoal"
+  | "sleepGoal"
+  | "weightGoal"
+  | "peakFlowGoal";
+
+interface GoalConfig {
+  vital: string;
+  field: GoalField;
+  question: string;
+  unit: string;
+  inputStep: string;
+}
+
+const GOAL_FIELDS: GoalConfig[] = [
+  {
+    vital: "physical_activity",
+    field: "stepGoal",
+    question: "What is your daily step goal?",
+    unit: "steps per day",
+    inputStep: "1",
+  },
+  {
+    vital: "water_intake",
+    field: "waterGoal",
+    question: "What is your daily water intake goal?",
+    unit: "mL per day",
+    inputStep: "any",
+  },
+  {
+    vital: "sleep_duration",
+    field: "sleepGoal",
+    question: "What is your daily sleep goal?",
+    unit: "hours per night",
+    inputStep: "any",
+  },
+  {
+    vital: "chronic_obesity",
+    field: "weightGoal",
+    question: "What is your target weight?",
+    unit: "lbs",
+    inputStep: "any",
+  },
+  {
+    vital: "peak_flow_rate",
+    field: "peakFlowGoal",
+    question: "What is your peak flow goal?",
+    unit: "L/min",
+    inputStep: "any",
+  },
+];
+
 const Questionnaire = () => {
+  const [step, setStep] = useState<number>(1);
+  const [selectedVitals, setSelectedVitals] = useState<string[]>([]);
+  const [isComplete, setIsComplete] = useState(false);
+
   const {
     register,
     handleSubmit,
     trigger,
+    unregister,
     formState: { errors, isSubmitting },
-  } = useForm<QuestionnaireData>();
+  } = useForm<QuestionnaireData>({
+    // Preserve answers when moving between steps.
+    shouldUnregister: false,
+  });
 
-  const onSubmit: SubmitHandler<QuestionnaireData> = async (data) => {
-    console.log(data);
-    setStep((prev) => prev + 1);
-    try {
-      toast.success("Questionnaire completed!");
-    } catch (error) {
-      toast.error("Failed to submit questionnaire.");
-    }
-  };
-
-  const [step, setStep] = useState<number>(1);
-  const [selectedVitals, setSelectedVitals] = useState<string[]>([]);
+  const selectedGoals = GOAL_FIELDS.filter((goal) =>
+    selectedVitals.includes(goal.vital),
+  );
 
   const toggleVital = (vital: string) => {
-    setSelectedVitals((prev) =>
-      prev.includes(vital)
-        ? prev.filter((item) => item !== vital)
-        : [...prev, vital],
+    const removing = selectedVitals.includes(vital);
+
+    if (removing) {
+      const goal = GOAL_FIELDS.find((item) => item.vital === vital);
+
+      if (goal) {
+        // Remove the old answer and its validation error.
+        unregister(goal.field);
+      }
+    }
+
+    setSelectedVitals((previous) =>
+      previous.includes(vital)
+        ? previous.filter((item) => item !== vital)
+        : [...previous, vital],
     );
+
+    setIsComplete(false);
   };
 
   const isVitalSelected = (vital: string) => selectedVitals.includes(vital);
+
   const nextStep = async () => {
+    if (isSubmitting || step >= 6) return;
+
     let isValid = false;
 
-    if (step === 1) {
-      isValid = await trigger(["firstName", "lastName"]);
-    }
+    switch (step) {
+      case 1:
+        isValid = await trigger(["firstName", "lastName"]);
+        break;
 
-    if (step === 2) {
-      isValid = await trigger("date");
-    }
+      case 2:
+        isValid = await trigger("date");
+        break;
 
-    if (step === 3) {
-      isValid = await trigger("gender");
-    }
+      case 3:
+        isValid = await trigger("gender");
+        break;
 
-    if (step === 4) {
-      isValid = await trigger(["feet", "inch", "pound"]);
+      case 4:
+        isValid = await trigger(["feet", "inch", "pound"]);
+        break;
+
+      case 5:
+        isValid = selectedVitals.length > 0;
+
+        if (!isValid) {
+          toast.error("Please select at least one vital.");
+        }
+        break;
     }
 
     if (isValid) {
-      setStep((prev) => prev + 1);
+      setStep((previous) => Math.min(previous + 1, 6));
     }
   };
 
   const previousStep = () => {
-    setStep((prev) => Math.max(prev - 1, 1));
+    if (isSubmitting) return;
+
+    setIsComplete(false);
+    setStep((previous) => Math.max(previous - 1, 1));
   };
 
+  const onSubmit: SubmitHandler<QuestionnaireData> = async (data) => {
+    if (step !== 6 || isComplete) return;
+
+    if (selectedVitals.length === 0) {
+      setStep(5);
+      toast.error("Please select at least one vital.");
+      return;
+    }
+
+    // Only include goals belonging to selected vitals.
+    const goals: Partial<Record<GoalField, number>> = {};
+
+    for (const goal of selectedGoals) {
+      const value = data[goal.field];
+
+      if (
+        typeof value !== "number" ||
+        !Number.isFinite(value) ||
+        value <= 0 ||
+        (goal.field === "stepGoal" && !Number.isInteger(value)) ||
+        (goal.field === "sleepGoal" && value > 24)
+      ) {
+        toast.error("Please enter valid values for your selected goals.");
+        return;
+      }
+
+      goals[goal.field] = value;
+    }
+
+    const payload = {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      date: data.date,
+      gender: data.gender,
+      feet: data.feet,
+      inch: data.inch,
+      pound: data.pound,
+      selectedVitals: [...selectedVitals],
+      goals,
+    };
+
+    try {
+      // Replace this with your backend save request when available.
+      // This preserves your current console-only submission behavior.
+      console.log("Questionnaire data:", payload);
+
+      setIsComplete(true);
+      toast.success("Questionnaire completed!");
+    } catch {
+      toast.error("Failed to submit questionnaire.");
+    }
+  };
 
   return (
     <div className="relative flex flex-col items-center h-screen bg-linear-to-br from-[#f7fffc] via-white to-[#dff8ef]">
       <div className="flex-center gap-5 pt-7 border-b border-ai w-full pb-5 z-10 bg-white">
         <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map((item) => (
+          {[1, 2, 3, 4, 5, 6].map((item) => (
             <div
               key={item}
               className={`w-[48px] h-[6px] rounded-full transition-all duration-300 ${
@@ -108,7 +247,19 @@ const Questionnaire = () => {
         [&::-webkit-scrollbar-thumb:hover]:bg-main/60
         [&::-webkit-scrollbar-button]:hidden bg-white"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col ">
+        <form
+          noValidate
+          onSubmit={(event) => {
+            if (step !== 6) {
+              event.preventDefault();
+              void nextStep();
+              return;
+            }
+
+            void handleSubmit(onSubmit)(event);
+          }}
+          className="flex flex-col"
+        >
           {step === 1 && (
             <div className="flex flex-col py-10 px-10">
               <h3 className="font-semibold mb-10">
@@ -153,6 +304,7 @@ const Questionnaire = () => {
               )}
 
               <button
+                type="button"
                 className="h-[40] rounded-full bg-amber-200 hover:bg-amber-300 cursor-pointer mt-5 font-semibold transition duration-300"
                 onClick={nextStep}
               >
@@ -548,12 +700,19 @@ const Questionnaire = () => {
 
                 <div className="flex flex-col gap-3 mt-5">
                   <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full h-[40px] rounded-full bg-amber-200 hover:bg-amber-300 cursor-pointer font-semibold transition duration-300"
+                    type="button"
+                    onClick={nextStep}
+                    disabled={selectedVitals.length === 0}
+                    className="w-full h-[40px] rounded-full bg-amber-200 hover:bg-amber-300 cursor-pointer font-semibold transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? "Submitting..." : "Complete"}
+                    Next
                   </button>
+
+                  {selectedVitals.length === 0 && (
+                    <p role="status" className="text-sm text-red-500">
+                      Select at least one vital to continue.
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={previousStep}
@@ -562,6 +721,120 @@ const Questionnaire = () => {
                     Back
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {step === 6 && (
+            <div className="flex flex-col py-10 px-10">
+              <h3 className="font-semibold mb-3">Set your personal goals</h3>
+
+              {selectedGoals.length > 0 ? (
+                <p className="text-sm text-gray-500 mb-8">
+                  Enter a goal for each of the vitals you selected.
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500 mb-8">
+                  Your selected vitals do not require goal values. Click
+                  Complete to finish your questionnaire.
+                </p>
+              )}
+
+              <fieldset
+                disabled={isSubmitting || isComplete}
+                className="flex flex-col gap-6"
+              >
+                {selectedGoals.map((goal) => {
+                  const error = errors[goal.field];
+
+                  return (
+                    <div key={goal.field} className="flex flex-col">
+                      <label htmlFor={goal.field} className="font-medium mb-2">
+                        {goal.question}
+                      </label>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          id={goal.field}
+                          type="number"
+                          step={goal.inputStep}
+                          inputMode={
+                            goal.field === "stepGoal" ? "numeric" : "decimal"
+                          }
+                          placeholder="Enter your goal"
+                          aria-invalid={Boolean(error)}
+                          aria-describedby={`${goal.field}-unit${
+                            error ? ` ${goal.field}-error` : ""
+                          }`}
+                          {...register(goal.field, {
+                            valueAsNumber: true,
+                            required: "Please enter your goal.",
+                            validate: (value) => {
+                              if (
+                                typeof value !== "number" ||
+                                !Number.isFinite(value) ||
+                                value <= 0
+                              ) {
+                                return "Enter a number greater than zero.";
+                              }
+
+                              if (
+                                goal.field === "stepGoal" &&
+                                !Number.isInteger(value)
+                              ) {
+                                return "Enter a whole number of steps.";
+                              }
+
+                              if (goal.field === "sleepGoal" && value > 24) {
+                                return "Sleep duration cannot exceed 24 hours.";
+                              }
+
+                              return true;
+                            },
+                          })}
+                          className="min-w-0 w-[500px] h-[40px] border-2 border-ai outline-none focus:ring-3 focus:ring-main pl-2 rounded-lg"
+                        />
+
+                        <span
+                          id={`${goal.field}-unit`}
+                          className="text-sm text-gray-500 shrink-0"
+                        >
+                          {goal.unit}
+                        </span>
+                      </div>
+
+                      {error && (
+                        <p
+                          id={`${goal.field}-error`}
+                          role="alert"
+                          className="text-red-500 text-sm mt-1"
+                        >
+                          {error.message}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </fieldset>
+
+
+              <div className="flex flex-col gap-3 mt-8">
+                <button
+                  type="submit"
+                  className="w-full h-[40px] rounded-full bg-amber-200 hover:bg-amber-300 cursor-pointer font-semibold transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting
+                    ? "Submitting..."
+                    :"Complete"}
+                </button>
+               
+                <button
+                    type="button"
+                    onClick={previousStep}
+                    className="w-full h-[40px] rounded-full border-2 border-ai hover:bg-ai cursor-pointer font-semibold transition duration-300"
+                  >
+                    Back
+                  </button>
               </div>
             </div>
           )}

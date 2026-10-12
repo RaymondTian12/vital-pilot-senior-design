@@ -5,3 +5,4 @@ pymysql
 cryptography
 argon2-cffi
 pyjwt
+httpx
