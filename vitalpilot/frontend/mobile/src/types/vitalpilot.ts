@@ -34,3 +34,24 @@ export type MetricSubmissionResponse = {
   success: boolean;
   message?: string;
 };
+export type VitalType = 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE' | 'BLOOD_OXYGEN' | 'BODY_MASS_INDEX' | 'PEAK_FLOW_RATE' | 'WATER_INTAKE' | 'PHYSICAL_ACTIVITY' | 'SLEEP';
+export type QuestionnaireRequest = {
+  gender: 'male' | 'female'; dob: string; height_feet: number; height_inches: number;
+  weight: number; selectedVitals: VitalType[];
+  steps_goal?: number; water_goal?: number; sleep_goal?: number; peak_flow_goal?: number;
+};
+export type Doctor = {
+  npi: number | string; first_name: string | null; last_name: string | null;
+  gender: string | null; specialty: string | null; city: string | null;
+  state: string | null; phone: string | null; address: string | null;
+  address_line_2?: string | null; postal_code?: string | null;
+  credential?: string | null; fax?: string | null; registry_status?: string | null;
+  last_updated?: string | null; taxonomies?: string[]; registry_url?: string;
+  photo_url?: string | null; website?: string | null;
+  clinic_photo_url?: string | null;
+};
+export type ClinicPhoto = {
+  photo_url: string | null; message: string; place_name?: string;
+  website?: string; maps_url?: string;
+  attributions?: { displayName: string; uri?: string }[];
+};

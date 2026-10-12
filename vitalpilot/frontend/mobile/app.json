@@ -4,16 +4,17 @@
     "slug": "vitalpilot",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vitalpilot/logo_green.png",
+    "icon": "./assets/images/vitalpilot/launcher-icon.png",
     "scheme": "vitalpilot",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/images/vitalpilot/logo_green.png"
+      "icon": "./assets/images/vitalpilot/launcher-icon.png",
+      "bundleIdentifier": "com.vitalpilot.mobile"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/vitalpilot/logo_green.png",
+        "backgroundColor": "#F4F6F8",
+        "foregroundImage": "./assets/images/vitalpilot/launcher-icon.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
@@ -27,14 +28,30 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#F4F6F8",
           "image": "./assets/images/vitalpilot/logo_green.png",
           "imageWidth": 132
         }
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-image",
+      "expo-status-bar",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.123952545473-snihrina8crjf4s8iuu563jnoct86e47"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

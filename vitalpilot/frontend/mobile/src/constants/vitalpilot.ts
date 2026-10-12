@@ -1,13 +1,22 @@
 export const VitalPilotColors = {
-    primary: '#19B788',
-    primaryDark: '#11825F',
-    title: '#223F2B',
-    mint: '#EAF8F3',
-    mintStrong: '#D6F2E8',
-    border: '#D9E7E1',
-    white: '#FFFFFF',
-    danger: '#C43D3D',
-    warning: '#A35A00',
-    warningBackground: '#FFF4E5',
-  } as const;
-  
+  background: "#F4F6F8",
+  primary: "#087F83",
+  primaryDark: "#06676B",
+  title: "#142A35",
+  textSecondary: "#536B7C",
+  mint: "#E5F4F5",
+  mintStrong: "#D5ECEF",
+  blue: "#D9EAF4",
+  peach: "#FFC7A4",
+  border: "#DCE5EC",
+  white: "#FFFFFF",
+  danger: "#B42318",
+  warning: "#854D0E",
+  warningBackground: "#FFF4DF",
+} as const;
+export const Layout = {
+  gutter: 20,
+  radius: 16,
+  contentWidth: 640,
+  controlHeight: 54,
+} as const;

@@ -1,50 +1,69 @@
-import { AuthProvider, useAuth } from '@/context/auth-context';
+import { DefaultTheme, ThemeProvider } from "expo-router";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
-
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { NotificationProvider } from '@/context/notification-context';
-
-/*
- * Keep the native splash screen visible until
- * AnimatedSplashOverlay finishes its startup sequence.
- */
-SplashScreen.preventAutoHideAsync().catch(() => {
-  // Prevent an unhandled promise warning during development.
-});
-
+  ActivityIndicator,
+  Appearance,
+  Platform,
+  Text,
+  View,
+} from "react-native";
+import { AuthProvider, useAuth } from "@/context/auth-context";
+import { NotificationProvider } from "@/context/notification-context";
+import { PreviewProvider } from "@/context/preview-context";
+import { AnimatedSplashOverlay } from "@/components/animated-icon";
+import { VitalPilotColors as C } from "@/constants/vitalpilot";
+if (Platform.OS !== "web") Appearance.setColorScheme("light");
+SplashScreen.preventAutoHideAsync().catch(() => {});
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: C.background,
+    card: C.white,
+    text: C.title,
+    primary: C.primary,
+    border: C.border,
+  },
+};
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider
-      value={
-        colorScheme === 'dark'
-          ? DarkTheme
-          : DefaultTheme
-      }
-    >
+    <ThemeProvider value={theme}>
+      <StatusBar style="dark" />
       <AuthProvider>
-        <AuthenticatedNavigation />
+        <Navigation />
+        <AnimatedSplashOverlay />
       </AuthProvider>
     </ThemeProvider>
   );
 }
-
-function AuthenticatedNavigation() {
+function Navigation() {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading)
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: C.background,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+        }}
+      >
+        <ActivityIndicator color={C.primary} />
+        <Text style={{ color: C.textSecondary }}>Restoring your session…</Text>
+      </View>
+    );
   return (
-    <>
-      <AnimatedSplashOverlay />
-      <NotificationProvider key={user?.user_id ?? 'guest'}>
-        <Stack screenOptions={{ headerShown: false }}>
+    <PreviewProvider key={user?.user_id ?? "guest"}>
+      <NotificationProvider key={user?.user_id ?? "guest"}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: C.background },
+          }}
+        >
           <Stack.Screen name="index" />
           <Stack.Protected guard={!user}>
             <Stack.Screen name="welcome" />
@@ -60,6 +79,6 @@ function AuthenticatedNavigation() {
           </Stack.Protected>
         </Stack>
       </NotificationProvider>
-    </>
+    </PreviewProvider>
   );
 }

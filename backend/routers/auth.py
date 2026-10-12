@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from backend.models.User import User, UserRole
 from backend.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_user
 from backend.db import get_db_connection
+from backend.google_auth import verify_google_token, google_user
 from typing import Literal, Optional
 from enum import Enum
 from datetime import date, datetime
@@ -46,6 +47,20 @@ GOAL_FIELD_MAP = {
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str = Field(min_length=1, max_length=16384)
+
+@router.post("/google")
+def google_login(payload: GoogleLoginRequest, response: Response):
+    user, is_new_user = google_user(verify_google_token(payload.id_token))
+    token = create_access_token(user.email)
+    response.set_cookie(
+        key="access_token", value=token, httponly=True, secure=COOKIE_SECURE,
+        samesite="lax", max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    return {"message": "Login successful", "access_token": token,
+            "user": user.to_dict(), "is_new_user": is_new_user}
 
 class QuestionnaireRequest(BaseModel):
     gender: Literal["male", "female", "other"]

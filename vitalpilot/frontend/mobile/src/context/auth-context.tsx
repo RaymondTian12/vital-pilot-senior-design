@@ -7,6 +7,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -46,7 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  return <AuthContext.Provider value={{ user, loading, signIn, signOut }}>{children}</AuthContext.Provider>;
+  async function signInWithGoogle(idToken: string) {
+    const result = await api.signInWithGoogle(idToken);
+    if (!result.access_token) throw new Error('The server did not return a login token.');
+    await session.set(result.access_token);
+    setUser(result.user);
+    return result.is_new_user;
+  }
+
+  return <AuthContext.Provider value={{ user, loading, signIn, signInWithGoogle, signOut }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

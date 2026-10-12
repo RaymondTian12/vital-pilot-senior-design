@@ -1,5 +1,5 @@
 import { session } from './session';
-import type { AuthUser } from '@/types/vitalpilot';
+import type { AuthUser, QuestionnaireRequest, Doctor } from '@/types/vitalpilot';
 import type {
     ChatMessage,
     ChatResponse,
@@ -47,6 +47,7 @@ async function request<T>(
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     if (typeof body?.detail === 'string') throw new Error(body.detail);
+    if (Array.isArray(body?.detail)) throw new Error(body.detail.map((item: { loc?: string[]; msg?: string }) => `${item.loc?.slice(1).join('.') || 'Request'}: ${item.msg || 'Invalid value'}`).join('\n'));
     throw new Error(
       `Request failed with status ${response.status}`
     );
@@ -56,14 +57,21 @@ async function request<T>(
 }
 
 export const api = {
+  clinicPhoto: (npi: string) => request<import('@/types/vitalpilot').ClinicPhoto>(`/doctors/${encodeURIComponent(npi)}/clinic-photo`),
+  signInWithGoogle: (idToken: string) => request<SignInResponse & { is_new_user: boolean }>('/auth/google', {
+    method: 'POST', body: JSON.stringify({ id_token: idToken }),
+  }),
   async signIn(email: string, password: string): Promise<SignInResponse> {
-    // The existing backend accepts query parameters, not JSON bodies.
-    const query = new URLSearchParams({ email, password });
-    return request<SignInResponse>(`/auth/login?${query}`, { method: 'POST' });
+    return request<SignInResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
   },
   async signUp(firstname: string, lastname: string, email: string, password: string): Promise<SignUpResponse> {
-    const query = new URLSearchParams({ firstname, lastname, email, password });
-    return request<SignUpResponse>(`/auth/register?${query}`, { method: 'POST' });
+    return request<SignUpResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ firstname, lastname, email, password }) });
+  },
+  saveQuestionnaire: (payload: QuestionnaireRequest) => request<{ message: string }>('/auth/questionnare', { method: 'POST', body: JSON.stringify(payload) }),
+  searchDoctors: (filters: { specialty?: string; city?: string; state?: string; gender?: string }) => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) if (value?.trim()) query.set(key, value.trim());
+    return request<{ count: number; doctors: Doctor[] }>(`/doctors/search?${query}`);
   },
   me: () => request<AuthUser>('/auth/me'),
   logout: () => request<{ message: string }>('/auth/logout', { method: 'POST' }),
@@ -72,14 +80,6 @@ export const api = {
     message: string,
     history: ChatMessage[]
   ): Promise<ChatResponse> {
-    if (!API_BASE_URL) {
-      return {
-        text:
-          'Pilot AI is currently running in demo mode. ' +
-          `You asked: "${message}"`,
-      };
-    }
-
     return request<ChatResponse>('/chat', {
       method: 'POST',
       body: JSON.stringify({
@@ -93,13 +93,6 @@ export const api = {
     metricType: string,
     value: string
   ): Promise<MetricSubmissionResponse> {
-    if (!API_BASE_URL) {
-      return {
-        success: true,
-        message: 'Measurement saved in demo mode.',
-      };
-    }
-
     return request<MetricSubmissionResponse>(
       '/metrics',
       {
