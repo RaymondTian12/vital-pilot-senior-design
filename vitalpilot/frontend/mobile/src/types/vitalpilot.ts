@@ -51,6 +51,7 @@ export type Doctor = {
   clinic_photo_url?: string | null;
 };
 export type ClinicPhoto = {
+  source?: 'places' | 'street_view'; image_date?: string;
   photo_url: string | null; message: string; place_name?: string;
   website?: string; maps_url?: string;
   attributions?: { displayName: string; uri?: string }[];

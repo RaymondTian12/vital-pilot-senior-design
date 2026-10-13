@@ -85,6 +85,14 @@ clearly labeled examples for unsupported features only. It defaults off, stays
 in memory, resets on sign-out, and never calls a write API. Account identity,
 onboarding, and doctor search always use real API state.
 
+Vitals shows all eight measurements in an overview. Tap a tile to open its reading
+sheet, or use a metric link from Home. Each metric keeps a separate unsaved draft
+in screen memory; Done closes the sheet, Clear draft removes that metric's values,
+and sign-out clears all drafts. No measurement is written to storage or the API.
+The Vitals Sample preview switch shares Profile's session-only setting and displays
+labeled examples without filling or replacing draft inputs. Saving remains disabled
+until the real measurement endpoints are implemented.
+
 The one-second opening animation runs once per cold launch, concurrently with
 session restoration. It uses Reanimated and the existing logo, and reduces to a
 short fade when reduced motion is enabled. A slow session check shows a loading
@@ -204,3 +212,21 @@ The backend defaults to 20 lookup attempts per day **per process** using
 billing guarantee. Configure Google Cloud quotas separately. Search requests
 include contact/website fields and may trigger Enterprise pricing; photo media
 requests have their own pricing. Test on a physical device before release.
+
+If the individual provider listing has no photo, lookup now tries one additional
+search for a medical clinic at the practice address. Both searches require the
+same street address and a matching phone number or doctor surname; a supplied
+city and state must also match exactly. Each search consumes a lookup-limit allowance. This can
+improve photo coverage but does not guarantee exterior imagery or a photo for
+every practice. When no Places photo is available, Street View Static API can provide a nearby-street image.
+
+
+Street View fallback requires Street View Static API enabled and allowed on the
+backend API key. A metadata request first checks imagery availability. Only an
+available image is fetched, with a 50-meter search radius and outdoor source.
+The backend returns image bytes without exposing the API key; it does not store
+the imagery. Google attribution embedded in the image is preserved by displaying
+the whole image. The app labels it as Street View near the practice address,
+shows the imagery date when available, and notes that it may not show the exact
+entrance. Each image consumes another backend lookup allowance. Configure Google
+Cloud quotas separately; the process-local limit resets on backend restart.

@@ -27,6 +27,13 @@ const paths = {
   logout: "M10 3H3v18h7 M8 12h13 m-5-5 5 5-5 5",
   check: "m4 12 5 5L20 6",
   chart: "M5 21V12 M12 21V3 M19 21V8",
+  close: "m6 6 12 12 M6 18 18 6",
+  lungs:
+    "M12 3v9 M12 8l-3 3 M12 8l3 3 M9 6C5 7 3 12 3 17c0 4 6 4 6 0V6 M15 6c4 1 6 6 6 11 0 4-6 4-6 0V6",
+  activity:
+    "M13 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4 M8 11l3-3 4 3h4 M11 8l-1 7-4 6 M10 15l5 2 2 4",
+  scale:
+    "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 M7 8a7 7 0 0 1 10 0l-3 4h-4z M12 9l2-2",
 } as const;
 export type IconName = keyof typeof paths;
 export function Icon({

@@ -10,6 +10,8 @@ import {
   TextInput,
   View,
   type TextInputProps,
+  type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -255,14 +257,19 @@ export function Button({
 }
 export function Field({
   label,
+  labelStyle,
   secureTextEntry,
   error,
   ...props
-}: TextInputProps & { label: string; error?: string }) {
+}: TextInputProps & {
+  label: string;
+  error?: string;
+  labelStyle?: StyleProp<TextStyle>;
+}) {
   const [show, setShow] = useState(false);
   return (
     <View style={{ gap: 8, flex: 1, minWidth: 0 }}>
-      <Text style={[ui.body, { fontWeight: "600" }]}>{label}</Text>
+      <Text style={[ui.body, { fontWeight: "600" }, labelStyle]}>{label}</Text>
       <View style={ui.row}>
         <TextInput
           {...props}

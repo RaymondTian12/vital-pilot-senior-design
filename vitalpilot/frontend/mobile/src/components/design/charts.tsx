@@ -21,6 +21,7 @@ export function Sparkline({
   return (
     <Image
       accessibilityLabel={`Sample trend: ${values.join(", ")}`}
+      contentFit="fill"
       source={{ uri: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` }}
       style={{ width: "100%", height: 48 }}
     />

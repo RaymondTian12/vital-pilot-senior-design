@@ -25,7 +25,7 @@ def clinic_photo(npi: str, response: Response, current_user=Depends(get_current_
     provider = records[0]
     basic = provider.get('basic', {})
     address = next((a for a in provider.get('addresses',[]) if a.get('address_purpose') == 'LOCATION'), {})
-    return lookup_photo({'first_name':basic.get('first_name'),'last_name':basic.get('last_name'),
+    return lookup_photo({'npi':npi,'first_name':basic.get('first_name'),'last_name':basic.get('last_name'),
                          'address':address.get('address_1'),'city':address.get('city'),
                          'state':address.get('state'),'phone':address.get('telephone_number')})
 
