@@ -7,6 +7,8 @@ from backend.routers import auth, doctors
 app = FastAPI(title="Vital Pilot API", version="1.0.0")
 
 allow_origins = [
+    "http://localhost:8081",
+    "http://localhost:8082",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]

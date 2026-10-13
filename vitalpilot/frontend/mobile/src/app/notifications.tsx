@@ -1,748 +1,154 @@
-import { useRouter } from 'expo-router';
+import { useState } from "react";
+import { Text, View } from "react-native";
+import { useRouter, type Href } from "expo-router";
+import { useNotifications } from "@/context/notification-context";
+import { usePreview } from "@/context/preview-context";
 import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import {
-  useNotifications,
-} from '@/context/notification-context';
-
-import {
-  VitalPilotColors,
-} from '@/constants/vitalpilot';
-
-import type {
-  NotificationSeverity,
-  VitalNotification,
-} from '@/types/notification';
-
-export default function NotificationsScreen() {
+  Button,
+  Card,
+  Chip,
+  Empty,
+  Heading,
+  Notice,
+  PreviewBadge,
+  Row,
+  Screen,
+  ui,
+} from "@/components/design/ui";
+import { VitalPilotColors as C } from "@/constants/vitalpilot";
+const samples = [
+  {
+    id: "sample-reading",
+    title: "Review your reading",
+    message: "Example alert for design preview.",
+    icon: "vitals" as const,
+  },
+  {
+    id: "sample-routine",
+    title: "Keep your routine",
+    message: "Example reminder.",
+    icon: "calendar" as const,
+  },
+  {
+    id: "sample-summary",
+    title: "Your weekly overview",
+    message: "Example report notification.",
+    icon: "report" as const,
+  },
+];
+export default function Notifications() {
+  const { notifications, markAsRead, markAllAsRead, clearAllNotifications } =
+    useNotifications();
+  const { preview, setPreview } = usePreview();
+  const [unread, setUnread] = useState(false);
+  const [sampleRead, setSampleRead] = useState<string[]>([]);
   const router = useRouter();
-
-  const {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    removeNotification,
-  } = useNotifications();
-
-  function openNotification(
-    notification: VitalNotification
-  ) {
-    markAsRead(notification.id);
-
-    if (
-      notification.action?.route
-    ) {
-      router.push(
-        notification.action
-          .route as never
-      );
-    }
-  }
-
+  const visible = notifications.filter((item) => !unread || !item.read);
   return (
-    <SafeAreaView
-      style={styles.safeArea}
-    >
-      <ScrollView
-        contentContainerStyle={
-          styles.content
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
+    <Screen back>
+      <Heading
+        title="Notifications"
+        subtitle="Important updates, clearly organized."
+      />
+      <View style={ui.row}>
+        <Chip selected={!unread} onPress={() => setUnread(false)}>
+          All
+        </Chip>
+        <Chip selected={unread} onPress={() => setUnread(true)}>
+          Unread
+        </Chip>
+      </View>
+      <Button
+        secondary
+        disabled={!notifications.length && !preview}
+        onPress={() => {
+          markAllAsRead();
+          setSampleRead(samples.map((item) => item.id));
+        }}
       >
-        <View style={styles.header}>
-          <Pressable
-            onPress={() =>
-              router.back()
-            }
-            style={styles.backButton}
+        Mark all as read
+      </Button>
+      {visible.map((item) => (
+        <Card
+          key={item.id}
+          style={{
+            borderColor:
+              item.severity === "critical"
+                ? C.danger
+                : item.severity === "warning"
+                  ? C.warning
+                  : C.border,
+          }}
+        >
+          <Text
+            style={[
+              ui.eyebrow,
+              {
+                color:
+                  item.severity === "critical" ? C.danger : C.textSecondary,
+              },
+            ]}
           >
-            <Text
-              style={styles.backArrow}
-            >
-              ‹
-            </Text>
-
-            <Text style={styles.backText}>
-              Back
-            </Text>
-          </Pressable>
-
-          <View style={styles.headerTitle}>
-            <Text style={styles.title}>
-              Notifications
-            </Text>
-
-            {unreadCount > 0 ? (
-              <Text
-                style={
-                  styles.unreadLabel
-                }
-              >
-                {unreadCount} unread
-              </Text>
-            ) : null}
-          </View>
-        </View>
-
-        {notifications.length > 0 ? (
-          <View
-            style={
-              styles.controlRow
-            }
-          >
-            <Text
-              style={
-                styles.sectionTitle
-              }
-            >
-              Recent
-            </Text>
-
-            {unreadCount > 0 ? (
-              <Pressable
-                onPress={
-                  markAllAsRead
-                }
-              >
-                <Text
-                  style={
-                    styles.markAllText
-                  }
-                >
-                  Mark all read
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
-
-        {notifications.length === 0 ? (
-          <View
-            style={
-              styles.emptyState
-            }
-          >
-            <View
-              style={
-                styles.emptyIcon
-              }
-            >
-              <Text
-                style={
-                  styles.emptyIconText
-                }
-              >
-                ✓
-              </Text>
-            </View>
-
-            <Text
-              style={
-                styles.emptyTitle
-              }
-            >
-              You're all caught up
-            </Text>
-
-            <Text
-              style={styles.emptyText}
-            >
-              New health alerts,
-              reminders, reports, and
-              system notifications will
-              appear here.
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={
-              styles.notificationList
-            }
-          >
-            {notifications.map(
-              (notification) => (
-                <NotificationItem
-                  key={
-                    notification.id
-                  }
-                  notification={
-                    notification
-                  }
+            {item.severity.toUpperCase()}
+            {!item.read ? " · UNREAD" : ""}
+          </Text>
+          <Row
+            title={item.title}
+            detail={item.message}
+            icon="bell"
+            onPress={() => {
+              markAsRead(item.id);
+              if (item.action) router.push(item.action.route as Href);
+            }}
+          />
+          <Text style={ui.small}>
+            {new Date(item.createdAt).toLocaleString()}
+          </Text>
+        </Card>
+      ))}
+      {preview && (
+        <>
+          <PreviewBadge />
+          {samples
+            .filter((item) => !unread || !sampleRead.includes(item.id))
+            .map((item) => (
+              <Card key={item.id}>
+                <Row
+                  title={item.title}
+                  detail={item.message}
+                  icon={item.icon}
                   onPress={() =>
-                    openNotification(
-                      notification
-                    )
-                  }
-                  onDelete={() =>
-                    removeNotification(
-                      notification.id
-                    )
+                    setSampleRead((current) => [
+                      ...new Set([...current, item.id]),
+                    ])
                   }
                 />
-              )
-            )}
-          </View>
-        )}
-
-        <View style={styles.infoCard}>
-          <Text
-            style={styles.infoTitle}
-          >
-            Health alerts
-          </Text>
-
-          <Text
-            style={styles.infoText}
-          >
-            VitalPilot notifications
-            summarize information
-            generated by the application's
-            health analytics and reporting
-            services. They do not replace
-            professional medical advice or
-            emergency services.
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+                <Text style={ui.small}>
+                  {sampleRead.includes(item.id) ? "Read" : "Unread"} · preview
+                  only
+                </Text>
+              </Card>
+            ))}
+          <Notice>Preview items are not saved notifications.</Notice>
+        </>
+      )}
+      {!visible.length && !preview && (
+        <>
+          <Empty
+            title="You’re all caught up"
+            message="There are no notifications in this session. Saved notification history is not connected yet."
+            icon="bell"
+          />
+          <Button secondary onPress={() => setPreview(true)}>
+            Preview sample notifications
+          </Button>
+        </>
+      )}
+      {!!notifications.length && (
+        <Button secondary onPress={clearAllNotifications}>
+          Clear session notifications
+        </Button>
+      )}
+    </Screen>
   );
 }
-
-function NotificationItem({
-  notification,
-  onPress,
-  onDelete,
-}: {
-  notification: VitalNotification;
-
-  onPress: () => void;
-  onDelete: () => void;
-}) {
-  const theme =
-    getNotificationTheme(
-      notification.severity
-    );
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.notificationItem,
-
-        !notification.read &&
-          styles.unreadNotification,
-
-        pressed && styles.pressed,
-      ]}
-    >
-      <View
-        style={[
-          styles.notificationIcon,
-
-          {
-            backgroundColor:
-              theme.background,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.notificationIconText,
-
-            {
-              color: theme.color,
-            },
-          ]}
-        >
-          {theme.icon}
-        </Text>
-      </View>
-
-      <View
-        style={
-          styles.notificationContent
-        }
-      >
-        <View
-          style={
-            styles.notificationTitleRow
-          }
-        >
-          <Text
-            style={
-              styles.notificationTitle
-            }
-          >
-            {notification.title}
-          </Text>
-
-          {!notification.read ? (
-            <View
-              style={styles.unreadDot}
-            />
-          ) : null}
-        </View>
-
-        <Text
-          style={
-            styles.notificationMessage
-          }
-        >
-          {notification.message}
-        </Text>
-
-        {notification.metricName &&
-        notification.metricValue ? (
-          <View
-            style={styles.metricBox}
-          >
-            <Text
-              style={
-                styles.metricName
-              }
-            >
-              {
-                notification.metricName
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.metricValue
-              }
-            >
-              {
-                notification.metricValue
-              }
-            </Text>
-          </View>
-        ) : null}
-
-        <View
-          style={
-            styles.notificationFooter
-          }
-        >
-          <Text
-            style={styles.timeText}
-          >
-            {formatTime(
-              notification.createdAt
-            )}
-          </Text>
-
-          {notification.action ? (
-            <Text
-              style={[
-                styles.actionText,
-
-                {
-                  color:
-                    theme.color,
-                },
-              ]}
-            >
-              {
-                notification.action
-                  .label
-              }{' '}
-              →
-            </Text>
-          ) : null}
-
-          <Pressable
-            onPress={(event) => {
-              event.stopPropagation();
-              onDelete();
-            }}
-          >
-            <Text
-              style={
-                styles.deleteText
-              }
-            >
-              Remove
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function getNotificationTheme(
-  severity: NotificationSeverity
-) {
-  switch (severity) {
-    case 'critical':
-      return {
-        icon: '!',
-        color: '#B42318',
-        background: '#FEE4E2',
-      };
-
-    case 'warning':
-      return {
-        icon: '!',
-        color: '#B54708',
-        background: '#FFF0D5',
-      };
-
-    case 'success':
-      return {
-        icon: '✓',
-        color: '#137A53',
-        background: '#DDF3E8',
-      };
-
-    default:
-      return {
-        icon: 'i',
-        color: '#175CD3',
-        background: '#E5EDFF',
-      };
-  }
-}
-
-function formatTime(
-  value: string
-) {
-  const date = new Date(value);
-
-  return date.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-
-    backgroundColor: '#F7FAF8',
-  },
-
-  content: {
-    padding: 20,
-
-    paddingBottom: 50,
-
-    gap: 16,
-  },
-
-  header: {
-    minHeight: 56,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    gap: 12,
-  },
-
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    minHeight: 44,
-  },
-
-  backArrow: {
-    color:
-      VitalPilotColors.primaryDark,
-
-    fontSize: 30,
-
-    marginRight: 3,
-  },
-
-  backText: {
-    color:
-      VitalPilotColors.primaryDark,
-
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  headerTitle: {
-    flex: 1,
-
-    alignItems: 'flex-end',
-  },
-
-  title: {
-    color:
-      VitalPilotColors.title,
-
-    fontSize: 24,
-    fontWeight: '900',
-  },
-
-  unreadLabel: {
-    color: '#667085',
-
-    fontSize: 10,
-
-    marginTop: 2,
-  },
-
-  controlRow: {
-    flexDirection: 'row',
-
-    justifyContent:
-      'space-between',
-
-    alignItems: 'center',
-  },
-
-  sectionTitle: {
-    color: '#101828',
-
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
-  markAllText: {
-    color:
-      VitalPilotColors.primaryDark,
-
-    fontSize: 11,
-    fontWeight: '800',
-  },
-
-  notificationList: {
-    backgroundColor: '#FFFFFF',
-
-    borderRadius: 18,
-
-    borderWidth: 1,
-    borderColor: '#E2E8E5',
-
-    overflow: 'hidden',
-  },
-
-  notificationItem: {
-    flexDirection: 'row',
-
-    padding: 14,
-
-    backgroundColor: '#FFFFFF',
-
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF2F0',
-
-    gap: 11,
-  },
-
-  unreadNotification: {
-    backgroundColor: '#FBFEFC',
-  },
-
-  notificationIcon: {
-    width: 42,
-    height: 42,
-
-    borderRadius: 21,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  notificationIconText: {
-    fontSize: 17,
-    fontWeight: '900',
-  },
-
-  notificationContent: {
-    flex: 1,
-  },
-
-  notificationTitleRow: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    gap: 7,
-  },
-
-  notificationTitle: {
-    flex: 1,
-
-    color: '#101828',
-
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  unreadDot: {
-    width: 8,
-    height: 8,
-
-    borderRadius: 4,
-
-    backgroundColor: '#2E90FA',
-  },
-
-  notificationMessage: {
-    color: '#667085',
-
-    fontSize: 11,
-    lineHeight: 17,
-
-    marginTop: 4,
-  },
-
-  metricBox: {
-    flexDirection: 'row',
-
-    justifyContent:
-      'space-between',
-
-    alignItems: 'center',
-
-    backgroundColor: '#F8FAF9',
-
-    borderRadius: 10,
-
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-
-    marginTop: 8,
-  },
-
-  metricName: {
-    color: '#667085',
-
-    fontSize: 10,
-  },
-
-  metricValue: {
-    color: '#101828',
-
-    fontSize: 11,
-    fontWeight: '800',
-  },
-
-  notificationFooter: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    flexWrap: 'wrap',
-
-    gap: 10,
-
-    marginTop: 8,
-  },
-
-  timeText: {
-    color: '#98A2B3',
-
-    fontSize: 9,
-  },
-
-  actionText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-
-  deleteText: {
-    color: '#98A2B3',
-
-    fontSize: 9,
-  },
-
-  emptyState: {
-    alignItems: 'center',
-
-    paddingVertical: 55,
-    paddingHorizontal: 25,
-
-    backgroundColor: '#FFFFFF',
-
-    borderRadius: 20,
-
-    borderWidth: 1,
-    borderColor: '#E2E8E5',
-  },
-
-  emptyIcon: {
-    width: 62,
-    height: 62,
-
-    borderRadius: 31,
-
-    backgroundColor: '#EAF8F0',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginBottom: 14,
-  },
-
-  emptyIconText: {
-    color:
-      VitalPilotColors.primaryDark,
-
-    fontSize: 24,
-    fontWeight: '900',
-  },
-
-  emptyTitle: {
-    color: '#101828',
-
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
-  emptyText: {
-    color: '#667085',
-
-    fontSize: 11,
-    lineHeight: 18,
-
-    textAlign: 'center',
-
-    marginTop: 5,
-  },
-
-  infoCard: {
-    backgroundColor: '#F8FAF9',
-
-    borderRadius: 14,
-
-    padding: 13,
-  },
-
-  infoTitle: {
-    color: '#475467',
-
-    fontSize: 11,
-    fontWeight: '800',
-  },
-
-  infoText: {
-    color: '#667085',
-
-    fontSize: 10,
-    lineHeight: 16,
-
-    marginTop: 4,
-  },
-
-  pressed: {
-    opacity: 0.7,
-  },
-});

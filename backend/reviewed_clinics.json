@@ -1,0 +1,124 @@
+[
+  {
+    "npi": "1578523122",
+    "first_name": "GEORGE",
+    "last_name": "ANAGNOSTIS",
+    "address": "1300 S FIELDER RD",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50,
+    "website": "https://www.catalystphysiciangroup.com/location/fielder/"
+  },
+  {
+    "npi": "1144281205",
+    "first_name": "JIM",
+    "last_name": "ANAGNOSTIS",
+    "address": "1300 S FIELDER RD",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50,
+    "website": "https://www.catalystphysiciangroup.com/location/fielder/"
+  },
+  {
+    "npi": "1437110418",
+    "first_name": "CHERI",
+    "last_name": "ANDREWS",
+    "address": "1926 SW GREEN OAKS BLVD",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 100
+  },
+  {
+    "npi": "1689008179",
+    "first_name": "EBERECHI",
+    "last_name": "ANOZIE",
+    "address": "905 MEDICAL CENTRE DR STE C",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50,
+    "website": "https://oasisrockmedical.com/contact/"
+  },
+  {
+    "npi": "1043449325",
+    "first_name": "SHERLEY",
+    "last_name": "ARAMATH",
+    "address": "2415 MATLOCK RD",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50
+  },
+  {
+    "npi": "1871581082",
+    "first_name": "DONNA",
+    "last_name": "AUSTIN",
+    "address": "8840 BENBROOK BLVD",
+    "city": "FORT WORTH",
+    "state": "TX",
+    "radius": 50
+  },
+  {
+    "npi": "1023079019",
+    "first_name": "DONNA",
+    "last_name": "BAKER",
+    "address": "1300 S FIELDER RD",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50,
+    "website": "https://www.catalystphysiciangroup.com/location/fielder/"
+  },
+  {
+    "npi": "1750580262",
+    "first_name": "SHELLE",
+    "last_name": "BARBER",
+    "address": "1300 S FIELDER RD",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50,
+    "website": "https://www.catalystphysiciangroup.com/location/fielder/"
+  },
+  {
+    "npi": "1013178581",
+    "first_name": "DANA",
+    "last_name": "BARNES",
+    "address": "4615 PHILIPS HWY STE 3",
+    "city": "JACKSONVILLE",
+    "state": "FL",
+    "radius": 50
+  },
+  {
+    "npi": "1134175557",
+    "first_name": "STEVEN",
+    "last_name": "BARNETT",
+    "address": "1911 HAMPTON ST",
+    "city": "COLUMBIA",
+    "state": "SC",
+    "radius": 50
+  },
+  {
+    "npi": "1720472970",
+    "first_name": "CHAD",
+    "last_name": "BARTEL",
+    "address": "4100 N COLLINS ST STE 200",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50
+  },
+  {
+    "npi": "1154090264",
+    "first_name": "ALYSON",
+    "last_name": "BARTON",
+    "address": "400 W ARBROOK BLVD STE 101",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50
+  },
+  {
+    "npi": "1861543787",
+    "first_name": "MARIANNE",
+    "last_name": "BEARD",
+    "address": "1216 FLORIDA DR",
+    "city": "ARLINGTON",
+    "state": "TX",
+    "radius": 50
+  }
+]

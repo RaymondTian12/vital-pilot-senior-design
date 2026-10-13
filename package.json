@@ -23,5 +23,8 @@
   "homepage": "https://github.com/RaymondTian12/vital-pilot-senior-design#readme",
   "devDependencies": {
     "turbo": "^2.11.7"
+  },
+  "overrides": {
+    "react-native": "0.86.3"
   }
 }
