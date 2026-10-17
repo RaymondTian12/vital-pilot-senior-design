@@ -48,6 +48,8 @@ def main():
             bp_logs = []
             for systolic, diastolic, logged_at in bp_rows:
                 result = classify_blood_pressure(cursor, systolic, diastolic)
+                if result["overall"] is None:
+                    raise RuntimeError("Cannot evaluate history with unclassified blood-pressure components")
                 classification = result["overall"]["classification"]
                 days_ago = (datetime.now().date() - logged_at.date()).days
                 print(
