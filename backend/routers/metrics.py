@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -15,7 +15,7 @@ router = APIRouter()
 
 class MetricCreateRequest(BaseModel):
     metric_type: Vitals
-    recorded_at: datetime = Field(default_factory=datetime.now)
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # Blood pressure fields. Future metric types add their own optional
     # fields here, validated against METRIC_TABLES in the handlers below.
     systolic_mmhg: Optional[int] = Field(default=None, gt=0)
@@ -29,9 +29,17 @@ METRIC_TABLES: dict[Vitals, tuple[str, list[str]]] = {
 }
 
 
+def utc_timestamp(value):
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def record_from_row(metric_type: Vitals, fields: list[str], row: tuple) -> dict:
     log_id, *values, logged_at = row
-    record = {"log_id": log_id, "metric_type": metric_type.value, "recorded_at": logged_at}
+    record = {"log_id": log_id, "metric_type": metric_type.value, "recorded_at": utc_timestamp(logged_at)}
     record.update(zip(fields, values))
     return record
 
@@ -60,9 +68,10 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
     classification = None
     try:
         with conn.cursor() as cursor:
+            cursor.execute("SET time_zone = %s", ("+00:00",))
             cursor.execute(
                 f"INSERT INTO {table} (user_id, {columns}, logged_at) VALUES (%s, {placeholders}, %s)",
-                (current_user.user_id, *values, payload.recorded_at),
+                (current_user.user_id, *values, utc_timestamp(payload.recorded_at).replace(tzinfo=None)),
             )
             log_id = cursor.lastrowid
             if payload.metric_type == Vitals.BLOOD_PRESSURE:
@@ -78,7 +87,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
     return {
         "log_id": log_id,
         "metric_type": payload.metric_type.value,
-        "recorded_at": payload.recorded_at,
+        "recorded_at": utc_timestamp(payload.recorded_at),
         "classification": classification,
         **{field: getattr(payload, field) for field in fields},
     }
@@ -103,9 +112,10 @@ def get_metrics(
 
     try:
         with conn.cursor() as cursor:
+            cursor.execute("SET time_zone = %s", ("+00:00",))
             cursor.execute(
                 f"SELECT log_id, {columns}, logged_at FROM {table} "
-                "WHERE user_id = %s ORDER BY logged_at DESC LIMIT %s OFFSET %s",
+                "WHERE user_id = %s ORDER BY logged_at DESC, log_id DESC LIMIT %s OFFSET %s",
                 (current_user.user_id, limit, offset),
             )
             rows = cursor.fetchall()

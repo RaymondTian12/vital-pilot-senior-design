@@ -30,6 +30,8 @@ class CursorAdapter:
         self.cursor.close()
 
     def execute(self, sql, values=()):
+        if sql.startswith("SET time_zone"):
+            return None
         if "ClinicalThresholds" in sql and self.owner.fail_threshold_lookup:
             raise RuntimeError("Simulated threshold lookup failure")
         return self.cursor.execute(sql.replace("%s", "?"), values)
@@ -176,6 +178,15 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(self.client.post("/metrics", json={"metric_type": "SLEEP"}).status_code, 400)
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(user_id=999)
         self.assertEqual(self.history().json()["records"], [])
+
+    def test_recorded_at_is_normalized_to_explicit_utc_on_save_and_read(self):
+        response = self.post_reading(recorded_at="2026-10-17T03:15:00-05:00")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["recorded_at"].replace("Z", "+00:00"), "2026-10-17T08:15:00+00:00")
+        record = self.history().json()["records"][0]
+        self.assertEqual(record["recorded_at"].replace("Z", "+00:00"), "2026-10-17T08:15:00+00:00")
+        default = self.post_reading().json()["recorded_at"]
+        self.assertTrue(default.endswith("Z") or default.endswith("+00:00"))
 
     def test_classifier_database_failure_rolls_back_insert(self):
         self.connection.fail_threshold_lookup = True
