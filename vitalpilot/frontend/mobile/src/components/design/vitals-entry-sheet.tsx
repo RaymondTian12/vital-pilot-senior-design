@@ -1,3 +1,6 @@
+import { ReadingResult } from "./blood-pressure-panel";
+import type { BloodPressureReading } from "@/types/vitalpilot";
+import { useAuth } from "@/context/auth-context";
 import { useEffect, useRef } from "react";
 import {
   AccessibilityInfo,
@@ -26,17 +29,19 @@ import { Button, Field, ui } from "./ui";
 import { Icon } from "./icon";
 import { metricConfig, type Draft, type Metric } from "./vitals-data";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
-
 export function focusControl(node: View | Text | null) {
   if (!node) return;
   if (Platform.OS === "web") {
-    (node as unknown as { focus?: () => void }).focus?.();
+    (
+      node as unknown as {
+        focus?: () => void;
+      }
+    ).focus?.();
   } else {
     const tag = findNodeHandle(node);
     if (tag) AccessibilityInfo.setAccessibilityFocus(tag);
   }
 }
-
 export function VitalsEntrySheet({
   metric,
   draft,
@@ -44,6 +49,14 @@ export function VitalsEntrySheet({
   onChange,
   onClear,
   onClose,
+  saving = false,
+  preview = false,
+  saveError = "",
+  uncertain = false,
+  authExpired = false,
+  saved,
+  onSave,
+  onReviewHistory,
 }: {
   metric: Metric;
   draft: Draft;
@@ -51,8 +64,18 @@ export function VitalsEntrySheet({
   onChange: (field: keyof Draft, value: string) => void;
   onClear: () => void;
   onClose: () => void;
+  saving?: boolean;
+  preview?: boolean;
+  saveError?: string;
+  uncertain?: boolean;
+  authExpired?: boolean;
+  saved?: BloodPressureReading | null;
+  onSave?: () => Promise<void>;
+  onReviewHistory?: () => void;
 }) {
   const config = metricConfig(metric);
+  const { signOut } = useAuth();
+  const supported = metric === "Blood Pressure";
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const stackFields = width < 360 || fontScale >= 1.3;
@@ -72,7 +95,7 @@ export function VitalsEntrySheet({
     return () => cancelAnimation(progress);
   }, [progress, reducedMotion]);
   function close() {
-    if (closing.current) return;
+    if (closing.current || saving) return;
     closing.current = true;
     Keyboard.dismiss();
     progress.value = withTiming(
@@ -129,7 +152,7 @@ export function VitalsEntrySheet({
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text
                     ref={title}
-                    tabIndex={-1}
+                    {...(Platform.OS === "web" ? { tabIndex: -1 } : {})}
                     accessibilityRole="header"
                     style={styles.title}
                   >
@@ -162,7 +185,13 @@ export function VitalsEntrySheet({
                 ]}
               >
                 <View style={styles.draftBadge}>
-                  <Text style={styles.draftText}>Draft — not saved</Text>
+                  <Text style={styles.draftText}>
+                    {saving
+                      ? "Saving…"
+                      : saved && !draft.primary && !draft.secondary
+                        ? "Saved to your account"
+                        : "Draft — not saved"}
+                  </Text>
                 </View>
                 <Pressable
                   accessibilityRole="button"
@@ -195,6 +224,7 @@ export function VitalsEntrySheet({
                         : undefined
                     }
                     value={draft.primary}
+                    editable={!saving}
                     onChangeText={(value) => onChange("primary", value)}
                     keyboardType={config.integer ? "number-pad" : "decimal-pad"}
                     inputMode={config.integer ? "numeric" : "decimal"}
@@ -211,6 +241,7 @@ export function VitalsEntrySheet({
                       label={config.secondary}
                       labelStyle={!stackFields ? { minHeight: 46 } : undefined}
                       value={draft.secondary}
+                      editable={!saving}
                       onChangeText={(value) => onChange("secondary", value)}
                       keyboardType="number-pad"
                       inputMode="numeric"
@@ -226,11 +257,54 @@ export function VitalsEntrySheet({
               <View style={styles.status}>
                 <Icon name="info" size={20} />
                 <Text style={[ui.small, { flex: 1, color: C.title }]}>
-                  Saving isn’t connected yet. Entries stay here as drafts and
-                  won’t appear in your history.
+                  {supported
+                    ? preview
+                      ? "Sample preview is on. Turn it off to save a real reading."
+                      : "Saved using the server’s current time. Review the result below after saving."
+                    : "Saving not available yet. This entry stays as a draft."}
                 </Text>
               </View>
-              <Button disabled>Saving unavailable</Button>
+              {!!saveError && (
+                <Text accessibilityRole="alert" style={{ color: C.danger }}>
+                  {saveError}
+                </Text>
+              )}
+              {saved && (
+                <View accessibilityLiveRegion="polite">
+                  <Text style={ui.body}>Reading saved</Text>
+                  <ReadingResult reading={saved} />
+                </View>
+              )}
+              {authExpired ? (
+                <Button onPress={() => void signOut()}>Sign in again</Button>
+              ) : uncertain ? (
+                <>
+                  <Text style={ui.body}>
+                    This reading may already be saved. Check your history before
+                    trying again.
+                  </Text>
+                  <Button onPress={onReviewHistory}>
+                    Check history before retrying
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  disabled={
+                    !supported ||
+                    preview ||
+                    saving ||
+                    !draft.primary.trim() ||
+                    !draft.secondary.trim()
+                  }
+                  onPress={() => void onSave?.()}
+                >
+                  {saving
+                    ? "Saving…"
+                    : supported
+                      ? "Save reading"
+                      : "Saving unavailable"}
+                </Button>
+              )}
               <View
                 style={[
                   ui.row,
@@ -240,16 +314,19 @@ export function VitalsEntrySheet({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Clear draft"
+                  disabled={saving}
                   onPress={clear}
                   style={styles.textAction}
                 >
                   <Text style={ui.link}>Clear draft</Text>
                 </Pressable>
                 <Text style={[ui.small, { flexShrink: 1 }]}>
-                  Closing keeps this draft for this session.
+                  {draft.primary || draft.secondary ? "Closing keeps this draft for this session." : saved ? "Your saved reading stays in your account." : "Nothing has been saved yet."}
                 </Text>
               </View>
-              <Button onPress={close}>Done</Button>
+              <Button disabled={saving} onPress={close}>
+                Done
+              </Button>
             </ScrollView>
           </Animated.View>
         </KeyboardAvoidingView>
@@ -257,7 +334,6 @@ export function VitalsEntrySheet({
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   modal: { flex: 1 },
   scrim: { backgroundColor: "#142A3566" },

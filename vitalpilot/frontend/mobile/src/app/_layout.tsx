@@ -1,3 +1,4 @@
+import { BloodPressureProvider } from "@/context/blood-pressure-context";
 import { DefaultTheme, ThemeProvider } from "expo-router";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -57,28 +58,30 @@ function Navigation() {
     );
   return (
     <PreviewProvider key={user?.user_id ?? "guest"}>
-      <NotificationProvider key={user?.user_id ?? "guest"}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: C.background },
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Protected guard={!user}>
-            <Stack.Screen name="welcome" />
-            <Stack.Screen name="signin" />
-            <Stack.Screen name="signup" />
-          </Stack.Protected>
-          <Stack.Protected guard={!!user}>
-            <Stack.Screen name="questionnaire" />
-            <Stack.Screen name="doctors" />
-            <Stack.Screen name="change-password" />
-            <Stack.Screen name="notifications" />
-            <Stack.Screen name="(tabs)" />
-          </Stack.Protected>
-        </Stack>
-      </NotificationProvider>
+      <BloodPressureProvider key={user?.user_id ?? "guest"}>
+        <NotificationProvider key={user?.user_id ?? "guest"}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: C.background },
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Protected guard={!user}>
+              <Stack.Screen name="welcome" />
+              <Stack.Screen name="signin" />
+              <Stack.Screen name="signup" />
+            </Stack.Protected>
+            <Stack.Protected guard={!!user}>
+              <Stack.Screen name="questionnaire" />
+              <Stack.Screen name="doctors" />
+              <Stack.Screen name="change-password" />
+              <Stack.Screen name="notifications" />
+              <Stack.Screen name="(tabs)" />
+            </Stack.Protected>
+          </Stack>
+        </NotificationProvider>
+      </BloodPressureProvider>
     </PreviewProvider>
   );
 }

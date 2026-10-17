@@ -22,3 +22,7 @@ python -m unittest discover -s backend/tests -v
 Metrics tests run the real FastAPI routes and classifier through an isolated SQLite SQL adapter with boundaries loaded from `database/seed_clinical_thresholds.sql`. They cover classification boundaries, missing/unrecognized/out-of-range thresholds, auth/account isolation, input validation, and rollback. They do not replace integration testing against the deployed MySQL configuration.
 
 Separate follow-ups: batch threshold lookups for history; align the mobile submission payload with the backend contract.
+
+## Timestamp contract
+
+Metrics default to the server's current UTC time. Both POST and GET return explicit UTC offsets. A metrics connection reads/writes TIMESTAMP values with session timezone `+00:00`; offset-bearing inputs are converted to UTC. See `blood-pressure-mobile.md` for historical timestamp assumptions and rollout checks.
