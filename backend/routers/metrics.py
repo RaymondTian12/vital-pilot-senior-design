@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from backend.db import get_db_connection
+from backend.engine.clinical_evaluator import classify_blood_pressure
 from backend.models.User import User
 from backend.routers.auth import Vitals
 from backend.security import get_current_user
@@ -56,6 +57,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
     columns = ", ".join(fields)
     placeholders = ", ".join(["%s"] * len(fields))
 
+    classification = None
     try:
         with conn.cursor() as cursor:
             cursor.execute(
@@ -63,6 +65,8 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                 (current_user.user_id, *values, payload.recorded_at),
             )
             log_id = cursor.lastrowid
+            if payload.metric_type == Vitals.BLOOD_PRESSURE:
+                classification = classify_blood_pressure(cursor, payload.systolic_mmhg, payload.diastolic_mmhg)
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -75,6 +79,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
         "log_id": log_id,
         "metric_type": payload.metric_type.value,
         "recorded_at": payload.recorded_at,
+        "classification": classification,
         **{field: getattr(payload, field) for field in fields},
     }
 
@@ -104,11 +109,16 @@ def get_metrics(
                 (current_user.user_id, limit, offset),
             )
             rows = cursor.fetchall()
+            records = [record_from_row(metric_type, fields, row) for row in rows]
+            if metric_type == Vitals.BLOOD_PRESSURE:
+                for record in records:
+                    record["classification"] = classify_blood_pressure(
+                        cursor, record["systolic_mmhg"], record["diastolic_mmhg"]
+                    )
     except Exception as e:
         print(f"Error occurred while fetching metrics. Error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to fetch metrics")
     finally:
         conn.close()
 
-    records = [record_from_row(metric_type, fields, row) for row in rows]
     return {"metric_type": metric_type.value, "count": len(records), "records": records}
