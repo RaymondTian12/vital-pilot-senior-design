@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routers import auth, doctors, metrics, provider_directory, summary
+from backend.routers import auth, doctors, metrics
 
 app = FastAPI(title="Vital Pilot API", version="1.0.0")
 

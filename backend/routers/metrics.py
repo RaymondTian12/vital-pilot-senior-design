@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Literal
+from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -29,6 +31,12 @@ class MetricCreateRequest(BaseModel):
     weight_lbs: Optional[Decimal] = Field(default=None, gt=0, le=Decimal("999.99"), max_digits=5, decimal_places=2)
     duration_hours: Optional[Decimal] = Field(default=None, ge=0, le=24, max_digits=4, decimal_places=2)
     amount_cups: Optional[Decimal] = Field(default=None, ge=0, le=Decimal("99.99"), max_digits=4, decimal_places=2)
+    metric_type: Vitals
+    recorded_at: datetime = Field(default_factory=datetime.now)
+    # Blood pressure fields. Future metric types add their own optional
+    # fields here, validated against METRIC_TABLES in the handlers below.
+    systolic_mmhg: Optional[int] = Field(default=None, gt=0)
+    diastolic_mmhg: Optional[int] = Field(default=None, gt=0)
 
 
 # metric_type -> (table name, ordered (request field, numeric) columns to
@@ -57,6 +65,13 @@ def record_from_row(metric_type: Vitals, fields: list[str], row: tuple) -> dict:
     log_id, *values, logged_at = row
     record = {"log_id": log_id, "metric_type": metric_type.value, "recorded_at": utc_timestamp(logged_at)}
     record.update((field, float(value) if isinstance(value, Decimal) else value) for field, value in zip(fields, values))
+}
+
+
+def record_from_row(metric_type: Vitals, fields: list[str], row: tuple) -> dict:
+    log_id, *values, logged_at = row
+    record = {"log_id": log_id, "metric_type": metric_type.value, "recorded_at": logged_at}
+    record.update(zip(fields, values))
     return record
 
 
@@ -70,6 +85,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
     values = []
     input_fields = [field for field in fields if field != "bmi_value"]
     for field in input_fields:
+    for field in fields:
         value = getattr(payload, field)
         if value is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field} is required for {payload.metric_type.value}")
@@ -100,6 +116,11 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
             cursor.execute(
                 f"INSERT INTO {table} (user_id, {columns}, {timestamp_column}) VALUES (%s, {placeholders}, %s)",
                 (current_user.user_id, *values, utc_timestamp(payload.recorded_at).replace(tzinfo=None)),
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"INSERT INTO {table} (user_id, {columns}, logged_at) VALUES (%s, {placeholders}, %s)",
+                (current_user.user_id, *values, payload.recorded_at),
             )
             log_id = cursor.lastrowid
             if payload.metric_type == Vitals.BLOOD_PRESSURE:
@@ -114,6 +135,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
     except HTTPException:
         conn.rollback()
         raise
+        conn.commit()
     except Exception as e:
         conn.rollback()
         print(f"Error occurred while saving metric. Error: {e}")
@@ -127,6 +149,9 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
         "recorded_at": utc_timestamp(payload.recorded_at),
         "classification": classification,
         **{field: float(value) if isinstance(value, Decimal) else value for field, value in zip(fields, values)},
+        "recorded_at": payload.recorded_at,
+        "classification": classification,
+        **{field: getattr(payload, field) for field in fields},
     }
 
 
@@ -154,6 +179,9 @@ def get_metrics(
             cursor.execute(
                 f"SELECT log_id, {columns}, {timestamp_column} FROM {table} "
                 f"WHERE user_id = %s ORDER BY {timestamp_column} DESC, log_id DESC LIMIT %s OFFSET %s",
+            cursor.execute(
+                f"SELECT log_id, {columns}, logged_at FROM {table} "
+                "WHERE user_id = %s ORDER BY logged_at DESC LIMIT %s OFFSET %s",
                 (current_user.user_id, limit, offset),
             )
             rows = cursor.fetchall()

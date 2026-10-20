@@ -36,6 +36,9 @@ class CursorAdapter:
         if "ClinicalThresholds" in sql and self.owner.fail_threshold_lookup:
             raise RuntimeError("Simulated threshold lookup failure")
         return self.cursor.execute(sql.replace("%s", "?"), tuple(float(v) if isinstance(v, Decimal) else v for v in values))
+        if "ClinicalThresholds" in sql and self.owner.fail_threshold_lookup:
+            raise RuntimeError("Simulated threshold lookup failure")
+        return self.cursor.execute(sql.replace("%s", "?"), values)
 
     def fetchone(self):
         return self.cursor.fetchone()
