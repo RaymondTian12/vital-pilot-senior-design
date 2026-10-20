@@ -1,3 +1,5 @@
+import { useMotionPreference } from "@/components/design/motion";
+import { BloodPressureProvider } from "@/context/blood-pressure-context";
 import { DefaultTheme, ThemeProvider } from "expo-router";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -39,6 +41,7 @@ export default function RootLayout() {
   );
 }
 function Navigation() {
+  const reducedMotion = useMotionPreference();
   const { user, loading } = useAuth();
   if (loading)
     return (
@@ -57,28 +60,34 @@ function Navigation() {
     );
   return (
     <PreviewProvider key={user?.user_id ?? "guest"}>
-      <NotificationProvider key={user?.user_id ?? "guest"}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: C.background },
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Protected guard={!user}>
-            <Stack.Screen name="welcome" />
-            <Stack.Screen name="signin" />
-            <Stack.Screen name="signup" />
-          </Stack.Protected>
-          <Stack.Protected guard={!!user}>
-            <Stack.Screen name="questionnaire" />
-            <Stack.Screen name="doctors" />
-            <Stack.Screen name="change-password" />
-            <Stack.Screen name="notifications" />
-            <Stack.Screen name="(tabs)" />
-          </Stack.Protected>
-        </Stack>
-      </NotificationProvider>
+      <BloodPressureProvider key={user?.user_id ?? "guest"}>
+        <NotificationProvider key={user?.user_id ?? "guest"}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: reducedMotion ? "none" : "slide_from_right",
+              animationDuration: 240,
+              gestureEnabled: true,
+              contentStyle: { backgroundColor: C.background },
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Protected guard={!user}>
+              <Stack.Screen name="welcome" />
+              <Stack.Screen name="signin" />
+              <Stack.Screen name="signup" />
+            </Stack.Protected>
+            <Stack.Protected guard={!!user}>
+              <Stack.Screen name="questionnaire" />
+              <Stack.Screen name="doctors" />
+              <Stack.Screen name="care-team" />
+              <Stack.Screen name="change-password" />
+              <Stack.Screen name="notifications" />
+              <Stack.Screen name="(tabs)" />
+            </Stack.Protected>
+          </Stack>
+        </NotificationProvider>
+      </BloodPressureProvider>
     </PreviewProvider>
   );
 }

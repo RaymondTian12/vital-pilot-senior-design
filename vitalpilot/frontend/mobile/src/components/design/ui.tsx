@@ -1,3 +1,5 @@
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
+import { useMotionPreference } from "./motion";
 import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -194,6 +196,8 @@ export function Card({
 }) {
   return <View style={[ui.card, style]}>{children}</View>;
 }
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function Button({
   children,
   onPress,
@@ -210,13 +214,18 @@ export function Button({
   icon?: IconName;
 }) {
   const inactive = disabled || loading;
+  const reducedMotion = useMotionPreference();
+  const scale = useSharedValue(1);
+  const feedback = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => ({
+      onPressIn={() => { scale.value = withTiming(reducedMotion ? 1 : 0.975, { duration: 90 }); }}
+      onPressOut={() => { scale.value = reducedMotion ? 1 : withSpring(1, { damping: 18, stiffness: 320 }); }}
+      style={[{
         minHeight: 54,
         padding: 15,
         borderRadius: 14,
@@ -227,12 +236,11 @@ export function Button({
           : secondary
             ? "transparent"
             : C.primary,
-        opacity: pressed ? 0.8 : 1,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
         gap: 10,
-      })}
+      }, feedback]}
     >
       {loading ? (
         <ActivityIndicator color={C.primary} />
@@ -252,7 +260,7 @@ export function Button({
       >
         {children}
       </Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 export function Field({

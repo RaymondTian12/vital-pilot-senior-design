@@ -1,3 +1,4 @@
+import { BloodPressurePanel } from "@/components/design/blood-pressure-panel";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/auth-context";
@@ -5,7 +6,6 @@ import { usePreview } from "@/context/preview-context";
 import {
   Button,
   Card,
-  Empty,
   Heading,
   PreviewBadge,
   Row,
@@ -111,11 +111,7 @@ export default function Home() {
         </>
       ) : (
         <>
-          <Empty
-            title="Your picture starts here"
-            message="Saved readings and trends will appear here when health tracking is connected."
-            icon="vitals"
-          />
+          <BloodPressurePanel compact />
           <Button secondary onPress={() => setPreview(true)}>
             Preview sample readings
           </Button>

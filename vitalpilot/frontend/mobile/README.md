@@ -1,3 +1,6 @@
+For reproducible setup and daily commands from the main repository, see
+[Local development](../../../docs/local_development.md).
+
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
@@ -78,20 +81,34 @@ credentials and signing secrets out of mobile configuration. A physical phone
 cannot use localhost to reach your computer. Check `/health` from the phone;
 Expo tunnels do not tunnel the backend. Use HTTPS for deployment.
 
-Metrics, live AI, reporting/PDFs, password changes, and saved notification history
-are not implemented by the backend. Their screens do not simulate successful
-writes or clinical classifications. Profile's Sample preview switch enables
-clearly labeled examples for unsupported features only. It defaults off, stays
-in memory, resets on sign-out, and never calls a write API. Account identity,
-onboarding, and doctor search always use real API state.
+Blood pressure is connected to authenticated `POST /metrics` and `GET /metrics`.
+The server saves numeric systolic/diastolic values with UTC timestamps and returns
+classifications from `ClinicalThresholds`. Missing or unrecognized thresholds
+produce an explicit unavailable classification. History is scoped to the signed-in
+account, paginated, and shared between Home and Vitals. Sign-out clears session
+state. Uncertain saves require reviewing history before retrying; they are never
+retried automatically.
 
-Vitals shows all eight measurements in an overview. Tap a tile to open its reading
-sheet, or use a metric link from Home. Each metric keeps a separate unsaved draft
-in screen memory; Done closes the sheet, Clear draft removes that metric's values,
-and sign-out clears all drafts. No measurement is written to storage or the API.
-The Vitals Sample preview switch shares Profile's session-only setting and displays
-labeled examples without filling or replacing draft inputs. Saving remains disabled
-until the real measurement endpoints are implemented.
+Vitals shows all eight measurement types. Blood pressure supports saving and
+history; other metrics remain unsaved session drafts. Sample preview uses labeled
+examples and cannot save readings. Closing a sheet retains its draft; clearing a
+draft does not delete a saved record. A server-confirmed save reveals a checkmark
+and the saved result. Sheet gestures, buttons, and transitions respect reduced
+motion.
+
+Blood-pressure follow-up actions open the existing NPI doctor search with primary
+care or cardiology selected. Critical readings show urgent guidance before routine
+search. `Use my location` requests foreground permission on tap, resolves a U.S.
+city/state, and retains no coordinates in VitalPilot storage. Manual city/state
+entry remains available. Location requires a rebuilt development client. Results
+are area matches, not distance-ranked, and do not confirm insurance or appointment
+availability. The separate `/care-team` endpoint lists registered database
+providers and is retained for future use; it is not the reading follow-up path.
+
+Live AI, real reporting/PDF export, password changes, and saved notification
+history remain unimplemented. Reports offers an explicitly labeled animation
+preview; it does not create a PDF. Profile's Sample preview switch stays in memory
+and resets on sign-out.
 
 The one-second opening animation runs once per cold launch, concurrently with
 session restoration. It uses Reanimated and the existing logo, and reduces to a
@@ -106,7 +123,7 @@ From this folder:
 ```sh
 npm run dev
 npx tsc --noEmit
-node --test tests/auth-api.test.cjs
+node --test tests/*.test.cjs
 ```
 
 Implementation screenshots and a replayable browser startup capture are in
@@ -149,7 +166,7 @@ development client after this native dependency upgrade. To verify compatibility
 npx expo install --check
 npx expo-doctor
 npx tsc --noEmit
-node --test tests/auth-api.test.cjs
+node --test tests/*.test.cjs
 ```
 
 ## Welcome introduction

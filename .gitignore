@@ -218,3 +218,10 @@ __marimo__/
 .streamlit/secrets.toml
 node_modules
 .next
+
+# Local development state
+.venv/
+.expo/
+.DS_Store
+.env.local
+.env.*.local

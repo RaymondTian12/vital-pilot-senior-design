@@ -1,3 +1,5 @@
+import { locateDoctorSearchArea } from "@/services/doctor-location";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Keyboard,
@@ -562,9 +564,28 @@ function getLocalClinic(doctor: Doctor): LocalClinic | null {
   return null;
 }
 export default function Doctors() {
-  const [city, setCity] = useState("Dallas");
-  const [state, setState] = useState("TX");
-  const [specialty, setSpecialty] = useState("All");
+  const params = useLocalSearchParams<{ specialty?: string; reason?: string }>();
+  const [locating, setLocating] = useState(false);
+  const locationRequest = useRef(0);
+  const [locationMessage, setLocationMessage] = useState("");
+  useEffect(() => () => { locationRequest.current++; }, []);
+  async function useLocation() {
+    if (locating || busy) return;
+    const id = ++locationRequest.current;
+    setLocating(true); setLocationMessage("");
+    try {
+      const area = await locateDoctorSearchArea();
+      if (id !== locationRequest.current) return;
+      setCity(area.city); setState(area.state);
+      setDoctors([]); setQueried(false); setError("");
+      setLocationMessage(`Search area set to ${area.city}, ${area.state}. Tap Search providers to continue.`);
+    } catch (error) {
+      if (id === locationRequest.current) setLocationMessage(error instanceof Error ? error.message : "Couldn’t get your location. Enter your city and state manually.");
+    } finally { if (id === locationRequest.current) setLocating(false); }
+  }
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [specialty, setSpecialty] = useState(params.specialty === "Cardiology" || params.specialty === "Primary care" ? params.specialty : "All");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -612,9 +633,16 @@ export default function Doctors() {
     },
     [],
   );
+  useEffect(() => {
+    if (params.specialty === "Cardiology" || params.specialty === "Primary care") setSpecialty(params.specialty);
+  }, [params.specialty]);
   async function search() {
-    if (busy) return;
+    if (busy || locating) return;
     Keyboard.dismiss();
+    if (!city.trim() || !state.trim()) {
+      setError("Enter your city and state, or use your location first.");
+      return;
+    }
     if (state.trim() && !/^[A-Z]{2}$/.test(state.trim())) {
       setError("Enter a two-letter state code, such as TX.");
       return;
@@ -672,7 +700,8 @@ export default function Doctors() {
           <Text style={ui.eyebrow}>YOUR NEXT STEP IN CARE</Text>
           <Icon name="doctor" size={36} />
         </View>
-        <Heading
+        {params.reason === "blood-pressure" && <Notice>Blood pressure follow-up: confirm your city and state, then search for providers. Listings do not establish clinical suitability, insurance coverage, or availability. For emergency symptoms, call emergency services instead of waiting for an appointment.</Notice>}
+      <Heading
           title="Find your care team"
           subtitle="A clearer path to the right provider. Explore specialties, locations, and contact details."
         />
@@ -689,6 +718,7 @@ export default function Doctors() {
           <Field
             label="City"
             value={city}
+            editable={!locating}
             onChangeText={setCity}
             placeholder="City"
             returnKeyType="search"
@@ -698,6 +728,7 @@ export default function Doctors() {
             <Field
               label="State"
               value={state}
+              editable={!locating}
               onChangeText={(v) =>
                 setState(
                   v
@@ -712,6 +743,9 @@ export default function Doctors() {
             />
           </View>
         </View>
+        <Button secondary loading={locating} disabled={busy || Platform.OS === "web"} onPress={() => void useLocation()}>Use my location</Button>
+        <Text style={ui.small}>With your permission, we use your location once to fill your city and state. Your coordinates aren’t stored by VitalPilot. Results match the selected area; they aren’t sorted by distance.</Text>
+        {!!locationMessage && <Text accessibilityLiveRegion="polite" style={ui.small}>{locationMessage}</Text>}
         <Text style={ui.body}>Specialty</Text>
         <View style={[ui.row, { flexWrap: "wrap", gap: 8 }]}>
           {Object.keys(specialties).map((v) => (
@@ -727,7 +761,7 @@ export default function Doctors() {
             </Chip>
           ))}
         </View>
-        <Button icon="search" loading={busy} onPress={search}>
+        <Button icon="search" loading={busy} disabled={locating} onPress={search}>
           Search providers
         </Button>
       </Card>
