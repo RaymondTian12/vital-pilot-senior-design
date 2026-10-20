@@ -28,6 +28,10 @@ The database must have the tables in `database/schema.sql`. For existing databas
 review the additive migrations before applying them with your normal database tool:
 
 - `database/migrations/20261012_google_auth.sql`: Google identity support.
+- `database/migrations/20261020_metric_assessments.sql`: creates per-reading context/assessment
+  storage and fills entirely absent glucose, oxygen, BMI, and peak-flow reference
+  groups. Apply before starting the assessment-enabled backend; existing readings
+  and configured groups are preserved.
 - `database/migrations/20261017_blood_pressure_thresholds.sql`: inserts the nine
   repository BP thresholds only when no BP configuration exists. It leaves existing
   thresholds and readings untouched; partially configured BP thresholds require review.
@@ -109,23 +113,33 @@ physical-device permissions, native signing, or live database persistence.
 Use a designated test account and fictional readings, not a real patient's account.
 
 1. Sign in, finish onboarding, and confirm the session restores after reopening.
-2. Save a blood pressure reading, observe the confirmation, and reopen history.
-3. Verify a failed save retains the draft and does not show success. Review history
+2. Save a reading for each of the eight metrics, observe the confirmation, and reopen
+   each history. Reopen the reading sheet and confirm the latest saved value appears
+   at the top without pressing Save again. Check zero values for habits and weight
+   with/without profile height.
+3. Open Home with Sample preview off. Check today’s summary, earlier BP alerts,
+   missing entries, recent trends, and latest-entry habit-goal progress.
+4. Verify a failed save retains the draft and does not show success. Review history
    before retrying an uncertain save to avoid duplicate records.
-4. Follow a care action to Find a Doctor and confirm the specialty is selected.
-5. Allow location once; confirm the detected city/state. Also test denial, disabled
+5. Follow a care action to Find a Doctor and confirm the specialty is selected.
+6. Allow location once; confirm the detected city/state. Also test denial, disabled
    location services, manual search, no results, and retry after a network failure.
-6. Sign out and switch test accounts; previous readings and drafts must not carry over.
-7. Check small-screen scrolling, keyboard dismissal, sheet drag, and reduced motion.
+7. Sign out and switch test accounts; previous readings and drafts must not carry over.
+8. Check small-screen scrolling, keyboard dismissal, sheet drag, and reduced motion.
 
 ## Supported behavior and limits
 
-Account flows, onboarding, blood pressure persistence/history/classification, NPI
-provider search, opt-in search-area detection, and save feedback are connected.
+Account flows, onboarding, all eight metrics’ persistence/history, BP classification, NPI
+provider search, opt-in search-area detection, save feedback, and a daily Home summary are connected.
 BP classifications depend on configured database thresholds. Clinical rules and
 messaging still need the team's review against approved project requirements.
 
-Other metrics remain drafts. Nearby distance ranking, ZIP search, insurer matching,
+Weight requires the height saved during onboarding so BMI can be calculated. Other metrics return context-aware classifications and guidance. Glucose requires
+confirmed fasting for fasting diagnostic ranges; peak flow requires an explicit
+personal best, and adult BMI categories require age 20+. Missing context or
+configuration is shown explicitly. Habit entries are compared with personal goals,
+not treated as clinical diagnoses. The overall result prioritizes urgent health
+alerts, warnings, then missing context; no-alert status is not a health guarantee. Nearby distance ranking, ZIP search, insurer matching,
 appointment availability, real PDF reports, live AI, and profile editing are not
 implemented. The report animation is a labeled preview. The registered-provider
 `/care-team` route remains separate from the external NPI search and may be empty.

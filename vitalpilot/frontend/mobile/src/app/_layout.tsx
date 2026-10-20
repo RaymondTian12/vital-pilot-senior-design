@@ -1,3 +1,4 @@
+import { VitalReadingsProvider } from "@/context/vital-readings-context";
 import { useMotionPreference } from "@/components/design/motion";
 import { BloodPressureProvider } from "@/context/blood-pressure-context";
 import { DefaultTheme, ThemeProvider } from "expo-router";
@@ -60,6 +61,7 @@ function Navigation() {
     );
   return (
     <PreviewProvider key={user?.user_id ?? "guest"}>
+      <VitalReadingsProvider key={user?.user_id ?? "guest"}>
       <BloodPressureProvider key={user?.user_id ?? "guest"}>
         <NotificationProvider key={user?.user_id ?? "guest"}>
           <Stack
@@ -88,6 +90,7 @@ function Navigation() {
           </Stack>
         </NotificationProvider>
       </BloodPressureProvider>
+      </VitalReadingsProvider>
     </PreviewProvider>
   );
 }

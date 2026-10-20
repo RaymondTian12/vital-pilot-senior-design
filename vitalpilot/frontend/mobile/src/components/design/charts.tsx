@@ -5,9 +5,11 @@ import { ui } from "./ui";
 export function Sparkline({
   values,
   color = C.primary,
+  label = "Sample trend",
 }: {
   values: number[];
   color?: string;
+  label?: string;
 }) {
   const low = Math.min(...values),
     range = Math.max(...values) - low || 1;
@@ -20,7 +22,7 @@ export function Sparkline({
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48"><polyline points="${points}" stroke="${color}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return (
     <Image
-      accessibilityLabel={`Sample trend: ${values.join(", ")}`}
+      accessibilityLabel={`${label}: ${values.join(", ")}`}
       contentFit="fill"
       source={{ uri: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` }}
       style={{ width: "100%", height: 48 }}

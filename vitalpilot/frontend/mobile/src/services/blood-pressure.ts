@@ -100,11 +100,21 @@ export function classificationView(reading: BloodPressureReading) {
   };
 }
 export function createBloodPressureStore(client: Client) {
+  return createReadingStore({
+    getPage: (offset) => client.getBloodPressure(offset),
+    submit: (numbers: { systolic: number; diastolic: number }) => client.submitBloodPressure(numbers.systolic, numbers.diastolic),
+  }, checkedReading, pressureNumbers);
+}
+export function createReadingStore<R extends { log_id: number; recorded_at: string }, P>(
+  client: { getPage: (offset: number) => Promise<{ count: number; records: R[] }>; submit: (input: P) => Promise<R> },
+  check: (value: R) => R,
+  parse: (primary: string, secondary: string, context?: Record<string, string>) => P,
+) {
   let active = true,
     generation = 0,
     offset = 0;
   let state = {
-    records: [] as BloodPressureReading[],
+    records: [] as R[],
     loading: false,
     loaded: false,
     saving: false,
@@ -129,7 +139,7 @@ export function createBloodPressureStore(client: Client) {
         status?: number;
       }
     )?.status === 401;
-  const merge = (records: BloodPressureReading[]) =>
+  const merge = (records: R[]) =>
     [
       ...new Map(records.map((record) => [record.log_id, record])).values(),
     ].sort(
@@ -144,11 +154,11 @@ export function createBloodPressureStore(client: Client) {
     const start = more ? offset : 0;
     update({ loading: true, error: "" });
     try {
-      const page = await client.getBloodPressure(start);
+      const page = await client.getPage(start);
       if (!active || current !== generation) return;
       if (!Array.isArray(page.records) || page.count !== page.records.length)
         throw new Error("Invalid history response.");
-      const records = page.records.map(checkedReading);
+      const records = page.records.map(check);
       offset = start + records.length;
       update({
         records: merge(more ? [...state.records, ...records] : records),
@@ -179,7 +189,7 @@ export function createBloodPressureStore(client: Client) {
     },
     refresh: () => load(),
     loadMore: () => load(true),
-    async save(primary: string, secondary: string, preview: boolean) {
+    async save(primary: string, secondary: string, preview: boolean, context?: Record<string, string>) {
       if (!active || state.saving) return null;
       if (preview) {
         update({
@@ -189,7 +199,7 @@ export function createBloodPressureStore(client: Client) {
       }
       let numbers;
       try {
-        numbers = pressureNumbers(primary, secondary);
+        numbers = parse(primary, secondary, context);
       } catch (error) {
         update({ saveError: failure(error) });
         return null;
@@ -203,14 +213,11 @@ export function createBloodPressureStore(client: Client) {
         authExpired: false,
       });
       try {
-        const raw = await client.submitBloodPressure(
-          numbers.systolic,
-          numbers.diastolic,
-        );
+        const raw = await client.submit(numbers);
         if (!active) return null;
         let reading;
         try {
-          reading = checkedReading(raw);
+          reading = check(raw);
         } catch {
           update({ uncertain: true, retryReady: false });
           throw new Error(

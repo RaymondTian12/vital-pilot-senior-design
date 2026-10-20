@@ -1,6 +1,9 @@
+import { useVitalReading } from "@/context/vital-readings-context";
+import { VitalHistoryPanel } from "@/components/design/vital-history-panel";
+import { readingValue } from "@/services/vital-readings";
 import { useBloodPressure } from "@/context/blood-pressure-context";
 import { BloodPressurePanel } from "@/components/design/blood-pressure-panel";
-import type { BloodPressureReading } from "@/types/vitalpilot";
+import type { BloodPressureReading, SavedMetricReading } from "@/types/vitalpilot";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -48,7 +51,10 @@ export default function Metrics() {
   const singleColumn = width < 360 || fontScale >= 1.3;
   const tileWidth = singleColumn ? "100%" : (Math.min(width, 640) - 52) / 2;
   const bp = useBloodPressure();
-  const [saved, setSaved] = useState<BloodPressureReading | null>(null);
+  const selectedType = metricConfig(selected).type;
+  const other = useVitalReading(selectedType === "BLOOD_PRESSURE" ? "BLOOD_GLUCOSE" : selectedType);
+  const active = selectedType === "BLOOD_PRESSURE" ? bp : other;
+  const [saved, setSaved] = useState<SavedMetricReading | null>(null);
   const { preview, setPreview } = usePreview();
   const opener = useRef<View | null>(null);
   const overview = useRef<Text>(null);
@@ -73,6 +79,7 @@ export default function Metrics() {
       const requested = Array.isArray(metric) ? metric[0] : metric;
       if (isMetric(requested)) {
         opener.current = null;
+        setSaved(null);
         setSelected(requested);
         setOpen(true);
       }
@@ -136,8 +143,7 @@ export default function Metrics() {
           <View style={styles.connection}>
             <Icon name="info" size={18} />
             <Text style={[ui.small, { flex: 1 }]}>
-              Blood pressure can be saved to your account. Other entries remain
-              drafts only.
+              Save your readings to your account and review each metric’s history below.
             </Text>
           </View>
           <View style={styles.previewControl}>
@@ -264,20 +270,7 @@ export default function Metrics() {
           ) : selected === "Blood Pressure" ? (
             <BloodPressurePanel />
           ) : (
-            <Card style={styles.empty}>
-              <View style={styles.emptyIcon}>
-                <Icon name="chart" size={25} />
-              </View>
-              <View style={{ gap: 6, flex: 1 }}>
-                <Text accessibilityRole="header" style={styles.sectionLabel}>
-                  Your history starts here
-                </Text>
-                <Text style={ui.small}>
-                  Saving is not available for this vital yet. Blood pressure is
-                  connected; other entries remain drafts.
-                </Text>
-              </View>
-            </Card>
+            <VitalHistoryPanel type={selectedType === "BLOOD_PRESSURE" ? "BLOOD_GLUCOSE" : selectedType} name={selected} unit={config.unit} />
           )}
         </View>
       </Screen>
@@ -287,22 +280,24 @@ export default function Metrics() {
           metric={selected}
           draft={drafts[selected] ?? emptyDraft}
           reducedMotion={reducedMotion}
-          saving={bp.saving}
+          saving={active.saving}
           preview={preview}
-          saveError={bp.saveError}
-          uncertain={bp.uncertain}
-          authExpired={bp.authExpired}
+          saveError={active.saveError}
+          uncertain={active.uncertain}
+          authExpired={active.authExpired}
           saved={saved}
+          latestReading={active.records[0]}
           onReviewHistory={() => {
-            void bp.refresh();
+            void active.refresh();
             close();
           }}
           onSave={async () => {
             const draft = drafts[selected] ?? emptyDraft;
-            const reading = await bp.save(
+            const reading = await active.save(
               draft.primary,
               draft.secondary,
               preview,
+              { glucose_context: draft.glucoseContext || "unknown", peak_personal_best: draft.personalBest || "" },
             );
             if (reading) {
               setSaved(reading);
@@ -345,6 +340,11 @@ function MetricTile({
   onOpen: (name: Metric, node: View | null) => void;
 }) {
   const config = metricConfig(name);
+  const other = useVitalReading(config.type === "BLOOD_PRESSURE" ? "BLOOD_GLUCOSE" : config.type);
+  const latest: SavedMetricReading | undefined = config.type === "BLOOD_PRESSURE" ? reading : other.records[0];
+  useFocusEffect(useCallback(() => {
+    if (config.type !== "BLOOD_PRESSURE") void other.refresh();
+  }, [config.type, other.refresh]));
   const trigger = useRef<View>(null);
   const scale = useSharedValue(1);
   const animated = useAnimatedStyle(() => ({
@@ -356,7 +356,7 @@ function MetricTile({
         ref={trigger}
         accessibilityRole="button"
         accessibilityLabel={`Enter ${name}`}
-        accessibilityHint={`Opens the ${name} draft form. ${preview ? "Displayed value is an example." : reading ? `Latest saved reading: ${reading.systolic_mmhg}/${reading.diastolic_mmhg} mmHg.` : "No saved readings."}${hasDraft ? " You have an unsaved draft." : ""}`}
+        accessibilityHint={`Opens the ${name} draft form. ${preview ? "Displayed value is an example." : latest ? `Latest saved reading: ${readingValue(latest)} ${config.unit}.` : "No saved readings."}${hasDraft ? " You have an unsaved draft." : ""}`}
         onPress={() => onOpen(name, trigger.current)}
         onPressIn={() => {
           scale.value = withTiming(reducedMotion ? 1 : 0.98, { duration: 90 });
@@ -378,12 +378,12 @@ function MetricTile({
             <Text style={styles.tileValue}>{config.sample}</Text>
             <Text style={styles.sampleTag}>SAMPLE · {config.unit}</Text>
           </View>
-        ) : reading ? (
+        ) : latest ? (
           <View style={{ gap: 4 }}>
             <Text style={styles.tileValue}>
-              {reading.systolic_mmhg}/{reading.diastolic_mmhg}
+              {readingValue(latest)}
             </Text>
-            <Text style={ui.small}>mmHg · saved reading</Text>
+            <Text style={ui.small}>{config.unit} · saved reading</Text>
           </View>
         ) : (
           <View style={{ gap: 4 }}>

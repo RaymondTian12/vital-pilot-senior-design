@@ -700,6 +700,7 @@ export default function Doctors() {
           <Text style={ui.eyebrow}>YOUR NEXT STEP IN CARE</Text>
           <Icon name="doctor" size={36} />
         </View>
+        {params.reason === "metric-review" && <Notice>Follow-up for a saved health reading: confirm your location and contact a provider to discuss the result. For severe symptoms, seek emergency care instead of waiting for an appointment.</Notice>}
         {params.reason === "blood-pressure" && <Notice>Blood pressure follow-up: confirm your city and state, then search for providers. Listings do not establish clinical suitability, insurance coverage, or availability. For emergency symptoms, call emergency services instead of waiting for an appointment.</Notice>}
       <Heading
           title="Find your care team"

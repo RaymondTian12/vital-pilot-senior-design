@@ -25,8 +25,8 @@ export function SaveConfirmation({ children, animate, reducedMotion }: {
   }));
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: check.value }] }));
   return (
-    <Animated.View style={[{ gap: 14 }, contentStyle]}>
-      <View style={[ui.row, { gap: 10 }]}>
+    <View style={{ gap: 14 }}>
+      <Animated.View style={[ui.row, { gap: 10 }, contentStyle]}>
         <Animated.View accessible={false} style={[{
           width: 38, height: 38, borderRadius: 19,
           backgroundColor: C.mint, alignItems: "center", justifyContent: "center",
@@ -37,8 +37,8 @@ export function SaveConfirmation({ children, animate, reducedMotion }: {
           <Text style={[ui.body, { fontWeight: "700" }]}>Reading saved</Text>
           <Text style={ui.small}>Saved to your account</Text>
         </View>
-      </View>
+      </Animated.View>
       {children}
-    </Animated.View>
+    </View>
   );
 }

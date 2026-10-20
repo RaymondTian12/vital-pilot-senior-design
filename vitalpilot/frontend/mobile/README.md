@@ -81,20 +81,37 @@ credentials and signing secrets out of mobile configuration. A physical phone
 cannot use localhost to reach your computer. Check `/health` from the phone;
 Expo tunnels do not tunnel the backend. Use HTTPS for deployment.
 
-Blood pressure is connected to authenticated `POST /metrics` and `GET /metrics`.
-The server saves numeric systolic/diastolic values with UTC timestamps and returns
-classifications from `ClinicalThresholds`. Missing or unrecognized thresholds
+All eight metrics are connected to authenticated `POST /metrics` and `GET /metrics`.
+The server saves numeric readings with UTC timestamps. Blood pressure returns
+classifications from `ClinicalThresholds`. Other metrics return classification/guidance snapshots stored with the context
+used at entry. Glucose asks for fasting status, peak flow accepts an explicit
+personal best, and adult BMI categories require age 20+. Missing context/configuration
+is reported instead of a normal result. Habit classifications compare personal
+goals; they do not trigger a clinical referral.
+Weight is stored with BMI derived from the signed-in user’s onboarding height;
+missing height produces a clear error without inserting a record. Missing or unrecognized thresholds
 produce an explicit unavailable classification. History is scoped to the signed-in
 account, paginated, and shared between Home and Vitals. Sign-out clears session
 state. Uncertain saves require reviewing history before retrying; they are never
 retried automatically.
 
-Vitals shows all eight measurement types. Blood pressure supports saving and
-history; other metrics remain unsaved session drafts. Sample preview uses labeled
+Vitals shows all eight measurement types with saving and per-metric history. Sample preview uses labeled
 examples and cannot save readings. Closing a sheet retains its draft; clearing a
 draft does not delete a saved record. A server-confirmed save reveals a checkmark
-and the saved result. Sheet gestures, buttons, and transitions respect reduced
+and a result card at the top of the sheet. Numeric results stay visible independently
+of the confirmation animation. Reopening a metric shows its latest saved reading
+without another submission. Sheet gestures, buttons, and transitions respect reduced
 motion.
+
+Home’s daily summary uses read-only `/daily-summary` with local-midnight boundaries
+sent by the phone. It displays each metric’s latest entry today, the last 14 saved
+values within seven local days when enough readings exist, and personal habit-goal
+progress based on the latest entry (not sums of repeated snapshots). Empty readings
+and missing goals remain explicit. Earlier BP warnings or critical readings today
+remain visible even after a later normal reading. The overall result considers
+all assessed health metrics: urgent, needs review, incomplete, or no configured
+alerts. Habit progress is reported separately. Legacy glucose and peak-flow entries
+are not assigned assumed context. Sample preview never fetches the real summary.
 
 Blood-pressure follow-up actions open the existing NPI doctor search with primary
 care or cardiology selected. Critical readings show urgent guidance before routine

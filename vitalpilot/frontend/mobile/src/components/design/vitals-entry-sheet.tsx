@@ -1,7 +1,8 @@
+import { VitalReadingResult } from "./vital-history-panel";
 import { useRouter } from "expo-router";
 import { SaveConfirmation } from "./save-confirmation";
 import { ReadingResult } from "./blood-pressure-panel";
-import type { BloodPressureReading } from "@/types/vitalpilot";
+import type { SavedMetricReading } from "@/types/vitalpilot";
 import { useAuth } from "@/context/auth-context";
 import { useEffect, useRef } from "react";
 import {
@@ -28,7 +29,7 @@ import Animated, {
   withTiming,
   withSpring,
 } from "react-native-reanimated";
-import { Button, Field, ui } from "./ui";
+import { Button, Chip, Field, ui } from "./ui";
 import { Icon } from "./icon";
 import { metricConfig, type Draft, type Metric } from "./vitals-data";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
@@ -58,6 +59,7 @@ export function VitalsEntrySheet({
   uncertain = false,
   authExpired = false,
   saved,
+  latestReading,
   onSave,
   onReviewHistory,
 }: {
@@ -72,19 +74,29 @@ export function VitalsEntrySheet({
   saveError?: string;
   uncertain?: boolean;
   authExpired?: boolean;
-  saved?: BloodPressureReading | null;
+  saved?: SavedMetricReading | null;
+  latestReading?: SavedMetricReading | null;
   onSave?: () => Promise<void>;
   onReviewHistory?: () => void;
 }) {
   const router = useRouter();
   const config = metricConfig(metric);
   const { signOut } = useAuth();
-  const supported = metric === "Blood Pressure";
+  const freshResult = saved?.metric_type === config.type ? saved : null;
+  const result = preview ? null : freshResult ?? (latestReading?.metric_type === config.type ? latestReading : null);
+  const resultDetails = result && (result.metric_type === "BLOOD_PRESSURE"
+    ? <ReadingResult reading={result} showCare onFindCare={(specialty) => {
+        onClose();
+        router.push({ pathname: "/doctors", params: { specialty, reason: "blood-pressure" } });
+      }} />
+    : <VitalReadingResult reading={result} unit={config.unit} onFindCare={() => {
+        onClose(); router.push({ pathname: "/doctors", params: { specialty: "Primary care", reason: "metric-review" } });
+      }} />);
+
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const stackFields = width < 360 || fontScale >= 1.3;
   const title = useRef<Text>(null);
-  const initialSavedId = useRef(saved?.log_id);
   const scrollView = useRef<ScrollView>(null);
   const closing = useRef(false);
   const progress = useSharedValue(0);
@@ -203,6 +215,26 @@ export function VitalsEntrySheet({
               style={{ flexShrink: 1 }}
               contentContainerStyle={styles.content}
             >
+              {result && (
+                <View
+                  testID="saved-metric-result"
+                  style={styles.resultCard}
+                  onLayout={() => {
+                    if (freshResult) requestAnimationFrame(() => scrollView.current?.scrollTo({ y: 0, animated: !reducedMotion }));
+                  }}
+                >
+                  {freshResult ? (
+                    <SaveConfirmation key={`${result.metric_type}-${result.log_id}`} animate reducedMotion={reducedMotion}>
+                      {resultDetails}
+                    </SaveConfirmation>
+                  ) : (
+                    <View style={{ gap: 12 }}>
+                      <Text accessibilityRole="header" style={ui.heading}>Latest saved reading</Text>
+                      {resultDetails}
+                    </View>
+                  )}
+                </View>
+              )}
               <View
                 style={[
                   ui.row,
@@ -233,6 +265,19 @@ export function VitalsEntrySheet({
                 </Pressable>
               </View>
               <Text style={ui.body}>{config.hint}</Text>
+              {metric === "Blood Glucose" && <View style={{ gap: 10 }}>
+                <Text style={ui.body}>Was this a fasting reading?</Text>
+                <Text style={ui.small}>Fasting means at least 8 hours without food or drinks other than water.</Text>
+                <View style={[ui.row, { flexWrap: "wrap" }]}>
+                  {[["unknown", "Not sure"], ["fasting", "Fasting (8+ hours)"], ["nonfasting", "Not fasting"]].map(([value, label]) => (
+                    <Chip key={value} selected={(draft.glucoseContext || "unknown") === value} onPress={() => { if (!saving) onChange("glucoseContext", value); }}>{label}</Chip>
+                  ))}
+                </View>
+              </View>}
+              {metric === "Peak Flow" && <View style={{ gap: 8 }}>
+                <Field label="Personal best (L/min)" value={draft.personalBest || ""} onChangeText={(value) => onChange("personalBest", value)} keyboardType="number-pad" inputMode="numeric" editable={!saving} placeholder="Optional" />
+                <Text style={ui.small}>Use your established personal best from your asthma action plan. Without it, the reading is saved without a zone classification.</Text>
+              </View>}
               <View
                 testID="vitals-inputs"
                 style={{
@@ -282,32 +327,13 @@ export function VitalsEntrySheet({
               <View style={styles.status}>
                 <Icon name="info" size={20} />
                 <Text style={[ui.small, { flex: 1, color: C.title }]}>
-                  {supported
-                    ? preview
-                      ? "Sample preview is on. Turn it off to save a real reading."
-                      : "Saved using the server’s current time. Review the result below after saving."
-                    : "Saving not available yet. This entry stays as a draft."}
+                  {preview ? "Sample preview is on. Turn it off to save a real reading." : "Readings use the server’s current time. After saving, your result appears at the top of this sheet."}
                 </Text>
               </View>
               {!!saveError && (
                 <Text accessibilityRole="alert" style={{ color: C.danger }}>
                   {saveError}
                 </Text>
-              )}
-              {saved && (
-                <View onLayout={(event) => {
-                  if (saved.log_id !== initialSavedId.current) {
-                    const y = Math.max(0, event.nativeEvent.layout.y - 20);
-                    requestAnimationFrame(() => scrollView.current?.scrollTo({ y, animated: !reducedMotion }));
-                  }
-                }}>
-                  <SaveConfirmation key={saved.log_id} animate={saved.log_id !== initialSavedId.current} reducedMotion={reducedMotion}>
-                    <ReadingResult reading={saved} showCare onFindCare={(specialty) => {
-                      onClose();
-                      router.push({ pathname: "/doctors", params: { specialty, reason: "blood-pressure" } });
-                    }} />
-                  </SaveConfirmation>
-                </View>
               )}
               {authExpired ? (
                 <Button onPress={() => void signOut()}>Sign in again</Button>
@@ -324,19 +350,18 @@ export function VitalsEntrySheet({
               ) : (
                 <Button
                   disabled={
-                    !supported ||
                     preview ||
                     saving ||
                     !draft.primary.trim() ||
-                    !draft.secondary.trim()
+                    (!!config.secondary && !draft.secondary.trim())
                   }
-                  onPress={() => void onSave?.()}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    if (Platform.OS === "web") (globalThis.document?.activeElement as HTMLElement | null)?.blur();
+                    void onSave?.();
+                  }}
                 >
-                  {saving
-                    ? "Saving…"
-                    : supported
-                      ? "Save reading"
-                      : "Saving unavailable"}
+                  {saving ? "Saving…" : "Save reading"}
                 </Button>
               )}
               <View
@@ -411,6 +436,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFFB3",
     alignItems: "center",
     justifyContent: "center",
+  },
+  resultCard: {
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: C.background,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   content: { padding: 20, gap: 18, paddingBottom: 10 },
   input: {

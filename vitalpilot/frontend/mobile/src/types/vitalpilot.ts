@@ -105,3 +105,32 @@ export type ClinicPhoto = {
     uri?: string;
   }[];
 };
+
+export type OtherVitalType = Exclude<VitalType, "BLOOD_PRESSURE">;
+export type OtherMetricReading = {
+  classification?: MetricAssessment | null;
+  log_id: number;
+  metric_type: OtherVitalType;
+  recorded_at: string;
+  glucose_mgdl?: number;
+  spo2_percentage?: number;
+  flow_rate_lmin?: number;
+  weight_lbs?: number;
+  bmi_value?: number;
+  duration_hours?: number;
+  steps_taken?: number;
+  amount_cups?: number;
+};
+export type SavedMetricReading = BloodPressureReading | OtherMetricReading;
+
+export type MetricAssessment = {
+  status: "classified" | "needs_context" | "unavailable";
+  category: "health" | "goal";
+  classification: string;
+  alert_state: string;
+  guidance: string;
+  next_action: "none" | "review" | "urgent" | "add_context";
+  basis: string;
+  source_url: string | null;
+  context: Record<string, string | number>;
+};

@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import unittest
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -34,7 +35,7 @@ class CursorAdapter:
             return None
         if "ClinicalThresholds" in sql and self.owner.fail_threshold_lookup:
             raise RuntimeError("Simulated threshold lookup failure")
-        return self.cursor.execute(sql.replace("%s", "?"), values)
+        return self.cursor.execute(sql.replace("%s", "?"), tuple(float(v) if isinstance(v, Decimal) else v for v in values))
 
     def fetchone(self):
         return self.cursor.fetchone()
@@ -53,6 +54,17 @@ class ConnectionAdapter:
         self.fail_threshold_lookup = False
         self.rollbacks = 0
         self.database.execute("CREATE TABLE BloodPressure (log_id INTEGER PRIMARY KEY, user_id INT, systolic_mmhg INT, diastolic_mmhg INT, logged_at TEXT)")
+        for table, fields in [
+            ("BloodGlucose", "glucose_mgdl INT"), ("BloodOxygenSaturation", "spo2_percentage INT"),
+            ("PeakFlowRate", "flow_rate_lmin INT"), ("PhysicalActivity", "steps_taken INT"),
+            ("Sleep", "duration_hours REAL"), ("WaterIntake", "amount_cups REAL"),
+        ]:
+            self.database.execute(f"CREATE TABLE {table} (log_id INTEGER PRIMARY KEY, user_id INT, {fields}, logged_at TEXT)")
+        self.database.execute("CREATE TABLE BodyMassIndex (log_id INTEGER PRIMARY KEY, user_id INT, weight_lbs REAL, bmi_value REAL, recorded_at TEXT)")
+        self.database.execute("CREATE TABLE UserHealthProfiles (user_id INT PRIMARY KEY, baseline_height_in REAL, date_of_birth TEXT)")
+        self.database.execute("INSERT INTO UserHealthProfiles VALUES (7,70,'1990-01-01')")
+        self.database.execute("CREATE TABLE MetricGoals (goal_id INTEGER PRIMARY KEY, user_id INT, metric_type TEXT, goal_value REAL, updated_at TEXT)")
+        self.database.execute("CREATE TABLE MetricAssessments (user_id INT, metric_type TEXT, log_id INT, context_json TEXT, assessment_json TEXT, PRIMARY KEY(user_id,metric_type,log_id))")
         self.database.execute("CREATE TABLE ClinicalThresholds (metric_type TEXT, sub_metric TEXT, classification TEXT, min_value REAL, max_value REAL, alert_state TEXT, alert_message TEXT)")
         seed = Path(__file__).resolve().parents[2] / "database/seed_clinical_thresholds.sql"
         pattern = r"\('BLOOD_PRESSURE', '(SYSTOLIC|DIASTOLIC)', '([^']+)', (-?[\d.]+), (-?[\d.]+), '([^']+)', '([^']*)'\)"
@@ -193,6 +205,61 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(self.post_reading().status_code, 500)
         self.assertEqual(self.connection.rollbacks, 1)
         self.assertEqual(self.connection.database.execute("SELECT COUNT(*) FROM BloodPressure").fetchone()[0], 0)
+
+    def test_all_single_value_metrics_persist_and_are_account_scoped(self):
+        cases = [
+            ("BLOOD_GLUCOSE", "glucose_mgdl", 98), ("BLOOD_OXYGEN", "spo2_percentage", 97),
+            ("PEAK_FLOW_RATE", "flow_rate_lmin", 450), ("PHYSICAL_ACTIVITY", "steps_taken", 6200),
+            ("SLEEP", "duration_hours", 7.25), ("WATER_INTAKE", "amount_cups", 5.5),
+            ("BODY_MASS_INDEX", "weight_lbs", 150.25),
+        ]
+        for metric, field, value in cases:
+            with self.subTest(metric=metric):
+                app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(user_id=7)
+                response = self.client.post("/metrics", json={"metric_type": metric, field: value, "user_id": 999})
+                self.assertEqual(response.status_code, 201, response.text)
+                saved = response.json()
+                self.assertEqual(saved[field], value)
+                if metric == "BODY_MASS_INDEX": self.assertEqual(saved["bmi_value"], 21.6)
+                page = self.client.get(f"/metrics?metric_type={metric}").json()
+                self.assertEqual(page["records"][0][field], value)
+                self.assertEqual(page["records"][0]["log_id"], saved["log_id"])
+                self.assertEqual(page["records"][0]["recorded_at"], saved["recorded_at"])
+                app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(user_id=999)
+                self.assertEqual(self.client.get(f"/metrics?metric_type={metric}").json()["records"], [])
+
+    def test_single_value_validation_and_zero_habit_values(self):
+        invalid = [
+            ("BLOOD_GLUCOSE", "glucose_mgdl", 1.5), ("BLOOD_GLUCOSE", "glucose_mgdl", True),
+            ("BLOOD_OXYGEN", "spo2_percentage", 101), ("BLOOD_OXYGEN", "spo2_percentage", 0),
+            ("SLEEP", "duration_hours", 24.01), ("WATER_INTAKE", "amount_cups", 100),
+            ("BODY_MASS_INDEX", "weight_lbs", 1000), ("BODY_MASS_INDEX", "weight_lbs", 150.123),
+            ("PHYSICAL_ACTIVITY", "steps_taken", -1), ("PEAK_FLOW_RATE", "flow_rate_lmin", 0),
+        ]
+        for metric, field, value in invalid:
+            with self.subTest(metric=metric, value=value):
+                response = self.client.post("/metrics", json={"metric_type": metric, field: value})
+                self.assertEqual(response.status_code, 422, response.text)
+        for metric, field in [("SLEEP", "duration_hours"), ("WATER_INTAKE", "amount_cups"), ("PHYSICAL_ACTIVITY", "steps_taken")]:
+            self.assertEqual(self.client.post("/metrics", json={"metric_type": metric, field: 0}).status_code, 201)
+        self.assertEqual(self.client.post("/metrics", json={"metric_type": "BLOOD_GLUCOSE"}).status_code, 400)
+
+    def test_weight_requires_profile_height_and_does_not_insert_on_failure(self):
+        self.connection.database.execute("DELETE FROM UserHealthProfiles")
+        self.connection.commit()
+        response = self.client.post("/metrics", json={"metric_type": "BODY_MASS_INDEX", "weight_lbs": 150})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("height", response.json()["detail"])
+        self.assertEqual(self.connection.database.execute("SELECT COUNT(*) FROM BodyMassIndex").fetchone()[0], 0)
+
+    def test_single_value_history_pagination_and_utc(self):
+        for value in [90, 91, 92]:
+            response = self.client.post("/metrics", json={"metric_type": "BLOOD_GLUCOSE", "glucose_mgdl": value, "recorded_at": "2026-10-20T10:00:00-05:00"})
+            self.assertEqual(response.status_code, 201)
+        page = self.client.get("/metrics?metric_type=BLOOD_GLUCOSE&limit=1&offset=1").json()
+        self.assertEqual(page["count"], 1)
+        self.assertEqual(page["records"][0]["glucose_mgdl"], 91)
+        self.assertEqual(page["records"][0]["recorded_at"].replace("Z", "+00:00"), "2026-10-20T15:00:00+00:00")
 
 
 if __name__ == "__main__":

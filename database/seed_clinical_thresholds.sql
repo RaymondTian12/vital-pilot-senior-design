@@ -39,9 +39,11 @@ INSERT INTO ClinicalThresholds (metric_type, sub_metric, classification, min_val
 ('BLOOD_PRESSURE', 'DIASTOLIC', 'Hypertensive Crisis', 121, 99999.99, 'LOG_CRITICAL_AND_BANNER', 'Your blood pressure reading is extremely high. If this reading is accurate, seek immediate medical attention, especially if you have symptoms such as chest pain, shortness of breath, severe headache, or vision changes.');
 
 -- Table 6: Blood Glucose (source: https://diabetes.org/about-diabetes/diagnosis)
--- All entries assumed fasting (FPG) per the matrix's own scope note.
+-- Diagnostic ranges require an explicit fasting context. Low glucose is flagged regardless of meal timing.
+-- Severe low glucose <55 mg/dL: https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html
 INSERT INTO ClinicalThresholds (metric_type, sub_metric, classification, min_value, max_value, alert_state, alert_message) VALUES
-('BLOOD_GLUCOSE', 'FASTING', 'Hypoglycemia', -999.99, 70, 'LOG_WARNING_AND_BANNER', 'Your fasting blood glucose is below the normal range. Follow your healthcare provider''s guidance for treating low blood sugar. If symptoms are severe or do not improve, seek immediate medical attention.'),
+('BLOOD_GLUCOSE', 'FASTING', 'Severely Low Blood Glucose', -999.99, 55, 'LOG_CRITICAL_AND_BANNER', 'Your blood glucose is severely low. Follow your clinician''s emergency low-blood-sugar plan and seek urgent medical help. For severe symptoms, confusion, fainting, seizure, or inability to swallow safely, call emergency services.'),
+('BLOOD_GLUCOSE', 'FASTING', 'Hypoglycemia', 55, 70, 'LOG_WARNING_AND_BANNER', 'Your fasting blood glucose is below the normal range. Follow your healthcare provider''s guidance for treating low blood sugar. If symptoms are severe or do not improve, seek immediate medical attention.'),
 ('BLOOD_GLUCOSE', 'FASTING', 'Normal Fasting Blood Glucose', 70, 100, 'LOG_SUCCESS_AND_BANNER', 'Your fasting blood glucose falls within the normal range. Keep up your healthy habits and continue monitoring as recommended.'),
 ('BLOOD_GLUCOSE', 'FASTING', 'Prediabetes Range', 100, 126, 'LOG_WARNING_AND_BANNER', 'Your fasting blood glucose falls within the prediabetes range. Maintaining a healthy diet and regular physical activity may help reduce your risk of developing Type 2 diabetes. Consider discussing your results with a healthcare professional.'),
 ('BLOOD_GLUCOSE', 'FASTING', 'Diabetes Range', 126, 99999.99, 'LOG_WARNING_AND_BANNER', 'Your fasting blood glucose falls within the diabetes range. Diabetes is generally diagnosed after repeat testing by a healthcare professional. Consider discussing your results with your healthcare provider.');
