@@ -32,6 +32,49 @@ export interface DoctorSearchParams {
   gender?: string;
 }
 
+export interface CareTeamProvider {
+  provider_id: number;
+  npi: string;
+  first_name: string;
+  last_name: string;
+  specialty: string;
+  license_state: string;
+  clinic_name: string | null;
+  phone: string | null;
+}
+
+export interface MetricReading {
+  log_id: number;
+  metric_type: string;
+  recorded_at: string;
+  classification?: Record<string, unknown> | null;
+  [field: string]: unknown;
+}
+
+export interface DailySummaryResult {
+  status: "urgent" | "needs_review" | "incomplete" | "no_alerts";
+  title: string;
+  message: string;
+  urgent_readings: Array<{ metric_type: string; log_id: number; recorded_at: string; classification: string }>;
+  warning_readings: Array<{ metric_type: string; log_id: number; recorded_at: string; classification: string }>;
+  unclassified_readings: Array<{ metric_type: string; log_id: number; recorded_at: string; classification: string }>;
+  missing_health_metrics: string[];
+  habit_goals_met: number;
+  habit_goals_below: number;
+  habit_goals_unknown: number;
+  logged_metric_count: number;
+}
+
+export interface DailySummaryResponse {
+  overall_result: DailySummaryResult;
+  records: MetricReading[];
+  goals: Record<string, number>;
+  truncated_metrics: string[];
+  start_at: string;
+  today_start: string;
+  end_at: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -88,6 +131,54 @@ const DEMO_DOCTORS: Doctor[] = [
     address: "200 Demo Way",
   },
 ];
+
+const DEMO_CARE_TEAM: CareTeamProvider[] = [
+  {
+    provider_id: 1,
+    npi: "0000000001",
+    first_name: "Alex",
+    last_name: "Rivera",
+    specialty: "Cardiology",
+    license_state: "TX",
+    clinic_name: "Demo Cardiology Associates",
+    phone: "555-010-0001",
+  },
+  {
+    provider_id: 2,
+    npi: "0000000002",
+    first_name: "Sam",
+    last_name: "Chen",
+    specialty: "Primary care",
+    license_state: "TX",
+    clinic_name: "Demo Family Practice",
+    phone: "555-010-0002",
+  },
+];
+
+function demoDailySummary(): DailySummaryResponse {
+  const now = new Date().toISOString();
+  return {
+    overall_result: {
+      status: "no_alerts",
+      title: "No alerts in assessed health readings",
+      message: "This is demo data. Sign in to see your real daily summary.",
+      urgent_readings: [],
+      warning_readings: [],
+      unclassified_readings: [],
+      missing_health_metrics: [],
+      habit_goals_met: 1,
+      habit_goals_below: 0,
+      habit_goals_unknown: 0,
+      logged_metric_count: 1,
+    },
+    records: [],
+    goals: {},
+    truncated_metrics: [],
+    start_at: now,
+    today_start: now,
+    end_at: now,
+  };
+}
 
 export const api = {
   isDemoMode(): boolean {
@@ -174,5 +265,38 @@ export const api = {
       `/doctors/search?${query.toString()}`
     );
     return result.doctors;
+  },
+
+  async getCareTeam(specialty?: string, limit = 5): Promise<CareTeamProvider[]> {
+    if (!API_BASE_URL) {
+      return DEMO_CARE_TEAM;
+    }
+
+    const query = new URLSearchParams();
+    if (specialty) query.set("specialty", specialty);
+    query.set("limit", String(limit));
+
+    const result = await request<{ count: number; doctors: CareTeamProvider[] }>(
+      `/care-team?${query.toString()}`
+    );
+    return result.doctors;
+  },
+
+  async getDailySummary(): Promise<DailySummaryResponse> {
+    if (!API_BASE_URL) {
+      return demoDailySummary();
+    }
+
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const query = new URLSearchParams({
+      start_at: todayStart.toISOString(),
+      today_start: todayStart.toISOString(),
+      end_at: now.toISOString(),
+    });
+
+    return request<DailySummaryResponse>(`/daily-summary?${query.toString()}`);
   },
 };
