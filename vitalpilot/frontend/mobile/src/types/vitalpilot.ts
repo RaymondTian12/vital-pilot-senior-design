@@ -36,6 +36,14 @@ export type BPClassification = {
   status: "classified" | "unclassified";
   unclassified_components: string[];
 };
+};
+export type BPClassification = {
+  systolic: BPComponent | null;
+  diastolic: BPComponent | null;
+  overall: BPComponent | null;
+  status: "classified" | "unclassified";
+  unclassified_components: string[];
+};
 export type BloodPressureReading = {
   log_id: number;
   metric_type: "BLOOD_PRESSURE";

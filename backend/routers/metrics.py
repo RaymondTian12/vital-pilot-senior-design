@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Literal
 
@@ -20,6 +21,8 @@ class MetricCreateRequest(BaseModel):
     peak_personal_best: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
     metric_type: Vitals
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Blood pressure fields. Future metric types add their own optional
+    # fields here, validated against METRIC_TABLES in the handlers below.
     systolic_mmhg: Optional[int] = Field(default=None, gt=0)
     diastolic_mmhg: Optional[int] = Field(default=None, gt=0)
     glucose_mgdl: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
@@ -56,6 +59,7 @@ def utc_timestamp(value):
 def record_from_row(metric_type: Vitals, fields: list[str], row: tuple) -> dict:
     log_id, *values, logged_at = row
     record = {"log_id": log_id, "metric_type": metric_type.value, "recorded_at": utc_timestamp(logged_at)}
+    record.update(zip(fields, values))
     record.update((field, float(value) if isinstance(value, Decimal) else value) for field, value in zip(fields, values))
     return record
 
@@ -87,6 +91,8 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
     try:
         with conn.cursor() as cursor:
             cursor.execute("SET time_zone = %s", ("+00:00",))
+            cursor.execute(
+                f"INSERT INTO {table} (user_id, {columns}, logged_at) VALUES (%s, {placeholders}, %s)",
             if payload.metric_type == Vitals.BODY_MASS_INDEX:
                 cursor.execute("SELECT baseline_height_in FROM UserHealthProfiles WHERE user_id = %s", (current_user.user_id,))
                 profile = cursor.fetchone()
@@ -152,6 +158,8 @@ def get_metrics(
         with conn.cursor() as cursor:
             cursor.execute("SET time_zone = %s", ("+00:00",))
             cursor.execute(
+                f"SELECT log_id, {columns}, logged_at FROM {table} "
+                "WHERE user_id = %s ORDER BY logged_at DESC, log_id DESC LIMIT %s OFFSET %s",
                 f"SELECT log_id, {columns}, {timestamp_column} FROM {table} "
                 f"WHERE user_id = %s ORDER BY {timestamp_column} DESC, log_id DESC LIMIT %s OFFSET %s",
                 (current_user.user_id, limit, offset),

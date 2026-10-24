@@ -1,3 +1,5 @@
+import { ReadingResult } from "./blood-pressure-panel";
+import type { BloodPressureReading } from "@/types/vitalpilot";
 import { VitalReadingResult } from "./vital-history-panel";
 import { useRouter } from "expo-router";
 import { SaveConfirmation } from "./save-confirmation";
@@ -74,6 +76,7 @@ export function VitalsEntrySheet({
   saveError?: string;
   uncertain?: boolean;
   authExpired?: boolean;
+  saved?: BloodPressureReading | null;
   saved?: SavedMetricReading | null;
   latestReading?: SavedMetricReading | null;
   onSave?: () => Promise<void>;
@@ -82,6 +85,7 @@ export function VitalsEntrySheet({
   const router = useRouter();
   const config = metricConfig(metric);
   const { signOut } = useAuth();
+  const supported = metric === "Blood Pressure";
   const freshResult = saved?.metric_type === config.type ? saved : null;
   const result = preview ? null : freshResult ?? (latestReading?.metric_type === config.type ? latestReading : null);
   const resultDetails = result && (result.metric_type === "BLOOD_PRESSURE"
@@ -327,6 +331,11 @@ export function VitalsEntrySheet({
               <View style={styles.status}>
                 <Icon name="info" size={20} />
                 <Text style={[ui.small, { flex: 1, color: C.title }]}>
+                  {supported
+                    ? preview
+                      ? "Sample preview is on. Turn it off to save a real reading."
+                      : "Saved using the server’s current time. Review the result below after saving."
+                    : "Saving not available yet. This entry stays as a draft."}
                   {preview ? "Sample preview is on. Turn it off to save a real reading." : "Readings use the server’s current time. After saving, your result appears at the top of this sheet."}
                 </Text>
               </View>
@@ -334,6 +343,12 @@ export function VitalsEntrySheet({
                 <Text accessibilityRole="alert" style={{ color: C.danger }}>
                   {saveError}
                 </Text>
+              )}
+              {saved && (
+                <View accessibilityLiveRegion="polite">
+                  <Text style={ui.body}>Reading saved</Text>
+                  <ReadingResult reading={saved} />
+                </View>
               )}
               {authExpired ? (
                 <Button onPress={() => void signOut()}>Sign in again</Button>
@@ -350,6 +365,19 @@ export function VitalsEntrySheet({
               ) : (
                 <Button
                   disabled={
+                    !supported ||
+                    preview ||
+                    saving ||
+                    !draft.primary.trim() ||
+                    !draft.secondary.trim()
+                  }
+                  onPress={() => void onSave?.()}
+                >
+                  {saving
+                    ? "Saving…"
+                    : supported
+                      ? "Save reading"
+                      : "Saving unavailable"}
                     preview ||
                     saving ||
                     !draft.primary.trim() ||

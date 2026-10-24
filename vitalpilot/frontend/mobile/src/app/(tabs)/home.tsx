@@ -1,3 +1,4 @@
+import { BloodPressurePanel } from "@/components/design/blood-pressure-panel";
 import { DailySummary } from "@/components/design/daily-summary";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -111,6 +112,7 @@ export default function Home() {
         </>
       ) : (
         <>
+          <BloodPressurePanel compact />
           <DailySummary />
           <Button secondary onPress={() => setPreview(true)}>
             Preview sample readings

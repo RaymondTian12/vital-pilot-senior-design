@@ -114,6 +114,7 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
     generation = 0,
     offset = 0;
   let state = {
+    records: [] as BloodPressureReading[],
     records: [] as R[],
     loading: false,
     loaded: false,
@@ -139,6 +140,7 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
         status?: number;
       }
     )?.status === 401;
+  const merge = (records: BloodPressureReading[]) =>
   const merge = (records: R[]) =>
     [
       ...new Map(records.map((record) => [record.log_id, record])).values(),
@@ -154,6 +156,11 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
     const start = more ? offset : 0;
     update({ loading: true, error: "" });
     try {
+      const page = await client.getBloodPressure(start);
+      if (!active || current !== generation) return;
+      if (!Array.isArray(page.records) || page.count !== page.records.length)
+        throw new Error("Invalid history response.");
+      const records = page.records.map(checkedReading);
       const page = await client.getPage(start);
       if (!active || current !== generation) return;
       if (!Array.isArray(page.records) || page.count !== page.records.length)
@@ -189,6 +196,7 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
     },
     refresh: () => load(),
     loadMore: () => load(true),
+    async save(primary: string, secondary: string, preview: boolean) {
     async save(primary: string, secondary: string, preview: boolean, context?: Record<string, string>) {
       if (!active || state.saving) return null;
       if (preview) {
@@ -199,6 +207,7 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
       }
       let numbers;
       try {
+        numbers = pressureNumbers(primary, secondary);
         numbers = parse(primary, secondary, context);
       } catch (error) {
         update({ saveError: failure(error) });
@@ -213,6 +222,14 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
         authExpired: false,
       });
       try {
+        const raw = await client.submitBloodPressure(
+          numbers.systolic,
+          numbers.diastolic,
+        );
+        if (!active) return null;
+        let reading;
+        try {
+          reading = checkedReading(raw);
         const raw = await client.submit(numbers);
         if (!active) return null;
         let reading;

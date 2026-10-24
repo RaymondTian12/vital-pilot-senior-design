@@ -9,6 +9,7 @@ import type { BloodPressureReading } from "@/types/vitalpilot";
 import { Button, Card, ui } from "./ui";
 import { Sparkline } from "./charts";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
+export function ReadingResult({ reading }: { reading: BloodPressureReading }) {
 export function ReadingResult({ reading, showCare = false, onFindCare }: {
   reading: BloodPressureReading;
   showCare?: boolean;
@@ -116,6 +117,7 @@ export function BloodPressurePanel({ compact = false }: { compact?: boolean }) {
             borderBottomWidth: 1,
           }}
         >
+          <ReadingResult reading={reading} />
           <ReadingResult reading={reading} showCare={reading.log_id === latest?.log_id} />
         </View>
       ))}
