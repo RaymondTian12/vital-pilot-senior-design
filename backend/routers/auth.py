@@ -76,7 +76,7 @@ class QuestionnaireRequest(BaseModel):
     peak_flow_goal: Optional[int] = Field(default=None, gt=0)
 
 @router.post("/register")
-def register_user(payload: RegisterRequest):
+def register_user(payload: RegisterRequest, response: Response):
     # Check if the user already exists in the database
     existing_user = User.get_user_by_email(payload.email)
     if existing_user:
@@ -100,7 +100,18 @@ def register_user(payload: RegisterRequest):
     if not new_user.save_user_to_database():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to register user")
 
-    return {"message": "User registered successfully", "user": new_user.to_dict()}
+    # log the new user in immediately, same as /login
+    token = create_access_token(new_user.email)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+    return {"message": "User registered successfully", "access_token": token, "user": new_user.to_dict()}
 
 
 # login route
