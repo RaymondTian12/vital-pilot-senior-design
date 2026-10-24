@@ -91,6 +91,14 @@ async function request<T>(
   }
 }
 export const api = {
+  dailySummary: (window: { start_at: string; today_start: string; end_at: string }) =>
+    request<import("./daily-summary").DailySummaryResponse>(`/daily-summary?${new URLSearchParams(window)}`),
+  submitVital: (metricType: import("@/types/vitalpilot").OtherVitalType, values: Record<string, number | string>) =>
+    request<import("@/types/vitalpilot").OtherMetricReading>("/metrics", {
+      method: "POST", body: JSON.stringify({ ...values, metric_type: metricType }),
+    }),
+  getVital: (metricType: import("@/types/vitalpilot").OtherVitalType, offset = 0) =>
+    request<{ count: number; records: import("@/types/vitalpilot").OtherMetricReading[] }>(`/metrics?metric_type=${metricType}&limit=20&offset=${offset}`),
   clinicPhoto: (npi: string) =>
     request<import("@/types/vitalpilot").ClinicPhoto>(
       `/doctors/${encodeURIComponent(npi)}/clinic-photo`,
@@ -130,6 +138,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  getCareTeam: (specialty = "") => request<{ source: string; count: number; doctors: { provider_id: number; npi: string; first_name: string; last_name: string; specialty: string; license_state: string; clinic_name: string | null; phone: string | null }[] }>(`/care-team${specialty ? `?specialty=${encodeURIComponent(specialty)}` : ""}`),
   searchDoctors: (filters: {
     specialty?: string;
     city?: string;

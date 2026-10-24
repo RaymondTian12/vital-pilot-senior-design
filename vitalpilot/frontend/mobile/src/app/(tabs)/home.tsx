@@ -1,4 +1,5 @@
 import { BloodPressurePanel } from "@/components/design/blood-pressure-panel";
+import { DailySummary } from "@/components/design/daily-summary";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/auth-context";
@@ -63,7 +64,7 @@ export default function Home() {
           <Text style={ui.link}>Log a reading →</Text>
         </Pressable>
       </Card>
-      <Text style={ui.heading}>Latest readings</Text>
+      {preview && <Text style={ui.heading}>Latest readings</Text>}
       {preview ? (
         <>
           <View style={[ui.row, { alignItems: "stretch", flexWrap: "wrap" }]}>
@@ -112,6 +113,7 @@ export default function Home() {
       ) : (
         <>
           <BloodPressurePanel compact />
+          <DailySummary />
           <Button secondary onPress={() => setPreview(true)}>
             Preview sample readings
           </Button>

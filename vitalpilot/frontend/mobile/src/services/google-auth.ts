@@ -16,9 +16,11 @@ export const googleUnavailableReason =
 
 export async function getGoogleIdToken(): Promise<string | null> {
   if (googleUnavailableReason) throw new Error(googleUnavailableReason);
-  // Loading only after the platform/build check keeps Expo Go usable.
+  // Require only after the build check so Expo Go never loads the native module.
+  // Keep it in the main bundle: a dynamic import creates a separate dev bundle
+  // whose path can escape Metro's root when workspace dependencies are symlinked.
   const { GoogleSignin, isSuccessResponse } =
-    await import("@react-native-google-signin/google-signin");
+    require("@react-native-google-signin/google-signin") as typeof import("@react-native-google-signin/google-signin");
   GoogleSignin.configure({ webClientId, iosClientId });
   const result = await GoogleSignin.signIn();
   if (!isSuccessResponse(result)) return null; // User dismissed the account picker.

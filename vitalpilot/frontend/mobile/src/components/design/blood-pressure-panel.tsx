@@ -1,3 +1,4 @@
+import { BloodPressureCare } from "./blood-pressure-care";
 import { useCallback } from "react";
 import { Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -9,6 +10,12 @@ import { Button, Card, ui } from "./ui";
 import { Sparkline } from "./charts";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 export function ReadingResult({ reading }: { reading: BloodPressureReading }) {
+export function ReadingResult({ reading, showCare = false, onFindCare }: {
+  reading: BloodPressureReading;
+  showCare?: boolean;
+  onFindCare?: (specialty: "Primary care" | "Cardiology") => void;
+}) {
+  const router = useRouter();
   const view = classificationView(reading);
   const color =
     view.critical || view.tone === "critical"
@@ -37,6 +44,9 @@ export function ReadingResult({ reading }: { reading: BloodPressureReading }) {
           {message}
         </Text>
       ))}
+      {showCare && (view.critical || view.tone === "warning" || reading.systolic_mmhg > 180 || reading.diastolic_mmhg > 120) && (
+        <BloodPressureCare critical={view.critical || reading.systolic_mmhg > 180 || reading.diastolic_mmhg > 120} onFindCare={onFindCare ?? ((specialty) => router.push({ pathname: "/doctors", params: { specialty, reason: "blood-pressure" } }))} />
+      )}
     </View>
   );
 }
@@ -108,6 +118,7 @@ export function BloodPressurePanel({ compact = false }: { compact?: boolean }) {
           }}
         >
           <ReadingResult reading={reading} />
+          <ReadingResult reading={reading} showCare={reading.log_id === latest?.log_id} />
         </View>
       ))}
       {chronological.length >= 2 && (

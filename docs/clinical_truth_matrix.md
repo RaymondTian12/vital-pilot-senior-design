@@ -71,14 +71,15 @@ The blood pressure categories are referenced from the AHA. According to the AHA,
 
 | Condition | Evaluation Target | Classification | Logic Type | Alert State | Alert Message |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `blood_glucose < 70` | Blood Glucose Entry | Hypoglycemia | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your fasting blood glucose is below the normal range. Follow your healthcare provider's guidance for treating low blood sugar. If symptoms are severe or do not improve, seek immediate medical attention." |
+| `blood_glucose < 55` | Blood Glucose Entry | Severely Low Blood Glucose | Fixed Baseline | LOG_CRITICAL_AND_BANNER | "Severely low blood glucose. Follow your clinician emergency plan and seek urgent medical help." |
+| `55 <= blood_glucose < 70` | Blood Glucose Entry | Hypoglycemia | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your fasting blood glucose is below the normal range. Follow your healthcare provider's guidance for treating low blood sugar. If symptoms are severe or do not improve, seek immediate medical attention." |
 | `70 <= blood_glucose < 100` | Blood Glucose Entry | Normal Fasting Blood Glucose | Fixed Baseline | LOG_SUCCESS_AND_BANNER | "Your fasting blood glucose falls within the normal range. Keep up your healthy habits and continue monitoring as recommended." |
 | `100 <= blood_glucose < 126` | Blood Glucose Entry | Prediabetes Range | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your fasting blood glucose falls within the prediabetes range. Maintaining a healthy diet and regular physical activity may help reduce your risk of developing Type 2 diabetes. Consider discussing your results with a healthcare professional." |
 | `blood_glucose >= 126` | Blood Glucose Entry | Diabetes Range | Fixed Baseline | LOG_WARNING_AND_BANNER | "Your fasting blood glucose falls within the diabetes range. Diabetes is generally diagnosed after repeat testing by a healthcare professional. Consider discussing your results with your healthcare provider." |
 
 **Source:** https://diabetes.org/about-diabetes/diagnosis
 
-This application assumes all blood glucose entries are fasting blood glucose (FPG) measurements obtained after at least an 8-hour fast. Blood glucose classifications are based on the American Diabetes Association (ADA) diagnostic criteria. The hypoglycemia threshold (<70 mg/dL) follows ADA guidance for clinically significant low blood glucose. Note this feature is intended for blood glucose tracking rather than comprehensive diabetes management.
+The implemented evaluator requires an explicit fasting context (at least an 8-hour fast) before applying fasting diagnostic ranges. Older or nonfasting entries are not assumed fasting. Low glucose below 70 is flagged regardless of fasting context; below 55 is a critical alert, following [CDC low blood sugar guidance](https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html). Blood glucose classifications are based on the American Diabetes Association (ADA) diagnostic criteria. The hypoglycemia threshold (<70 mg/dL) follows ADA guidance for clinically significant low blood glucose. Note this feature is intended for blood glucose tracking rather than comprehensive diabetes management.
 
 ## Table 7: Blood Oxygen Saturation
 
@@ -90,7 +91,7 @@ This application assumes all blood glucose entries are fasting blood glucose (FP
 
 **Source:** https://gwinnettlung.com/blog/decoding-pulse-oximetry-readings-what-each-number-means/
 
-These thresholds are modeled directly from peer-reviewed clinical guidelines published by Gwinnett Pulmonary & Sleep, an active professional practice of board-certified pulmonologists. These clinical benchmarks perfectly align with the consumer safety criteria established by the U.S. Food and Drug Administration (FDA) and the World Health Organization (WHO).
+These are project baseline ranges, not individualized treatment targets. The FDA emphasizes pulse-oximeter limitations and considering symptoms; it does not establish these exact bands as universal safety criteria. See [FDA pulse oximeter guidance](https://www.fda.gov/consumers/consumer-updates/pulse-oximeter-basics). Follow clinician-specific targets when applicable.
 
 ## Table 8: Peak Flow Rate
 
@@ -103,3 +104,20 @@ These thresholds are modeled directly from peer-reviewed clinical guidelines pub
 **Source:** https://www.lung.org/lung-health-diseases/lung-disease-lookup/asthma/treatment/devices/peak-flow
 
 This is dynamic user baseline as the percentage is calculated based on the user's best peak flow rate.
+
+
+## Implemented assessment scope (2026-10-20)
+
+New non-BP readings save a classification snapshot and the context/goal used at
+entry time in `MetricAssessments`. Older entries are not assumed fasting and are
+not assigned an inferred peak-flow personal best. Adult BMI categories require
+age 20 or older at measurement. Habit deficits compare an entry with a personal
+goal and do not trigger an automatic medical referral. Goal-floor notices remain
+separate from daily entry assessment.
+
+The overall result prioritizes urgent health readings today, then warnings, then
+missing health readings/context/configuration, otherwise reports no configured
+alerts in assessed readings. Earlier alerts remain after later normal readings.
+Habit goals are separate and never converted into a health score. No-alert status
+is not a declaration of overall health. Additive migrations preserve existing
+clinical configuration. Clinical content needs advisor review before production.

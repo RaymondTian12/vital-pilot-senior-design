@@ -211,3 +211,16 @@ CREATE TABLE IF NOT EXISTS UserBadges (
 );
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- Add classification snapshots and context without changing existing readings.
+CREATE TABLE IF NOT EXISTS MetricAssessments (
+    user_id BIGINT UNSIGNED NOT NULL,
+    metric_type VARCHAR(32) NOT NULL,
+    log_id BIGINT UNSIGNED NOT NULL,
+    context_json JSON NOT NULL,
+    assessment_json JSON NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, metric_type, log_id),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
