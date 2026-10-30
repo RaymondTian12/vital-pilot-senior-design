@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS MetricGoals (
     goal_id SERIAL PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     metric_type ENUM('Sleep', 'Steps', 'Water', 'Peak Flow') NOT NULL,
-    goal_value DECIMAL(6, 2) NOT NULL,
+    goal_value DECIMAL(8, 2) NOT NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS MetricGoalsHistory (
     history_id SERIAL PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     metric_type ENUM('Sleep', 'Steps', 'Water', 'Peak Flow') NOT NULL,
-    old_value DECIMAL(6, 2) NOT NULL,
+    old_value DECIMAL(8, 2) NOT NULL,
     valid_from TIMESTAMP NOT NULL,
     valid_to TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
