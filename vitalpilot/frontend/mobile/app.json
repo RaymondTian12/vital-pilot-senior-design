@@ -9,7 +9,12 @@
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/images/vitalpilot/launcher-icon.png",
-      "bundleIdentifier": "com.vitalpilot.mobile"
+      "bundleIdentifier": "com.vitalpilot.mobile",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
