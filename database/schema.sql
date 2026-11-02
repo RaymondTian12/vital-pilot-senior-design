@@ -11,7 +11,30 @@ CREATE TABLE IF NOT EXISTS Users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('patient', 'provider', 'admin') NOT NULL DEFAULT 'patient',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     date_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS WelcomeSlides (
+    slide_number TINYINT UNSIGNED PRIMARY KEY,
+    eyebrow VARCHAR(80) NOT NULL,
+    title VARCHAR(160) NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (updated_by) REFERENCES Users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS AdminAccountActions (
+    action_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    target_user_id BIGINT UNSIGNED NOT NULL,
+    admin_user_id BIGINT UNSIGNED NOT NULL,
+    action ENUM('SUSPEND', 'RESTORE') NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX target_action_history (target_user_id, created_at),
+    FOREIGN KEY (target_user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (admin_user_id) REFERENCES Users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS UserAuthIdentities (

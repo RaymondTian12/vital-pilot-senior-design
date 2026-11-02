@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import auth, doctors, metrics, provider_directory, summary, portal, admin
+from backend.routers import auth, doctors, metrics, provider_directory, summary, portal, admin, content
 
 app = FastAPI(title="Vital Pilot API", version="1.0.0")
 
@@ -26,6 +26,7 @@ app.include_router(metrics.router, tags=["metrics"])
 app.include_router(summary.router, tags=["summary"])
 app.include_router(portal.router, tags=["portal"])
 app.include_router(admin.router, tags=["admin"])
+app.include_router(content.router, tags=["content"])
 
 @app.middleware("http")
 async def no_store_portal_responses(request, call_next):

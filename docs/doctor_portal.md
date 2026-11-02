@@ -20,6 +20,8 @@ Create the first admin from a trusted backend terminal with `python -m backend.b
 
 The portal lists pending, approved, and rejected applications. Before approval, the admin must independently check identity and the active state license, enter a review note, and confirm those checks in the form. The NPI Registry link helps compare the submitted NPI, but an NPI record does not establish identity or licensure. Approval and rejection require an admin session on the API; a pending application can be decided once. The existing `review_provider` command remains available for backend-only review, but its decisions are not written to `ProviderReviews`.
 
+The admin can also search patient and doctor accounts, suspend or restore non-admin access with a required reason, and edit the four welcome panels. Apply `20261102_admin_accounts.sql` before starting this version of the API, then `20261102_welcome_content.sql`. Suspension blocks both new sign-ins and existing tokens; neither the account directory nor welcome editor exposes patient health records. The admin cannot change user roles or suspend another admin through the portal.
+
 ## Patient flow
 
 In **Profile → Share with doctors**, the patient can open the registered care directory. **Share my readings** requires confirmation and activates access for that provider. The same screen lists current grants and allows removal. Removal blocks future doctor API reads immediately.

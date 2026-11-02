@@ -31,6 +31,8 @@ review the additive migrations before applying them with your normal database to
 - `database/migrations/20261101_provider_portal.sql`: requires explicit patient grants before a provider can read records. See `docs/doctor_portal.md` for setup and review.
 - `database/migrations/20261101_provider_registration.sql`: holds provider accounts for administrator verification before directory listing or patient access.
 - `database/migrations/20261102_admin_portal.sql`: records admin portal review decisions.
+- `database/migrations/20261102_admin_accounts.sql`: adds account suspension and an admin action audit log. Apply before deploying the updated API, because login reads `Users.is_active`.
+- `database/migrations/20261102_welcome_content.sql`: stores optional admin-edited welcome-page text.
 - `database/migrations/20261020_metric_assessments.sql`: creates per-reading context/assessment
   storage and fills entirely absent glucose, oxygen, BMI, and peak-flow reference
   groups. Apply before starting the assessment-enabled backend; existing readings
@@ -54,6 +56,7 @@ EXPO_PUBLIC_API_BASE_URL=http://YOUR_MAC_LAN_IP:8000
 Find the active Wi-Fi address in macOS network settings. On many Macs,
 `ipconfig getifaddr en0` prints it. Update the URL and restart Expo after changing
 Wi-Fi networks. A physical phone cannot reach your Mac using localhost.
+For web testing on the same Mac, use `http://localhost:8000` instead.
 
 ## Daily startup
 

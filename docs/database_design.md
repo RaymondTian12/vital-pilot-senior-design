@@ -16,6 +16,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `email` | `VARCHAR(255)` | `NOT NULL`, `UNIQUE`| User's email address used for login |
 | `password_hash` | `VARCHAR(255)`| `NOT NULL` | Securely hashed password|
 | `role` | `ENUM('patient', 'provider', 'admin')` | `NOT NULL, DEFAULT 'patient'` | System role used for role-based authorization |
+| `is_active` | `BOOLEAN` | `NOT NULL, DEFAULT TRUE` | Suspended accounts cannot sign in or use existing sessions |
 | `date_created` | `DATETIME` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Date and time the user account was created|
 
 ### UserHealthProfiles
@@ -79,6 +80,12 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `decision` | `ENUM('APPROVED', 'REJECTED')` | `NOT NULL` | Review outcome |
 | `review_note` | `VARCHAR(500)` | `NOT NULL` | Admin's explanation or verification note |
 | `reviewed_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Decision time |
+
+### AdminAccountActions
+*Records account suspensions and restorations with a reason and the responsible admin. Admin accounts cannot be changed through this control.*
+
+### WelcomeSlides
+*Stores optional admin-edited copy for the four public welcome panels. The app uses built-in copy when a panel has no override or the API is unavailable.*
 
 ---
 

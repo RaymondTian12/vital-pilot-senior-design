@@ -24,6 +24,15 @@ export type AdminProvider = {
   verification_status: "PENDING" | "APPROVED" | "REJECTED";
   created_at: string;
 };
+export type AdminAccount = {
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: "patient" | "provider" | "admin";
+  created_at: string;
+  is_active: boolean;
+};
 export type SignInResponse = {
   message: string;
   access_token: string;
