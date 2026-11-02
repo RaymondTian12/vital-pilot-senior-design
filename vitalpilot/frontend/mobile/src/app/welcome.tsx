@@ -88,11 +88,11 @@ export default function Welcome() {
         <View style={s.headerActions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Admin portal sign in"
+            accessibilityLabel="Admin sign in"
             onPress={() => router.push("/signin?portal=admin")}
             style={s.skip}
           >
-            <Text style={ui.link}>Admin portal</Text>
+            <Text style={ui.link}>Admin</Text>
           </Pressable>
         </View>
       </View>
