@@ -63,8 +63,8 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
         await api.signUp(first.trim(), last.trim(), email.trim(), password);
         router.replace("/signin?registered=true");
       } else {
-        await signIn(email.trim(), password);
-        router.replace(registered === "true" ? "/questionnaire" : "/home");
+        const user = await signIn(email.trim(), password);
+        router.replace(user.role === "provider" ? "/doctor-portal" : registered === "true" ? "/questionnaire" : "/home");
       }
     } catch (e) {
       setError(
@@ -92,6 +92,9 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
       />
       {!register && registered === "true" && (
         <Notice>Account created. Sign in to finish your health profile.</Notice>
+      )}
+      {!register && registered === "doctor" && (
+        <Notice>Doctor registration submitted. Sign in to check your verification status.</Notice>
       )}
       <View style={{ gap: 14 }}>
         {register && (
@@ -175,6 +178,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
           <Text style={ui.link}>{register ? "Sign in" : "Create account"}</Text>
         </Text>
       </Pressable>
+      {!register && <Button secondary onPress={() => router.push("/doctor-signup")}>Register as a doctor</Button>}
     </Screen>
   );
 }

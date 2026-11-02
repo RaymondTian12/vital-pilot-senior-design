@@ -91,6 +91,16 @@ async function request<T>(
   }
 }
 export const api = {
+  registerDoctor: (payload: { firstname: string; lastname: string; email: string; password: string; npi: string; specialty: string; license_state: string; license_number: string }) =>
+    request<{ message: string; status: string }>("/auth/register-provider", { method: "POST", body: JSON.stringify(payload) }),
+  doctorStatus: () => request<{ status: "PENDING" | "APPROVED" | "REJECTED" }>("/portal/provider-status"),
+  myProviders: () => request<{ providers: { provider_id: number; first_name: string; last_name: string; specialty: string; status: string }[] }>("/portal/my-providers"),
+  grantProvider: (id: number) => request<{ status: string }>(`/portal/my-providers/${id}`, { method: "PUT" }),
+  revokeProvider: (id: number) => request<{ status: string }>(`/portal/my-providers/${id}`, { method: "DELETE" }),
+  doctorPatients: () => request<{ patients: { user_id: number; first_name: string; last_name: string; date_of_birth: string }[] }>("/portal/patients"),
+  doctorPatient: (id: number) => request<{ user_id: number; first_name: string; last_name: string; date_of_birth: string }>(`/portal/patients/${id}`),
+  doctorPatientMetrics: (id: number, metric: import("@/types/vitalpilot").VitalType) =>
+    request<{ records: { log_id: number; recorded_at: string; metric_type: string; [key: string]: unknown }[] }>(`/portal/patients/${id}/metrics?metric_type=${metric}`),
   dailySummary: (window: { start_at: string; today_start: string; end_at: string }) =>
     request<import("./daily-summary").DailySummaryResponse>(`/daily-summary?${new URLSearchParams(window)}`),
   submitVital: (metricType: import("@/types/vitalpilot").OtherVitalType, values: Record<string, number | string>) =>

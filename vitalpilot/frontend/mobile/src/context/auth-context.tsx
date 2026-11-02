@@ -6,7 +6,7 @@ import type { AuthUser } from '@/types/vitalpilot';
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<AuthUser>;
   signInWithGoogle: (idToken: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 };
@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!result.access_token) throw new Error('The server did not return a login token.');
     await session.set(result.access_token);
     setUser(result.user);
+    return result.user;
   }
 
   async function signOut() {
