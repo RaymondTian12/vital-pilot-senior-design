@@ -91,6 +91,12 @@ async function request<T>(
   }
 }
 export const api = {
+  adminProviders: (status: "PENDING" | "APPROVED" | "REJECTED" = "PENDING", offset = 0) =>
+    request<{ providers: import("@/types/vitalpilot").AdminProvider[] }>(`/admin/providers?status=${status}&limit=50&offset=${offset}`),
+  reviewProvider: (id: number, decision: "APPROVED" | "REJECTED", note: string, identity_and_license_verified: boolean) =>
+    request<{ status: "APPROVED" | "REJECTED" }>(`/admin/providers/${id}/review`, {
+      method: "POST", body: JSON.stringify({ decision, note, identity_and_license_verified }),
+    }),
   registerDoctor: (payload: { firstname: string; lastname: string; email: string; password: string; npi: string; specialty: string; license_state: string; license_number: string }) =>
     request<{ message: string; status: string }>("/auth/register-provider", { method: "POST", body: JSON.stringify(payload) }),
   doctorStatus: () => request<{ status: "PENDING" | "APPROVED" | "REJECTED" }>("/portal/provider-status"),

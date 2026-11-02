@@ -12,6 +12,14 @@ The sign-in screen has **Register as a doctor**. Doctor registration creates a p
 
 For a clinician already verified by an administrator, `python -m backend.provision_provider` creates an approved account directly. Public patient signup and Google signup still create patient accounts. Do not change a patient account's role without also creating its matching `Providers` record.
 
+## Admin portal
+
+Apply `database/migrations/20261102_admin_portal.sql` before using the admin portal on an existing database. It creates `ProviderReviews` to record decisions, reviewers, notes, and timestamps. On a fresh database, `database/schema.sql` includes this table.
+
+Create the first admin from a trusted backend terminal with `python -m backend.bootstrap_admin --first-name NAME --last-name NAME --email EMAIL`. The command prompts privately for a password and refuses to run once an admin exists. There is no public admin signup. The admin signs in through the normal sign-in screen and is routed to **Admin portal**.
+
+The portal lists pending, approved, and rejected applications. Before approval, the admin must independently check identity and the active state license, enter a review note, and confirm those checks in the form. The NPI Registry link helps compare the submitted NPI, but an NPI record does not establish identity or licensure. Approval and rejection require an admin session on the API; a pending application can be decided once. The existing `review_provider` command remains available for backend-only review, but its decisions are not written to `ProviderReviews`.
+
 ## Patient flow
 
 In **Profile → Share with doctors**, the patient can open the registered care directory. **Share my readings** requires confirmation and activates access for that provider. The same screen lists current grants and allows removal. Removal blocks future doctor API reads immediately.

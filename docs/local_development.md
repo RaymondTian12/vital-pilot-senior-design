@@ -30,6 +30,7 @@ review the additive migrations before applying them with your normal database to
 - `database/migrations/20261012_google_auth.sql`: Google identity support.
 - `database/migrations/20261101_provider_portal.sql`: requires explicit patient grants before a provider can read records. See `docs/doctor_portal.md` for setup and review.
 - `database/migrations/20261101_provider_registration.sql`: holds provider accounts for administrator verification before directory listing or patient access.
+- `database/migrations/20261102_admin_portal.sql`: records admin portal review decisions.
 - `database/migrations/20261020_metric_assessments.sql`: creates per-reading context/assessment
   storage and fills entirely absent glucose, oxygen, BMI, and peak-flow reference
   groups. Apply before starting the assessment-enabled backend; existing readings

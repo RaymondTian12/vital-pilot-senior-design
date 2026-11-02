@@ -1,0 +1,75 @@
+"""Admin review requires the admin role and an auditable, pending decision."""
+import os
+import unittest
+from unittest.mock import patch
+
+os.environ.setdefault("jwt_secret_key", "isolated-admin-test-key")
+from fastapi.testclient import TestClient
+from backend.app import app
+from backend.models.User import User, UserRole
+from backend.security import get_current_user
+
+
+class FakeCursor:
+    def __init__(self, status="PENDING"):
+        self.status = status
+        self.queries = []
+
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def execute(self, query, values=()): self.queries.append((query, values))
+    def fetchone(self): return (self.status,)
+    def fetchall(self):
+        return [(7, "Doc", "Example", "doc@example.com", "1234567890", "Cardiology", "TX", "ABC", "PENDING", "2026-11-02")]
+
+
+class FakeConnection:
+    def __init__(self, status="PENDING"):
+        self.fake_cursor = FakeCursor(status)
+        self.committed = False
+        self.rolled_back = False
+    def cursor(self): return self.fake_cursor
+    def commit(self): self.committed = True
+    def rollback(self): self.rolled_back = True
+    def close(self): pass
+
+
+class AdminTests(unittest.TestCase):
+    def setUp(self):
+        self.user = User("Admin", "Example", "admin@example.com", "", UserRole.ADMIN, 3)
+        app.dependency_overrides[get_current_user] = lambda: self.user
+        self.client = TestClient(app)
+
+    def tearDown(self): app.dependency_overrides.clear()
+
+    def test_only_admin_can_list_and_review(self):
+        self.user.role = UserRole.PROVIDER
+        self.assertEqual(self.client.get("/admin/providers").status_code, 403)
+        self.assertEqual(self.client.post("/admin/providers/7/review", json={"decision": "REJECTED", "note": "Invalid license"}).status_code, 403)
+
+    def test_admin_lists_pending_applications(self):
+        conn = FakeConnection()
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            response = self.client.get("/admin/providers")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["providers"][0]["npi"], "1234567890")
+        self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+
+    def test_approval_requires_verification_and_records_review(self):
+        conn = FakeConnection()
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            self.assertEqual(self.client.post("/admin/providers/7/review", json={"decision": "APPROVED", "note": "Checked license"}).status_code, 422)
+            response = self.client.post("/admin/providers/7/review", json={"decision": "APPROVED", "note": "Checked license", "identity_and_license_verified": True})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(conn.committed)
+        self.assertTrue(any("INSERT INTO ProviderReviews" in q for q, _ in conn.fake_cursor.queries))
+
+    def test_review_cannot_be_repeated(self):
+        conn = FakeConnection("APPROVED")
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            response = self.client.post("/admin/providers/7/review", json={"decision": "REJECTED", "note": "Duplicate review"})
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(conn.committed)
+
+
+if __name__ == "__main__": unittest.main()

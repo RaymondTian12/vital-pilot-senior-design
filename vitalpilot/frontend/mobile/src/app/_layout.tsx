@@ -76,6 +76,7 @@ function Navigation() {
             <Stack.Screen name="index" />
             <Stack.Protected guard={__DEV__}>
               <Stack.Screen name="doctor-portal-preview" />
+              <Stack.Screen name="admin-portal-preview" />
             </Stack.Protected>
             <Stack.Protected guard={!user}>
               <Stack.Screen name="welcome" />
@@ -95,6 +96,9 @@ function Navigation() {
             <Stack.Protected guard={user?.role === "provider"}>
               <Stack.Screen name="doctor-portal" />
               <Stack.Screen name="doctor-patient" />
+            </Stack.Protected>
+            <Stack.Protected guard={user?.role === "admin"}>
+              <Stack.Screen name="admin-portal" />
             </Stack.Protected>
           </Stack>
         </NotificationProvider>

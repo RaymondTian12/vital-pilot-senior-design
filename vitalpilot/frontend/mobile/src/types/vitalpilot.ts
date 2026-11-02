@@ -12,6 +12,18 @@ export type AuthUser = {
   role: "patient" | "provider" | "admin";
   created_at: string;
 };
+export type AdminProvider = {
+  provider_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  npi: string;
+  specialty: string;
+  license_state: string;
+  license_number: string;
+  verification_status: "PENDING" | "APPROVED" | "REJECTED";
+  created_at: string;
+};
 export type SignInResponse = {
   message: string;
   access_token: string;

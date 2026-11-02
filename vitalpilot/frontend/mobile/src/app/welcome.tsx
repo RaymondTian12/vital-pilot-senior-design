@@ -85,14 +85,16 @@ export default function Welcome() {
     <SafeAreaView style={s.root} edges={["top", "bottom", "left", "right"]}>
       <View style={s.header}>
         <Brand />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Skip introduction and sign in"
-          onPress={() => router.push("/signin")}
-          style={s.skip}
-        >
-          <Text style={ui.link}>Skip</Text>
-        </Pressable>
+        <View style={s.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Admin portal sign in"
+            onPress={() => router.push("/signin?portal=admin")}
+            style={s.skip}
+          >
+            <Text style={ui.link}>Admin portal</Text>
+          </Pressable>
+        </View>
       </View>
       <View
         style={{ flex: 1 }}
@@ -254,6 +256,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
+  headerActions: { flexDirection: "column", alignItems: "flex-end" },
   skip: {
     minHeight: 48,
     minWidth: 48,

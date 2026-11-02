@@ -68,6 +68,18 @@ CREATE TABLE IF NOT EXISTS PatientProviderAssignments (
     FOREIGN KEY (patient_profile_id) REFERENCES UserHealthProfiles(profile_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS ProviderReviews (
+    review_id SERIAL PRIMARY KEY,
+    provider_id BIGINT UNSIGNED NOT NULL,
+    admin_user_id BIGINT UNSIGNED NOT NULL,
+    decision ENUM('APPROVED', 'REJECTED') NOT NULL,
+    review_note VARCHAR(500) NOT NULL,
+    reviewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX provider_review_history (provider_id, reviewed_at),
+    FOREIGN KEY (provider_id) REFERENCES Providers(provider_id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_user_id) REFERENCES Users(user_id)
+);
+
 CREATE TABLE IF NOT EXISTS ClinicalThresholds (
     threshold_id SERIAL PRIMARY KEY,
     metric_type ENUM('BLOOD_PRESSURE', 'BLOOD_GLUCOSE', 'BLOOD_OXYGEN', 'BODY_MASS_INDEX', 'PEAK_FLOW_RATE', 'WATER_INTAKE', 'PHYSICAL_ACTIVITY', 'SLEEP') NOT NULL,

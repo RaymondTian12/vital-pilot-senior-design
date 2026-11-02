@@ -11,7 +11,7 @@ import { Brand, Button, Field, Heading, Notice, Orbit, Screen, ui } from "./ui";
 export function AuthScreen({ register = false }: { register?: boolean }) {
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
-  const { registered } = useLocalSearchParams<{ registered?: string }>();
+  const { registered, portal } = useLocalSearchParams<{ registered?: string; portal?: string }>();
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const [email, setEmail] = useState("");
@@ -64,7 +64,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
         router.replace("/signin?registered=true");
       } else {
         const user = await signIn(email.trim(), password);
-        router.replace(user.role === "provider" ? "/doctor-portal" : registered === "true" ? "/questionnaire" : "/home");
+        router.replace(user.role === "admin" ? "/admin-portal" : user.role === "provider" ? "/doctor-portal" : registered === "true" ? "/questionnaire" : "/home");
       }
     } catch (e) {
       setError(
@@ -95,6 +95,12 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
       )}
       {!register && registered === "doctor" && (
         <Notice>Doctor registration submitted. Sign in to check your verification status.</Notice>
+      )}
+      {!register && portal === "admin" && (
+        <Notice>Sign in with your admin account to open the admin portal.</Notice>
+      )}
+      {!register && portal === "doctor" && (
+        <Notice>Sign in with your doctor account to open the doctor portal.</Notice>
       )}
       <View style={{ gap: 14 }}>
         {register && (
@@ -178,6 +184,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
           <Text style={ui.link}>{register ? "Sign in" : "Create account"}</Text>
         </Text>
       </Pressable>
+      {register && <Button secondary onPress={() => router.push("/doctor-signup")}>Are you a doctor? Sign up here</Button>}
       {!register && <Button secondary onPress={() => router.push("/doctor-signup")}>Register as a doctor</Button>}
     </Screen>
   );

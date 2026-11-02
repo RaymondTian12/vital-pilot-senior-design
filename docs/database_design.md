@@ -67,6 +67,19 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `assignment_status` | `ENUM('ACTIVE', 'PENDING', 'REVOKED')` | `NOT NULL, DEFAULT 'PENDING'` | Access status controlling provider record visibility; only a patient grant makes it active |
 | `assigned_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider was granted patient access |
 
+### ProviderReviews
+
+*Records decisions made through the admin portal. Approval requires an independent identity and active-license check.*
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `review_id` | `SERIAL` | `PRIMARY KEY` | Unique review record |
+| `provider_id` | `BIGINT UNSIGNED` | `FOREIGN KEY, NOT NULL` | Reviewed provider |
+| `admin_user_id` | `BIGINT UNSIGNED` | `FOREIGN KEY, NOT NULL` | Admin who made the decision |
+| `decision` | `ENUM('APPROVED', 'REJECTED')` | `NOT NULL` | Review outcome |
+| `review_note` | `VARCHAR(500)` | `NOT NULL` | Admin's explanation or verification note |
+| `reviewed_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Decision time |
+
 ---
 
 ### MetricGoals
