@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS Providers (
     specialty VARCHAR(100) NOT NULL,
     license_state VARCHAR(2) NOT NULL,
     license_number VARCHAR(50) NOT NULL,
+    verification_status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
     clinic_name VARCHAR(255) NULL,
     clinic_phone VARCHAR(20) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -60,8 +61,9 @@ CREATE TABLE IF NOT EXISTS PatientProviderAssignments (
     assignment_id SERIAL PRIMARY KEY,
     provider_id BIGINT UNSIGNED NOT NULL,
     patient_profile_id BIGINT UNSIGNED NOT NULL,
-    assignment_status ENUM('ACTIVE', 'PENDING', 'REVOKED') NOT NULL DEFAULT 'ACTIVE',
+    assignment_status ENUM('ACTIVE', 'PENDING', 'REVOKED') NOT NULL DEFAULT 'PENDING',
     assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_patient_provider (patient_profile_id, provider_id),
     FOREIGN KEY (provider_id) REFERENCES Providers(provider_id) ON DELETE CASCADE,
     FOREIGN KEY (patient_profile_id) REFERENCES UserHealthProfiles(profile_id) ON DELETE CASCADE
 );

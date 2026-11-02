@@ -74,18 +74,27 @@ function Navigation() {
             }}
           >
             <Stack.Screen name="index" />
+            <Stack.Protected guard={__DEV__}>
+              <Stack.Screen name="doctor-portal-preview" />
+            </Stack.Protected>
             <Stack.Protected guard={!user}>
               <Stack.Screen name="welcome" />
               <Stack.Screen name="signin" />
               <Stack.Screen name="signup" />
+              <Stack.Screen name="doctor-signup" />
             </Stack.Protected>
-            <Stack.Protected guard={!!user}>
+            <Stack.Protected guard={user?.role === "patient"}>
               <Stack.Screen name="questionnaire" />
               <Stack.Screen name="doctors" />
               <Stack.Screen name="care-team" />
+              <Stack.Screen name="sharing" />
               <Stack.Screen name="change-password" />
               <Stack.Screen name="notifications" />
               <Stack.Screen name="(tabs)" />
+            </Stack.Protected>
+            <Stack.Protected guard={user?.role === "provider"}>
+              <Stack.Screen name="doctor-portal" />
+              <Stack.Screen name="doctor-patient" />
             </Stack.Protected>
           </Stack>
         </NotificationProvider>

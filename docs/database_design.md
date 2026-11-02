@@ -49,6 +49,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `specialty` | `VARCHAR(100)` | `NOT NULL` | Medical practice specialty (e.g. Cardiology, Endocrinology) |
 | `license_state` | `VARCHAR(2)` | `NOT NULL` | State abbreviation of clinical licensure |
 | `license_number` | `VARCHAR(50)` | `NOT NULL` | State medical license registration number |
+| `verification_status` | `ENUM('PENDING', 'APPROVED', 'REJECTED')` | `NOT NULL, DEFAULT 'PENDING'` | Administrator review status; only approved providers can access granted patient records |
 | `clinic_name` | `VARCHAR(255)` | `NULL` | Associated clinic or healthcare system |
 | `clinic_phone` | `VARCHAR(20)` | `NULL` | Practice contact phone number |
 | `created_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider profile was created |
@@ -63,7 +64,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `assignment_id` | `SERIAL` | `PRIMARY KEY` | Unique internal identifier for the care assignment record |
 | `provider_id` | `INT` | `FOREIGN KEY, NOT NULL` | References `Providers.provider_id` (`ON DELETE CASCADE`) |
 | `patient_profile_id` | `INT` | `FOREIGN KEY, NOT NULL` | References `UserHealthProfiles.profile_id` (`ON DELETE CASCADE`) |
-| `assignment_status` | `ENUM('ACTIVE', 'PENDING', 'REVOKED')` | `NOT NULL, DEFAULT 'ACTIVE'` | Access status controlling provider record visibility |
+| `assignment_status` | `ENUM('ACTIVE', 'PENDING', 'REVOKED')` | `NOT NULL, DEFAULT 'PENDING'` | Access status controlling provider record visibility; only a patient grant makes it active |
 | `assigned_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider was granted patient access |
 
 ---
