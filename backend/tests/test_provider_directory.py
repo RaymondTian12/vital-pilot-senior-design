@@ -26,6 +26,7 @@ class ProviderDirectoryTests(unittest.TestCase):
             self.assertEqual(result.json()['source'], 'vitalpilot_database')
             sql, args = cursor.execute.call_args.args
             self.assertIn('JOIN Users', sql)
+            self.assertIn('u.is_active = TRUE', sql)
             self.assertEqual(args, ('%cardio%', '%cardiovascular%', 50))
             conn.close.assert_called_once()
         finally:

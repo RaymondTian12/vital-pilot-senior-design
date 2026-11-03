@@ -91,6 +91,23 @@ async function request<T>(
   }
 }
 export const api = {
+  welcomeSlides: () => request<{ slides: import("@/constants/welcome-slides").WelcomeSlide[] }>("/content/welcome"),
+  updateWelcomeSlide: (slide: import("@/constants/welcome-slides").WelcomeSlide) =>
+    request<import("@/constants/welcome-slides").WelcomeSlide>(`/admin/welcome-slides/${slide.slide_number}`, {
+      method: "PUT", body: JSON.stringify(slide),
+    }),
+  adminAccounts: (search: string, role: "patient" | "provider" | "admin" | "", offset = 0) =>
+    request<{ accounts: import("@/types/vitalpilot").AdminAccount[] }>(`/admin/accounts?search=${encodeURIComponent(search)}${role ? `&role=${role}` : ""}&limit=50&offset=${offset}`),
+  changeAccountStatus: (id: number, active: boolean, reason: string) =>
+    request<{ user_id: number; is_active: boolean }>(`/admin/accounts/${id}/status`, {
+      method: "POST", body: JSON.stringify({ active, reason }),
+    }),
+  adminProviders: (status: "PENDING" | "APPROVED" | "REJECTED" = "PENDING", offset = 0) =>
+    request<{ providers: import("@/types/vitalpilot").AdminProvider[] }>(`/admin/providers?status=${status}&limit=50&offset=${offset}`),
+  reviewProvider: (id: number, decision: "APPROVED" | "REJECTED", note: string, identity_and_license_verified: boolean) =>
+    request<{ status: "APPROVED" | "REJECTED" }>(`/admin/providers/${id}/review`, {
+      method: "POST", body: JSON.stringify({ decision, note, identity_and_license_verified }),
+    }),
   registerDoctor: (payload: { firstname: string; lastname: string; email: string; password: string; npi: string; specialty: string; license_state: string; license_number: string }) =>
     request<{ message: string; status: string }>("/auth/register-provider", { method: "POST", body: JSON.stringify(payload) }),
   doctorStatus: () => request<{ status: "PENDING" | "APPROVED" | "REJECTED" }>("/portal/provider-status"),

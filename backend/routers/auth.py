@@ -100,6 +100,8 @@ class GoogleLoginRequest(BaseModel):
 @router.post("/google")
 def google_login(payload: GoogleLoginRequest, response: Response):
     user, is_new_user = google_user(verify_google_token(payload.id_token))
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended. Contact the VitalPilot team.")
     token = create_access_token(user.email)
     response.set_cookie(
         key="access_token", value=token, httponly=True, secure=COOKIE_SECURE,
@@ -156,6 +158,8 @@ def login_user(payload: LoginRequest, response: Response):
     user = User.get_user_by_email(payload.email)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended. Contact the VitalPilot team.")
 
     # Verify the password using Argon2
     ph = PasswordHasher()

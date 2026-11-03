@@ -26,7 +26,7 @@ class FakeCursor:
             return (self.verification,)
         if "SELECT profile_id FROM UserHealthProfiles" in self.query:
             return (5,)
-        if "SELECT provider_id FROM Providers WHERE provider_id" in self.query:
+        if "SELECT p.provider_id FROM Providers p JOIN Users u" in self.query:
             return (17,)
         if "FROM Providers WHERE user_id" in self.query:
             return (17, self.verification)

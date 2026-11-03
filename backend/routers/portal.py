@@ -51,7 +51,10 @@ def grant_provider(provider_id: int, current_user: User = Depends(get_current_us
             profile = cursor.fetchone()
             if not profile:
                 raise HTTPException(409, "Complete your health profile before sharing records")
-            cursor.execute("SELECT provider_id FROM Providers WHERE provider_id = %s AND verification_status = 'APPROVED'", (provider_id,))
+            cursor.execute(
+                "SELECT p.provider_id FROM Providers p JOIN Users u ON u.user_id = p.user_id "
+                "WHERE p.provider_id = %s AND p.verification_status = 'APPROVED' AND u.is_active = TRUE",
+                (provider_id,))
             if not cursor.fetchone():
                 raise HTTPException(404, "Approved provider not found")
             cursor.execute(
