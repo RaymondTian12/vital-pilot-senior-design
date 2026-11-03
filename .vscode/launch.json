@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Chatbot (backend.chatbot)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "backend.chatbot",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "console": "integratedTerminal"
+    }
+  ]
+}

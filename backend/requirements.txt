@@ -6,3 +6,4 @@ cryptography
 argon2-cffi
 pyjwt
 httpx
+google-genai
