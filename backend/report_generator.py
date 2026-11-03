@@ -141,7 +141,8 @@ def generate_narrative(system_instruction, context):
     try:
         from google import genai
 
-        client = genai.Client(api_key=api_key)
+        # 20s timeout: a hung Gemini call must not hang the whole report request.
+        client = genai.Client(api_key=api_key, http_options={"timeout": 20000})
         response = client.models.generate_content(
             model="gemini-3.8-flash",
             contents=json.dumps(context, default=str),
