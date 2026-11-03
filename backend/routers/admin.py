@@ -1,4 +1,7 @@
-"""Administrator review of provider applications."""
+"""Administrator review, account controls, and invitations."""
+import hashlib
+import re
+import secrets
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,14 +28,90 @@ def connection():
 
 
 class ReviewDecision(BaseModel):
-    decision: Literal["APPROVED", "REJECTED"]
+    decision: Literal["APPROVED", "REJECTED", "REMOVED"]
     note: str = Field(min_length=3, max_length=500)
     identity_and_license_verified: bool = False
+    confirm_revoke_patient_access: bool = False
 
 
 class AccountAction(BaseModel):
     active: bool
     reason: str = Field(min_length=3, max_length=500)
+
+
+class AdminInvitationRequest(BaseModel):
+    first_name: str = Field(min_length=1, max_length=50)
+    last_name: str = Field(min_length=1, max_length=50)
+    email: str = Field(min_length=3, max_length=255)
+
+
+@router.get("/invitations")
+def list_invitations(admin: User = Depends(require_admin)):
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT invitation_id, first_name, last_name, email, expires_at, used_at, revoked_at "
+                "FROM AdminInvitations ORDER BY invitation_id DESC LIMIT 100"
+            )
+            fields = ("invitation_id", "first_name", "last_name", "email", "expires_at", "used_at", "revoked_at")
+            return {"invitations": [dict(zip(fields, row)) for row in cursor.fetchall()]}
+    finally:
+        conn.close()
+
+
+@router.post("/invitations", status_code=201)
+def create_invitation(payload: AdminInvitationRequest, admin: User = Depends(require_admin)):
+    first_name, last_name, email = payload.first_name.strip(), payload.last_name.strip(), payload.email.strip().lower()
+    if not first_name or not last_name or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise HTTPException(422, "Enter both names and a valid email address")
+    code = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT user_id FROM Users WHERE email = %s", (email,))
+            if cursor.fetchone():
+                raise HTTPException(409, "An account already uses this email")
+            cursor.execute(
+                "SELECT invitation_id FROM AdminInvitations WHERE email = %s "
+                "AND used_at IS NULL AND revoked_at IS NULL AND expires_at > UTC_TIMESTAMP() "
+                "LIMIT 1 FOR UPDATE", (email,))
+            if cursor.fetchone():
+                raise HTTPException(409, "A pending invitation already exists for this email")
+            cursor.execute(
+                "INSERT INTO AdminInvitations (email, first_name, last_name, token_hash, invited_by, expires_at) "
+                "VALUES (%s, %s, %s, %s, %s, UTC_TIMESTAMP() + INTERVAL 48 HOUR)",
+                (email, first_name, last_name, token_hash, admin.user_id),
+            )
+            invitation_id = cursor.lastrowid
+        conn.commit()
+        return {"invitation_id": invitation_id, "email": email, "code": code, "expires_in_hours": 48}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.post("/invitations/{invitation_id}/revoke")
+def revoke_invitation(invitation_id: int, admin: User = Depends(require_admin)):
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE AdminInvitations SET revoked_at = UTC_TIMESTAMP(), revoked_by = %s "
+                "WHERE invitation_id = %s AND used_at IS NULL AND revoked_at IS NULL "
+                "AND expires_at > UTC_TIMESTAMP()", (admin.user_id, invitation_id))
+            if cursor.rowcount != 1:
+                raise HTTPException(409, "This invitation is no longer active")
+        conn.commit()
+        return {"status": "REVOKED"}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 class WelcomeSlideUpdate(BaseModel):
@@ -133,7 +212,7 @@ def change_account_status(user_id: int, payload: AccountAction, admin: User = De
 
 
 @router.get("/providers")
-def list_providers(status: Literal["PENDING", "APPROVED", "REJECTED"] = "PENDING",
+def list_providers(status: Literal["PENDING", "APPROVED", "REJECTED", "REMOVED"] = "PENDING",
                    limit: int = Query(50, ge=1, le=200),
                    offset: int = Query(0, ge=0),
                    admin: User = Depends(require_admin)):
@@ -157,6 +236,8 @@ def list_providers(status: Literal["PENDING", "APPROVED", "REJECTED"] = "PENDING
 def review_provider(provider_id: int, payload: ReviewDecision, admin: User = Depends(require_admin)):
     if payload.decision == "APPROVED" and not payload.identity_and_license_verified:
         raise HTTPException(422, "Confirm identity and active license verification before approval")
+    if payload.decision == "REMOVED" and not payload.confirm_revoke_patient_access:
+        raise HTTPException(422, "Confirm that existing patient sharing will be revoked")
     note = payload.note.strip()
     if len(note) < 3:
         raise HTTPException(422, "Enter a review note")
@@ -167,9 +248,20 @@ def review_provider(provider_id: int, payload: ReviewDecision, admin: User = Dep
             row = cursor.fetchone()
             if not row:
                 raise HTTPException(404, "Doctor application not found")
-            if row[0] != "PENDING":
-                raise HTTPException(409, "This application has already been reviewed")
+            current_status = row[0]
+            allowed = {
+                "PENDING": {"APPROVED", "REJECTED"},
+                "APPROVED": {"REMOVED"},
+                "REJECTED": {"APPROVED"},
+                "REMOVED": {"APPROVED"},
+            }
+            if payload.decision not in allowed.get(current_status, set()):
+                raise HTTPException(409, "This doctor cannot be changed to that status")
             cursor.execute("UPDATE Providers SET verification_status = %s WHERE provider_id = %s", (payload.decision, provider_id))
+            if payload.decision == "REMOVED":
+                cursor.execute(
+                    "UPDATE PatientProviderAssignments SET assignment_status = 'REVOKED' "
+                    "WHERE provider_id = %s AND assignment_status <> 'REVOKED'", (provider_id,))
             cursor.execute(
                 "INSERT INTO ProviderReviews (provider_id, admin_user_id, decision, review_note) "
                 "VALUES (%s, %s, %s, %s)", (provider_id, admin.user_id, payload.decision, note))

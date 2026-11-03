@@ -91,6 +91,17 @@ async function request<T>(
   }
 }
 export const api = {
+  adminInvitations: () => request<{ invitations: import("@/types/vitalpilot").AdminInvitation[] }>("/admin/invitations"),
+  inviteAdmin: (payload: { first_name: string; last_name: string; email: string }) =>
+    request<{ invitation_id: number; email: string; code: string; expires_in_hours: number }>("/admin/invitations", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  revokeAdminInvitation: (id: number) =>
+    request<{ status: "REVOKED" }>(`/admin/invitations/${id}/revoke`, { method: "POST" }),
+  acceptAdminInvite: (email: string, code: string, password: string) =>
+    request<{ message: string }>("/auth/accept-admin-invite", {
+      method: "POST", body: JSON.stringify({ email, code, password }),
+    }),
   welcomeSlides: () => request<{ slides: import("@/constants/welcome-slides").WelcomeSlide[] }>("/content/welcome"),
   updateWelcomeSlide: (slide: import("@/constants/welcome-slides").WelcomeSlide) =>
     request<import("@/constants/welcome-slides").WelcomeSlide>(`/admin/welcome-slides/${slide.slide_number}`, {
@@ -102,15 +113,15 @@ export const api = {
     request<{ user_id: number; is_active: boolean }>(`/admin/accounts/${id}/status`, {
       method: "POST", body: JSON.stringify({ active, reason }),
     }),
-  adminProviders: (status: "PENDING" | "APPROVED" | "REJECTED" = "PENDING", offset = 0) =>
+  adminProviders: (status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED" = "PENDING", offset = 0) =>
     request<{ providers: import("@/types/vitalpilot").AdminProvider[] }>(`/admin/providers?status=${status}&limit=50&offset=${offset}`),
-  reviewProvider: (id: number, decision: "APPROVED" | "REJECTED", note: string, identity_and_license_verified: boolean) =>
-    request<{ status: "APPROVED" | "REJECTED" }>(`/admin/providers/${id}/review`, {
-      method: "POST", body: JSON.stringify({ decision, note, identity_and_license_verified }),
+  reviewProvider: (id: number, decision: "APPROVED" | "REJECTED" | "REMOVED", note: string, identity_and_license_verified: boolean, confirm_revoke_patient_access = false) =>
+    request<{ status: "APPROVED" | "REJECTED" | "REMOVED" }>(`/admin/providers/${id}/review`, {
+      method: "POST", body: JSON.stringify({ decision, note, identity_and_license_verified, confirm_revoke_patient_access }),
     }),
   registerDoctor: (payload: { firstname: string; lastname: string; email: string; password: string; npi: string; specialty: string; license_state: string; license_number: string }) =>
     request<{ message: string; status: string }>("/auth/register-provider", { method: "POST", body: JSON.stringify(payload) }),
-  doctorStatus: () => request<{ status: "PENDING" | "APPROVED" | "REJECTED" }>("/portal/provider-status"),
+  doctorStatus: () => request<{ status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED" }>("/portal/provider-status"),
   myProviders: () => request<{ providers: { provider_id: number; first_name: string; last_name: string; specialty: string; status: string }[] }>("/portal/my-providers"),
   grantProvider: (id: number) => request<{ status: string }>(`/portal/my-providers/${id}`, { method: "PUT" }),
   revokeProvider: (id: number) => request<{ status: string }>(`/portal/my-providers/${id}`, { method: "DELETE" }),

@@ -99,6 +99,9 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
       {!register && portal === "admin" && (
         <Notice>Sign in with your admin account to open the admin portal.</Notice>
       )}
+      {!register && registered === "admin" && (
+        <Notice>Admin account created. Sign in with your new password.</Notice>
+      )}
       {!register && portal === "doctor" && (
         <Notice>Sign in with your doctor account to open the doctor portal.</Notice>
       )}
@@ -166,6 +169,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
       >
         Continue with Google
       </Button>
+      {!register && portal === "admin" && <Button secondary onPress={() => router.push("/admin-invite")}>Have an admin invitation?</Button>}
       {googleUnavailableReason ? (
         <Text style={ui.small}>{googleUnavailableReason}</Text>
       ) : null}

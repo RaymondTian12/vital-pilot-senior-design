@@ -33,6 +33,7 @@ review the additive migrations before applying them with your normal database to
 - `database/migrations/20261102_admin_portal.sql`: records admin portal review decisions.
 - `database/migrations/20261102_admin_accounts.sql`: adds account suspension and an admin action audit log. Apply before deploying the updated API, because login reads `Users.is_active`.
 - `database/migrations/20261102_welcome_content.sql`: stores optional admin-edited welcome-page text.
+- `database/migrations/20261103_admin_invites_and_doctor_removal.sql`: adds one-time admin invitations and the `REMOVED` doctor status. Apply before starting the updated backend.
 - `database/migrations/20261020_metric_assessments.sql`: creates per-reading context/assessment
   storage and fills entirely absent glucose, oxygen, BMI, and peak-flow reference
   groups. Apply before starting the assessment-enabled backend; existing readings

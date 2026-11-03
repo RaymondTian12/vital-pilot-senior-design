@@ -1,7 +1,7 @@
 """Admin review requires the admin role and an auditable, pending decision."""
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("jwt_secret_key", "isolated-admin-test-key")
 from fastapi.testclient import TestClient
@@ -74,6 +74,72 @@ class AdminTests(unittest.TestCase):
             response = self.client.post("/admin/providers/7/review", json={"decision": "REJECTED", "note": "Duplicate review"})
         self.assertEqual(response.status_code, 409)
         self.assertFalse(conn.committed)
+
+    def test_rejected_doctor_can_be_approved_after_new_verification(self):
+        conn = FakeConnection("REJECTED")
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            denied = self.client.post("/admin/providers/7/review", json={"decision": "APPROVED", "note": "Rechecked license"})
+            approved = self.client.post("/admin/providers/7/review", json={"decision": "APPROVED", "note": "Rechecked license", "identity_and_license_verified": True})
+        self.assertEqual(denied.status_code, 422)
+        self.assertEqual(approved.status_code, 200)
+        self.assertTrue(conn.committed)
+        self.assertTrue(any("ProviderReviews" in q and values[2] == "APPROVED" for q, values in conn.fake_cursor.queries if values))
+
+    def test_removal_revokes_patient_grants_and_needs_confirmation(self):
+        conn = FakeConnection("APPROVED")
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            denied = self.client.post("/admin/providers/7/review", json={"decision": "REMOVED", "note": "License expired"})
+            removed = self.client.post("/admin/providers/7/review", json={"decision": "REMOVED", "note": "License expired", "confirm_revoke_patient_access": True})
+        self.assertEqual(denied.status_code, 422)
+        self.assertEqual(removed.status_code, 200)
+        self.assertTrue(conn.committed)
+        self.assertTrue(any("UPDATE PatientProviderAssignments" in q and "REVOKED" in q for q, _ in conn.fake_cursor.queries))
+        self.assertTrue(any("ProviderReviews" in q and values[2] == "REMOVED" for q, values in conn.fake_cursor.queries if values))
+
+    def test_reapproval_after_removal_does_not_restore_old_grants(self):
+        conn = FakeConnection("REMOVED")
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            response = self.client.post("/admin/providers/7/review", json={"decision": "APPROVED", "note": "Rechecked credentials", "identity_and_license_verified": True})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(any("PatientProviderAssignments" in q for q, _ in conn.fake_cursor.queries))
+
+    def test_only_admin_can_issue_and_revoke_invitation(self):
+        payload = {"first_name": "New", "last_name": "Admin", "email": "new@example.invalid"}
+        self.user.role = UserRole.PATIENT
+        self.assertEqual(self.client.post("/admin/invitations", json=payload).status_code, 403)
+        self.user.role = UserRole.ADMIN
+        conn = MagicMock()
+        cursor = conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.side_effect = [None, None]
+        cursor.lastrowid = 12
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            issued = self.client.post("/admin/invitations", json=payload)
+        self.assertEqual(issued.status_code, 201)
+        self.assertGreaterEqual(len(issued.json()["code"]), 40)
+        self.assertNotIn(issued.json()["code"], str(cursor.execute.call_args_list))
+        conn.commit.assert_called_once()
+
+        cursor.rowcount = 1
+        with patch("backend.routers.admin.get_db_connection", return_value=conn):
+            revoked = self.client.post("/admin/invitations/12/revoke")
+        self.assertEqual(revoked.status_code, 200)
+
+    def test_invitation_acceptance_creates_separate_admin_and_is_one_time(self):
+        app.dependency_overrides.clear()
+        payload = {"email": "new@example.invalid", "code": "example-test-code-that-is-long-enough", "password": "long-private-password-123"}
+        conn = MagicMock()
+        cursor = conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = (12, "New", "Admin")
+        with patch("backend.routers.auth.get_db_connection", return_value=conn):
+            accepted = self.client.post("/auth/accept-admin-invite", json=payload)
+        self.assertEqual(accepted.status_code, 201)
+        self.assertTrue(any("INSERT INTO Users" in call.args[0] and "'admin'" in call.args[0] for call in cursor.execute.call_args_list))
+        self.assertTrue(any("used_at" in call.args[0] for call in cursor.execute.call_args_list))
+        conn.commit.assert_called_once()
+        cursor.fetchone.return_value = None
+        with patch("backend.routers.auth.get_db_connection", return_value=conn):
+            replay = self.client.post("/auth/accept-admin-invite", json=payload)
+        self.assertEqual(replay.status_code, 400)
 
     def test_account_directory_does_not_return_health_records(self):
         conn = FakeConnection(rows=[(9, "Pat", "Example", "pat@example.com", "patient", "2026-11-02", 1)])

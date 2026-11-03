@@ -21,8 +21,17 @@ export type AdminProvider = {
   specialty: string;
   license_state: string;
   license_number: string;
-  verification_status: "PENDING" | "APPROVED" | "REJECTED";
+  verification_status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED";
   created_at: string;
+};
+export type AdminInvitation = {
+  invitation_id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  expires_at: string;
+  used_at: string | null;
+  revoked_at: string | null;
 };
 export type AdminAccount = {
   user_id: number;

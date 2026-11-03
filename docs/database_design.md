@@ -50,7 +50,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `specialty` | `VARCHAR(100)` | `NOT NULL` | Medical practice specialty (e.g. Cardiology, Endocrinology) |
 | `license_state` | `VARCHAR(2)` | `NOT NULL` | State abbreviation of clinical licensure |
 | `license_number` | `VARCHAR(50)` | `NOT NULL` | State medical license registration number |
-| `verification_status` | `ENUM('PENDING', 'APPROVED', 'REJECTED')` | `NOT NULL, DEFAULT 'PENDING'` | Administrator review status; only approved providers can access granted patient records |
+| `verification_status` | `ENUM('PENDING', 'APPROVED', 'REJECTED', 'REMOVED')` | `NOT NULL, DEFAULT 'PENDING'` | Administrator review status; only approved providers can access granted patient records |
 | `clinic_name` | `VARCHAR(255)` | `NULL` | Associated clinic or healthcare system |
 | `clinic_phone` | `VARCHAR(20)` | `NULL` | Practice contact phone number |
 | `created_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider profile was created |
@@ -77,7 +77,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `review_id` | `SERIAL` | `PRIMARY KEY` | Unique review record |
 | `provider_id` | `BIGINT UNSIGNED` | `FOREIGN KEY, NOT NULL` | Reviewed provider |
 | `admin_user_id` | `BIGINT UNSIGNED` | `FOREIGN KEY, NOT NULL` | Admin who made the decision |
-| `decision` | `ENUM('APPROVED', 'REJECTED')` | `NOT NULL` | Review outcome |
+| `decision` | `ENUM('APPROVED', 'REJECTED', 'REMOVED')` | `NOT NULL` | Review outcome |
 | `review_note` | `VARCHAR(500)` | `NOT NULL` | Admin's explanation or verification note |
 | `reviewed_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Decision time |
 
@@ -86,6 +86,12 @@ Rather than tightly coupling the database engine to static disease states, this 
 
 ### WelcomeSlides
 *Stores optional admin-edited copy for the four public welcome panels. The app uses built-in copy when a panel has no override or the API is unavailable.*
+
+### AdminInvitations
+*Stores hashed, one-time admin invitation codes. Invites expire after 48 hours, can be revoked before use, and cannot promote an existing patient or doctor account.*
+
+### Doctor review lifecycle
+*Providers can move from pending to approved or rejected; rejected or removed providers can be approved after a new identity and license check; approved providers can be removed. Removal revokes all patient assignments in the same transaction, and later approval does not reactivate them. `ProviderReviews` records each decision.*
 
 ---
 

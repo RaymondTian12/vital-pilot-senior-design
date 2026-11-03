@@ -1,4 +1,5 @@
 import os
+import hashlib
 import pymysql
 
 from argon2 import PasswordHasher
@@ -34,6 +35,54 @@ class ProviderRegisterRequest(BaseModel):
     specialty: str = Field(min_length=1, max_length=100)
     license_state: str = Field(pattern=r"^[A-Za-z]{2}$")
     license_number: str = Field(min_length=1, max_length=50)
+
+
+class AdminInviteAcceptance(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    code: str = Field(min_length=20, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
+
+
+@router.post("/accept-admin-invite", status_code=201)
+def accept_admin_invite(payload: AdminInviteAcceptance):
+    email = payload.email.strip().lower()
+    token_hash = hashlib.sha256(payload.code.strip().encode("utf-8")).hexdigest()
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Database unavailable")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT invitation_id, first_name, last_name FROM AdminInvitations "
+                "WHERE email = %s AND token_hash = %s AND used_at IS NULL "
+                "AND revoked_at IS NULL AND expires_at > UTC_TIMESTAMP() FOR UPDATE",
+                (email, token_hash),
+            )
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(400, "Invitation is invalid or expired")
+            cursor.execute(
+                "INSERT INTO Users (first_name, last_name, email, password_hash, role) "
+                "VALUES (%s, %s, %s, %s, 'admin')",
+                (row[1], row[2], email, PasswordHasher().hash(payload.password)),
+            )
+            cursor.execute(
+                "UPDATE AdminInvitations SET used_at = UTC_TIMESTAMP() WHERE invitation_id = %s",
+                (row[0],),
+            )
+        conn.commit()
+        return {"message": "Admin account created. Sign in with your new password."}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except pymysql.err.IntegrityError:
+        conn.rollback()
+        raise HTTPException(409, "An account already uses this email")
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 @router.post("/register-provider", status_code=201)

@@ -37,6 +37,23 @@ CREATE TABLE IF NOT EXISTS AdminAccountActions (
     FOREIGN KEY (admin_user_id) REFERENCES Users(user_id)
 );
 
+CREATE TABLE IF NOT EXISTS AdminInvitations (
+    invitation_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+    invited_by BIGINT UNSIGNED NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    revoked_at DATETIME NULL,
+    revoked_by BIGINT UNSIGNED NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX invitation_email_status (email, expires_at),
+    FOREIGN KEY (invited_by) REFERENCES Users(user_id),
+    FOREIGN KEY (revoked_by) REFERENCES Users(user_id)
+);
+
 CREATE TABLE IF NOT EXISTS UserAuthIdentities (
     user_id BIGINT UNSIGNED NOT NULL,
     provider VARCHAR(32) NOT NULL,
@@ -72,7 +89,7 @@ CREATE TABLE IF NOT EXISTS Providers (
     specialty VARCHAR(100) NOT NULL,
     license_state VARCHAR(2) NOT NULL,
     license_number VARCHAR(50) NOT NULL,
-    verification_status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    verification_status ENUM('PENDING', 'APPROVED', 'REJECTED', 'REMOVED') NOT NULL DEFAULT 'PENDING',
     clinic_name VARCHAR(255) NULL,
     clinic_phone VARCHAR(20) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -95,7 +112,7 @@ CREATE TABLE IF NOT EXISTS ProviderReviews (
     review_id SERIAL PRIMARY KEY,
     provider_id BIGINT UNSIGNED NOT NULL,
     admin_user_id BIGINT UNSIGNED NOT NULL,
-    decision ENUM('APPROVED', 'REJECTED') NOT NULL,
+    decision ENUM('APPROVED', 'REJECTED', 'REMOVED') NOT NULL,
     review_note VARCHAR(500) NOT NULL,
     reviewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX provider_review_history (provider_id, reviewed_at),
