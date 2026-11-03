@@ -143,7 +143,7 @@ configuration is shown explicitly. Habit entries are compared with personal goal
 not treated as clinical diagnoses. The overall result prioritizes urgent health
 alerts, warnings, then missing context; no-alert status is not a health guarantee. Nearby distance ranking, ZIP search, insurer matching,
 appointment availability and general profile editing are not implemented. PDF reports
-and optional OpenAI report explanations are connected; see the AI/PDF setup below.
+and optional Gemini report explanations are connected; see the AI/PDF setup below.
 The registered-provider
 `/care-team` route remains separate from the external NPI search and may be empty.
 

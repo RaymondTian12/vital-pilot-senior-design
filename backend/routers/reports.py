@@ -30,7 +30,7 @@ class ReportRequest(BaseModel):
     @model_validator(mode='after')
     def consent_required(self):
         if self.include_ai and not self.ai_consent:
-            raise ValueError('Explicit consent is required to send summary data to OpenAI')
+            raise ValueError('Explicit consent is required to send summary data to Google Gemini')
         return self
 
 def storage():
@@ -49,7 +49,7 @@ def metadata(row):
 
 @router.get('/capabilities')
 def capabilities(current_user=Depends(get_current_user)):
-    return {'ai_available':bool(os.getenv('OPENAI_API_KEY')),'ai_provider':'OpenAI'}
+    return {'ai_available':bool(os.getenv('GEMINI_API_KEY')),'ai_provider':'Google Gemini'}
 
 @router.get('')
 def history(offset:int=Query(0,ge=0), current_user=Depends(get_current_user)):

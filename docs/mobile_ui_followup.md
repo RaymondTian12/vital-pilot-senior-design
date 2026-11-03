@@ -23,7 +23,7 @@
   are not enabled without agreed rule configuration.
 - Reports now load real 7/30/90-day readings. Habit bars use latest local-day totals;
   measurement charts show observations, including separate BP components. Truncated
-  datasets are labeled. PDF export, private history/downloads and optional OpenAI narratives are now connected; see `docs/report_generation.md`.
+  datasets are labeled. PDF export, private history/downloads and optional Gemini narratives are now connected; see `docs/report_generation.md`.
 - Doctor portal, provider verification and patient sharing now use the team's
   merged `origin/main` implementation (`/portal/*`, `/doctor-portal`, `/sharing`).
   Our duplicate sharing/provider API and screen were replaced during integration.
@@ -45,8 +45,8 @@ are currently capped at 100; the admin list and metric history have pagination.
 
 ## Remaining team integration
 
-AI/PDF reports now use Michael's OpenAI Responses API/model choice, with PDF-only
-fallback when AI is unavailable. Server credentials and a rebuilt native app are
+AI/PDF reports now use the team's Gemini provider and report statistics, with PDF-only
+fallback when AI is unavailable. Server Gemini credentials and a rebuilt native app are
 required for live AI/native-sharing tests. See `docs/report_generation.md`.
 Agree on persistent clinical temporal policies before enabling engine conditions.
 Doctor/admin portals currently provide the read-only MVP above; further management
@@ -77,6 +77,6 @@ source of truth. Review the team's November 1 migration status before deployment
 its consent migration revokes existing ACTIVE assignments and must not be rerun
 blindly. No shared-database writes were made during this Git integration.
 
-The report implementation still needs reconciliation with the Gemini report branch;
-local PDF/AI work remains preserved, with no live OpenAI calls made. Omar's shared
+The report provider and statistics now follow the Gemini report branch; mobile
+PDF/history/share work is preserved, with no live AI calls made. Omar's shared
 Gemini chatbot endpoint and Mohammad's admin branch are separate integrations.

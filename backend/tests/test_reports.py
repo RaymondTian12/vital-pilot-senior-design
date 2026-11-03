@@ -91,11 +91,40 @@ class ReportTests(unittest.TestCase):
         response=self.client.get('/reports/23/pdf')
         self.assertEqual(response.status_code,200);self.assertEqual(response.content,b'%PDF-test')
 
-    def test_openai_uses_michaels_model_and_does_not_log_or_store_payload(self):
-        response=MagicMock();response.json.return_value={'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':'Educational explanation.'}]}]}
-        with patch.dict(os.environ,{'OPENAI_API_KEY':'test-key'},clear=True),patch('backend.report_generator.httpx.post',return_value=response) as post:
+    def test_gemini_uses_team_model_and_keeps_key_in_header(self):
+        response=MagicMock();response.json.return_value={'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':'Educational explanation.'}]}}]}
+        with patch.dict(os.environ,{'GEMINI_API_KEY':'test-key'},clear=True),patch('backend.report_generator.httpx.post',return_value=response) as post:
             text,status=ai_explanation(report_facts(sample()))
         self.assertEqual(status,'included');self.assertIn('Educational',text)
-        payload=post.call_args.kwargs['json'];self.assertEqual(payload['model'],'gpt-5');self.assertFalse(payload['store'])
+        self.assertTrue(post.call_args.args[0].endswith('/gemini-2.5-flash:generateContent'))
+        self.assertEqual(post.call_args.kwargs['headers']['x-goog-api-key'],'test-key')
+        self.assertNotIn('test-key',post.call_args.args[0])
+        self.assertNotIn('test-key',str(post.call_args.kwargs['json']))
         with patch.dict(os.environ,{},clear=True),patch('backend.report_generator.httpx.post') as post:
             self.assertEqual(ai_explanation(report_facts(sample())),(None,'unavailable'));post.assert_not_called()
+
+    def test_gemini_blocked_empty_and_incomplete_outputs_fail_closed(self):
+        for body in ({'candidates':[]},{'candidates':[{'finishReason':'MAX_TOKENS','content':{'parts':[{'text':'Partial output'}]}}]}, {'candidates':[{'finishReason':'STOP','content':{'parts':[]}}]}):
+            response=MagicMock();response.json.return_value=body
+            with patch.dict(os.environ,{'GEMINI_API_KEY':'test'},clear=True),patch('backend.report_generator.httpx.post',return_value=response):
+                self.assertEqual(ai_explanation(report_facts(sample())),(None,'unavailable'))
+
+    def test_stats_use_latest_daily_habit_total(self):
+        from backend.report_generator import summarize_metric_stats
+        data=sample();original=data['records'][0]
+        later={**original,'log_id':2,'amount_cups':5,'recorded_at':datetime(2026,11,2,18,tzinfo=timezone.utc)}
+        stats=summarize_metric_stats([original,later],data['timezone_name'])['WATER_INTAKE']
+        self.assertEqual(stats['count'],1)
+        self.assertEqual(stats['raw_count'],2)
+        self.assertEqual(stats['fields']['amount_cups']['avg'],5)
+
+    def test_openai_key_alone_never_enables_or_calls_gemini(self):
+        with patch.dict(os.environ,{'OPENAI_API_KEY':'unused-test-key'},clear=True),patch('backend.report_generator.httpx.post') as post:
+            self.assertFalse(self.client.get('/reports/capabilities').json()['ai_available'])
+            self.assertEqual(ai_explanation(report_facts(sample())),(None,'unavailable'))
+            post.assert_not_called()
+
+    def test_gemini_timeout_does_not_leak_provider_error_or_break_pdf(self):
+        import httpx
+        with patch.dict(os.environ,{'GEMINI_API_KEY':'secret-test-key'},clear=True),patch('backend.report_generator.httpx.post',side_effect=httpx.ReadTimeout('private provider details')):
+            self.assertEqual(ai_explanation(report_facts(sample())),(None,'unavailable'))

@@ -2,9 +2,11 @@
 
 ## Setup
 
-The generator uses Michael's website implementation's provider and API: OpenAI
-Responses with `gpt-5` by default. It does not switch the team to Gemini. The
-website route is unchanged; mobile uses authenticated FastAPI report endpoints.
+The generator now follows the team's Gemini report implementation in commit
+`bb233ed` on `origin/claude/dreamy-bell-v6ntot`. Its count/range/average reporting
+was adapted to use timezone-aware latest daily habit totals. The authenticated
+mobile generation/history/download/share workflow is preserved. This is a selective
+reconciliation, not a merge of that entire branch. The website chatbot is unchanged.
 
 Install backend requirements and configure the server-side environment:
 
@@ -12,11 +14,13 @@ Install backend requirements and configure the server-side environment:
 .venv/bin/python -m pip install -r backend/requirements.txt
 ```
 
-Add `OPENAI_API_KEY` to the root `.env` and restart the backend. Do not paste keys
+Add `GEMINI_API_KEY` to the root `.env` and restart the backend. Do not paste keys
 into chat or mobile config. `backend/reporting.env.example` documents optional
 model/storage settings. PDF-only generation works without a key. The AI call has
 been tested with mocked responses; no live key was configured during implementation.
-Model access and billing must be available on the team's API project.
+The default model is `gemini-2.5-flash`, matching the team's branch. Set
+`GEMINI_REPORT_MODEL` to a model enabled on the team's project if that model is
+unavailable. Model access and billing must be available on the team's API project.
 
 Mobile now depends on `expo-file-system` and `expo-sharing`. Install workspace
 packages, rebuild/reinstall the native development app, then restart Expo:
@@ -34,7 +38,7 @@ message rather than opening the share sheet. Native sharing needs phone verifica
 Open Reports, select 7/30/90 days, and tap Generate PDF. Optional AI explanation is
 off by default. Enabling it and generating is explicit consent to send the reduced
 measurement summary, dates, relevant assessment context and classifications to
-OpenAI. Names, emails and patient IDs are excluded. The app sends no health data to
+Google Gemini. Names, emails and patient IDs are excluded. The app sends no health data to
 AI while simply viewing reports. An unavailable AI service produces a saved-data
 PDF with an explicit notice instead of losing the report.
 
@@ -59,8 +63,11 @@ set `VITALPILOT_REPORT_DIR` to a private persistent volume, and back it up consi
 with the database. Local files are not shared across multiple server instances.
 No retention/deletion workflow or object-storage integration is implemented yet.
 
-AI uses the existing `httpx` dependency with the Responses REST API, server-side
-credentials, `store=false`, a bounded output, and a 35-second provider timeout. Output
+AI uses the existing `httpx` dependency with the Gemini `generateContent` REST API,
+server-side credentials in the `x-goog-api-key` header, a bounded output, and a
+35-second provider timeout. This avoids adding a Python SDK requirement to the
+project's Python 3.9 environment. Blocked, empty and incomplete responses fall back
+to the saved-data PDF. Output
 is labeled as AI-generated and is rendered as escaped text; assessments are shown
 separately and remain authoritative. This does not guarantee AI correctness or make
 claims about the provider's broader data-retention policies. Failures are sanitized.
@@ -80,11 +87,14 @@ cleanup and generation throttling. Check multi-page reports with fictional readi
 sharing/cancelling, account switches, unavailable native modules and no network on
 an actual phone before demoing.
 
-The newer team doctor-portal commits on origin/main have been integrated on the
-local integration branch. AI/PDF provider reconciliation is still pending: the team
-selected Gemini, and origin/claude/dreamy-bell-v6ntot contains its report generator.
-The preserved local OpenAI report adapter must be reconciled before release; do not
-configure an OpenAI key solely for these reports.
+The team doctor portal from origin/main is integrated. The Gemini report provider
+and numeric statistics are now reconciled; no Google Gemini key was configured or
+live health-data requests made during implementation. The original branch's public
+GET-generation route, patient-identifying AI context, and raw provider error text
+were not ported. We retain explicit AI consent, minimized context and authenticated
+POST generation/private downloads. A prior-period AI comparison and identifying
+patient header from the original branch are not included in this mobile version.
+Omar's chatbot and Mohammad's full admin portal remain separate integrations.
 
-API integration reference: [OpenAI Responses documentation](https://developers.openai.com/api/docs/guides/migrate-to-responses?api-mode=responses).
+API reference: [Gemini text generation](https://ai.google.dev/gemini-api/docs/text-generation).
 Native sharing follows the [Expo SDK 57 sharing API](https://docs.expo.dev/versions/v57.0.0/sdk/sharing/).
