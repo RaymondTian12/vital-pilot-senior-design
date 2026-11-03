@@ -91,16 +91,9 @@ async function request<T>(
   }
 }
 export const api = {
-  adminInvitations: () => request<{ invitations: import("@/types/vitalpilot").AdminInvitation[] }>("/admin/invitations"),
-  inviteAdmin: (payload: { first_name: string; last_name: string; email: string }) =>
-    request<{ invitation_id: number; email: string; code: string; expires_in_hours: number }>("/admin/invitations", {
+  createAdmin: (payload: { first_name: string; last_name: string; email: string; password: string }) =>
+    request<{ user_id: number; email: string; role: "admin" }>("/admin/admins", {
       method: "POST", body: JSON.stringify(payload),
-    }),
-  revokeAdminInvitation: (id: number) =>
-    request<{ status: "REVOKED" }>(`/admin/invitations/${id}/revoke`, { method: "POST" }),
-  acceptAdminInvite: (email: string, code: string, password: string) =>
-    request<{ message: string }>("/auth/accept-admin-invite", {
-      method: "POST", body: JSON.stringify({ email, code, password }),
     }),
   welcomeSlides: () => request<{ slides: import("@/constants/welcome-slides").WelcomeSlide[] }>("/content/welcome"),
   updateWelcomeSlide: (slide: import("@/constants/welcome-slides").WelcomeSlide) =>

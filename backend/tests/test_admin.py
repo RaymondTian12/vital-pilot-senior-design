@@ -2,6 +2,7 @@
 import os
 import unittest
 from unittest.mock import MagicMock, patch
+from argon2 import PasswordHasher
 
 os.environ.setdefault("jwt_secret_key", "isolated-admin-test-key")
 from fastapi.testclient import TestClient
@@ -103,43 +104,27 @@ class AdminTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(any("PatientProviderAssignments" in q for q, _ in conn.fake_cursor.queries))
 
-    def test_only_admin_can_issue_and_revoke_invitation(self):
-        payload = {"first_name": "New", "last_name": "Admin", "email": "new@example.invalid"}
+    def test_only_admin_can_create_another_admin(self):
+        payload = {"first_name": "New", "last_name": "Admin", "email": "new@example.invalid", "password": "unique-private-password-123"}
         self.user.role = UserRole.PATIENT
-        self.assertEqual(self.client.post("/admin/invitations", json=payload).status_code, 403)
+        self.assertEqual(self.client.post("/admin/admins", json=payload).status_code, 403)
         self.user.role = UserRole.ADMIN
         conn = MagicMock()
         cursor = conn.cursor.return_value.__enter__.return_value
-        cursor.fetchone.side_effect = [None, None]
         cursor.lastrowid = 12
         with patch("backend.routers.admin.get_db_connection", return_value=conn):
-            issued = self.client.post("/admin/invitations", json=payload)
-        self.assertEqual(issued.status_code, 201)
-        self.assertGreaterEqual(len(issued.json()["code"]), 40)
-        self.assertNotIn(issued.json()["code"], str(cursor.execute.call_args_list))
+            created = self.client.post("/admin/admins", json=payload)
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.json(), {"user_id": 12, "email": payload["email"], "role": "admin"})
+        sql, values = cursor.execute.call_args.args
+        self.assertIn("'admin'", sql)
+        self.assertNotIn(payload["password"], str(created.json()))
+        PasswordHasher().verify(values[3], payload["password"])
         conn.commit.assert_called_once()
 
-        cursor.rowcount = 1
-        with patch("backend.routers.admin.get_db_connection", return_value=conn):
-            revoked = self.client.post("/admin/invitations/12/revoke")
-        self.assertEqual(revoked.status_code, 200)
-
-    def test_invitation_acceptance_creates_separate_admin_and_is_one_time(self):
-        app.dependency_overrides.clear()
-        payload = {"email": "new@example.invalid", "code": "example-test-code-that-is-long-enough", "password": "long-private-password-123"}
-        conn = MagicMock()
-        cursor = conn.cursor.return_value.__enter__.return_value
-        cursor.fetchone.return_value = (12, "New", "Admin")
-        with patch("backend.routers.auth.get_db_connection", return_value=conn):
-            accepted = self.client.post("/auth/accept-admin-invite", json=payload)
-        self.assertEqual(accepted.status_code, 201)
-        self.assertTrue(any("INSERT INTO Users" in call.args[0] and "'admin'" in call.args[0] for call in cursor.execute.call_args_list))
-        self.assertTrue(any("used_at" in call.args[0] for call in cursor.execute.call_args_list))
-        conn.commit.assert_called_once()
-        cursor.fetchone.return_value = None
-        with patch("backend.routers.auth.get_db_connection", return_value=conn):
-            replay = self.client.post("/auth/accept-admin-invite", json=payload)
-        self.assertEqual(replay.status_code, 400)
+    def test_admin_creation_rejects_short_password(self):
+        response = self.client.post("/admin/admins", json={"first_name": "New", "last_name": "Admin", "email": "new@example.invalid", "password": "short"})
+        self.assertEqual(response.status_code, 422)
 
     def test_account_directory_does_not_return_health_records(self):
         conn = FakeConnection(rows=[(9, "Pat", "Example", "pat@example.com", "patient", "2026-11-02", 1)])

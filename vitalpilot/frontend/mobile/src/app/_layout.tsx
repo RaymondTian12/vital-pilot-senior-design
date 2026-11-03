@@ -83,7 +83,6 @@ function Navigation() {
               <Stack.Screen name="signin" />
               <Stack.Screen name="signup" />
               <Stack.Screen name="doctor-signup" />
-              <Stack.Screen name="admin-invite" />
             </Stack.Protected>
             <Stack.Protected guard={user?.role === "patient"}>
               <Stack.Screen name="questionnaire" />

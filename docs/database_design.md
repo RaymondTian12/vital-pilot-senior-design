@@ -87,9 +87,6 @@ Rather than tightly coupling the database engine to static disease states, this 
 ### WelcomeSlides
 *Stores optional admin-edited copy for the four public welcome panels. The app uses built-in copy when a panel has no override or the API is unavailable.*
 
-### AdminInvitations
-*Stores hashed, one-time admin invitation codes. Invites expire after 48 hours, can be revoked before use, and cannot promote an existing patient or doctor account.*
-
 ### Doctor review lifecycle
 *Providers can move from pending to approved or rejected; rejected or removed providers can be approved after a new identity and license check; approved providers can be removed. Removal revokes all patient assignments in the same transaction, and later approval does not reactivate them. `ProviderReviews` records each decision.*
 

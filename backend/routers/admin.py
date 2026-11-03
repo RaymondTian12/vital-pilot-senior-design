@@ -1,9 +1,9 @@
-"""Administrator review, account controls, and invitations."""
-import hashlib
+"""Administrator review and account controls."""
 import re
-import secrets
 from typing import Literal
 
+import pymysql
+from argon2 import PasswordHasher
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -39,74 +39,32 @@ class AccountAction(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
-class AdminInvitationRequest(BaseModel):
+class AdminCreateRequest(BaseModel):
     first_name: str = Field(min_length=1, max_length=50)
     last_name: str = Field(min_length=1, max_length=50)
     email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=12, max_length=128)
 
 
-@router.get("/invitations")
-def list_invitations(admin: User = Depends(require_admin)):
-    conn = connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT invitation_id, first_name, last_name, email, expires_at, used_at, revoked_at "
-                "FROM AdminInvitations ORDER BY invitation_id DESC LIMIT 100"
-            )
-            fields = ("invitation_id", "first_name", "last_name", "email", "expires_at", "used_at", "revoked_at")
-            return {"invitations": [dict(zip(fields, row)) for row in cursor.fetchall()]}
-    finally:
-        conn.close()
-
-
-@router.post("/invitations", status_code=201)
-def create_invitation(payload: AdminInvitationRequest, admin: User = Depends(require_admin)):
+@router.post("/admins", status_code=201)
+def create_admin(payload: AdminCreateRequest, admin: User = Depends(require_admin)):
     first_name, last_name, email = payload.first_name.strip(), payload.last_name.strip(), payload.email.strip().lower()
     if not first_name or not last_name or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         raise HTTPException(422, "Enter both names and a valid email address")
-    code = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
     conn = connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT user_id FROM Users WHERE email = %s", (email,))
-            if cursor.fetchone():
-                raise HTTPException(409, "An account already uses this email")
             cursor.execute(
-                "SELECT invitation_id FROM AdminInvitations WHERE email = %s "
-                "AND used_at IS NULL AND revoked_at IS NULL AND expires_at > UTC_TIMESTAMP() "
-                "LIMIT 1 FOR UPDATE", (email,))
-            if cursor.fetchone():
-                raise HTTPException(409, "A pending invitation already exists for this email")
-            cursor.execute(
-                "INSERT INTO AdminInvitations (email, first_name, last_name, token_hash, invited_by, expires_at) "
-                "VALUES (%s, %s, %s, %s, %s, UTC_TIMESTAMP() + INTERVAL 48 HOUR)",
-                (email, first_name, last_name, token_hash, admin.user_id),
+                "INSERT INTO Users (first_name, last_name, email, password_hash, role) "
+                "VALUES (%s, %s, %s, %s, 'admin')",
+                (first_name, last_name, email, PasswordHasher().hash(payload.password)),
             )
-            invitation_id = cursor.lastrowid
+            user_id = cursor.lastrowid
         conn.commit()
-        return {"invitation_id": invitation_id, "email": email, "code": code, "expires_in_hours": 48}
-    except Exception:
+        return {"user_id": user_id, "email": email, "role": "admin"}
+    except pymysql.err.IntegrityError:
         conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-@router.post("/invitations/{invitation_id}/revoke")
-def revoke_invitation(invitation_id: int, admin: User = Depends(require_admin)):
-    conn = connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "UPDATE AdminInvitations SET revoked_at = UTC_TIMESTAMP(), revoked_by = %s "
-                "WHERE invitation_id = %s AND used_at IS NULL AND revoked_at IS NULL "
-                "AND expires_at > UTC_TIMESTAMP()", (admin.user_id, invitation_id))
-            if cursor.rowcount != 1:
-                raise HTTPException(409, "This invitation is no longer active")
-        conn.commit()
-        return {"status": "REVOKED"}
+        raise HTTPException(409, "An account already uses this email")
     except Exception:
         conn.rollback()
         raise
