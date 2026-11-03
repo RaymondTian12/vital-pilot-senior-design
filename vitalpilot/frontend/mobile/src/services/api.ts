@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { session } from "./session";
 import type {
   AuthUser,
@@ -180,4 +181,22 @@ export const api = {
     request<BloodPressurePage>(
       `/metrics?metric_type=BLOOD_PRESSURE&limit=20&offset=${offset}`,
     ),
+  async generateReport(days: 7 | 30 | 90): Promise<{ uri: string; filename: string }> {
+    if (!API_BASE_URL)
+      throw new Error("EXPO_PUBLIC_API_BASE_URL is not configured.");
+    const token = await session.get();
+    const filename = `vitalpilot-report-${days}day-${Date.now()}.pdf`;
+    const destination = `${FileSystem.documentDirectory}${filename}`;
+    const result = await FileSystem.downloadAsync(
+      `${API_BASE_URL}/reports/generate?days=${days}`,
+      destination,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    );
+    if (result.status !== 200)
+      throw new ApiError(
+        `Failed to generate report (status ${result.status}).`,
+        result.status,
+      );
+    return { uri: result.uri, filename };
+  },
 };
