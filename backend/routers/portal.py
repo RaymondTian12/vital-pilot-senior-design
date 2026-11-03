@@ -1,82 +1,184 @@
-"""Role-scoped mobile portals; patient sharing requires an explicit consent row."""
-from types import SimpleNamespace
+"""Patient-controlled provider access and read-only provider records."""
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-from backend.db import get_db_connection
-from backend.security import get_current_user
-from backend.routers.auth import Vitals
-from backend.routers.metrics import get_metrics
-router = APIRouter()
 
-def role(user): return getattr(user.role, 'value', user.role)
-def require(user, expected):
-    if role(user) != expected: raise HTTPException(403, 'Not permitted for this account')
+from backend.db import get_db_connection
+from backend.models.User import User, UserRole
+from backend.routers.auth import Vitals
+from backend.routers.metrics import METRIC_TABLES, record_from_row
+from backend.security import get_current_user
+
+router = APIRouter(prefix="/portal")
+
+
+def require_role(user: User, role: UserRole):
+    if user.role != role:
+        raise HTTPException(403, "This account cannot access this feature")
+
 
 def connection():
     conn = get_db_connection()
-    if not conn: raise HTTPException(503, 'Portal unavailable')
+    if not conn:
+        raise HTTPException(503, "Database unavailable")
     return conn
 
-class Consent(BaseModel):
-    allowed: bool
 
-@router.get('/sharing')
-def sharing(current_user=Depends(get_current_user)):
-    require(current_user, 'patient')
+@router.get("/my-providers")
+def my_providers(current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PATIENT)
     conn = connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT p.provider_id, u.firstname, u.lastname, p.specialty, COALESCE(c.allowed, 0) FROM Providers p JOIN Users u ON u.user_id = p.user_id LEFT JOIN PatientSharingConsents c ON c.provider_id = p.provider_id AND c.patient_user_id = %s ORDER BY p.provider_id LIMIT 100', (current_user.user_id,))
-            return {'providers': [dict(zip(('provider_id','firstname','lastname','specialty','allowed'), row)) for row in cursor.fetchall()]}
-    except Exception:
-        raise HTTPException(503, 'Sharing unavailable. Check that the portal migration is installed.')
-    finally: conn.close()
+            cursor.execute(
+                "SELECT p.provider_id, u.first_name, u.last_name, p.specialty, a.assignment_status "
+                "FROM PatientProviderAssignments a "
+                "JOIN UserHealthProfiles h ON h.profile_id = a.patient_profile_id "
+                "JOIN Providers p ON p.provider_id = a.provider_id "
+                "JOIN Users u ON u.user_id = p.user_id "
+                "WHERE h.user_id = %s AND a.assignment_status = 'ACTIVE' "
+                "ORDER BY u.last_name, u.first_name", (current_user.user_id,))
+            return {"providers": [dict(zip(("provider_id", "first_name", "last_name", "specialty", "status"), row)) for row in cursor.fetchall()]}
+    finally:
+        conn.close()
 
-@router.put('/sharing/{provider_id}')
-def consent(provider_id: int, payload: Consent, current_user=Depends(get_current_user)):
-    require(current_user, 'patient')
+
+@router.put("/my-providers/{provider_id}")
+def grant_provider(provider_id: int, current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PATIENT)
     conn = connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT provider_id FROM Providers WHERE provider_id = %s', (provider_id,))
-            if not cursor.fetchone(): raise HTTPException(404, 'Registered provider not found')
-            cursor.execute('INSERT INTO PatientSharingConsents (patient_user_id, provider_id, allowed) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE allowed = VALUES(allowed), updated_at = CURRENT_TIMESTAMP', (current_user.user_id, provider_id, payload.allowed))
+            cursor.execute("SELECT profile_id FROM UserHealthProfiles WHERE user_id = %s", (current_user.user_id,))
+            profile = cursor.fetchone()
+            if not profile:
+                raise HTTPException(409, "Complete your health profile before sharing records")
+            cursor.execute("SELECT provider_id FROM Providers WHERE provider_id = %s AND verification_status = 'APPROVED'", (provider_id,))
+            if not cursor.fetchone():
+                raise HTTPException(404, "Approved provider not found")
+            cursor.execute(
+                "SELECT assignment_id FROM PatientProviderAssignments "
+                "WHERE provider_id = %s AND patient_profile_id = %s FOR UPDATE", (provider_id, profile[0]))
+            rows = cursor.fetchall()
+            if rows:
+                cursor.execute(
+                    "UPDATE PatientProviderAssignments SET assignment_status = 'ACTIVE' "
+                    "WHERE provider_id = %s AND patient_profile_id = %s", (provider_id, profile[0]))
+            else:
+                cursor.execute(
+                    "INSERT INTO PatientProviderAssignments (provider_id, patient_profile_id, assignment_status) "
+                    "VALUES (%s, %s, 'ACTIVE')", (provider_id, profile[0]))
         conn.commit()
-        return {'allowed': payload.allowed}
-    except HTTPException:
-        conn.rollback(); raise
+        return {"status": "ACTIVE"}
     except Exception:
-        conn.rollback(); raise HTTPException(503, 'Could not update sharing')
-    finally: conn.close()
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
-@router.get('/provider/patients')
-def patients(current_user=Depends(get_current_user)):
-    require(current_user, 'provider')
+
+@router.delete("/my-providers/{provider_id}")
+def revoke_provider(provider_id: int, current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PATIENT)
     conn = connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT u.user_id, u.firstname, u.lastname FROM PatientSharingConsents c JOIN Providers p ON p.provider_id = c.provider_id JOIN Users u ON u.user_id = c.patient_user_id WHERE p.user_id = %s AND c.allowed = 1 ORDER BY u.lastname, u.user_id LIMIT 100', (current_user.user_id,))
-            return {'patients': [dict(zip(('user_id','firstname','lastname'), row)) for row in cursor.fetchall()]}
-    except Exception: raise HTTPException(503, 'Patient list unavailable')
-    finally: conn.close()
+            cursor.execute(
+                "UPDATE PatientProviderAssignments a "
+                "JOIN UserHealthProfiles h ON h.profile_id = a.patient_profile_id "
+                "SET a.assignment_status = 'REVOKED' "
+                "WHERE h.user_id = %s AND a.provider_id = %s", (current_user.user_id, provider_id))
+        conn.commit()
+        return {"status": "REVOKED"}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
-@router.get('/provider/patients/{patient_id}/metrics')
-def patient_metrics(patient_id: int, metric_type: Vitals, limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0), current_user=Depends(get_current_user)):
-    require(current_user, 'provider')
+
+def provider_id_for(cursor, user_id: int):
+    cursor.execute("SELECT provider_id, verification_status FROM Providers WHERE user_id = %s", (user_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(403, "Provider account is not configured")
+    if row[1] != "APPROVED":
+        raise HTTPException(403, "Provider account is awaiting verification")
+    return row[0]
+
+
+@router.get("/provider-status")
+def provider_status(current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
     conn = connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT c.patient_user_id FROM PatientSharingConsents c JOIN Providers p ON p.provider_id = c.provider_id WHERE p.user_id = %s AND c.patient_user_id = %s AND c.allowed = 1', (current_user.user_id, patient_id))
-            if not cursor.fetchone(): raise HTTPException(403, 'Patient permission is required')
-    finally: conn.close()
-    return get_metrics(metric_type, limit, offset, SimpleNamespace(user_id=patient_id))
+            cursor.execute("SELECT verification_status FROM Providers WHERE user_id = %s", (current_user.user_id,))
+            row = cursor.fetchone()
+            return {"status": row[0] if row else "PENDING"}
+    finally:
+        conn.close()
 
-@router.get('/admin/users')
-def users(limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0), current_user=Depends(get_current_user)):
-    require(current_user, 'admin')
+
+def authorized_patient(cursor, provider_id: int, patient_id: int):
+    cursor.execute(
+        "SELECT u.user_id, u.first_name, u.last_name, h.date_of_birth "
+        "FROM PatientProviderAssignments a "
+        "JOIN UserHealthProfiles h ON h.profile_id = a.patient_profile_id "
+        "JOIN Users u ON u.user_id = h.user_id "
+        "WHERE a.provider_id = %s AND h.user_id = %s AND a.assignment_status = 'ACTIVE' "
+        "LIMIT 1", (provider_id, patient_id))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(404, "Patient not found")
+    return dict(zip(("user_id", "first_name", "last_name", "date_of_birth"), row))
+
+
+@router.get("/patients")
+def patients(current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
     conn = connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT user_id, firstname, lastname, role FROM Users ORDER BY user_id LIMIT %s OFFSET %s', (limit, offset))
-            return {'users': [dict(zip(('user_id','firstname','lastname','role'), row)) for row in cursor.fetchall()]}
-    finally: conn.close()
+            provider_id = provider_id_for(cursor, current_user.user_id)
+            cursor.execute(
+                "SELECT DISTINCT u.user_id, u.first_name, u.last_name, h.date_of_birth "
+                "FROM PatientProviderAssignments a "
+                "JOIN UserHealthProfiles h ON h.profile_id = a.patient_profile_id "
+                "JOIN Users u ON u.user_id = h.user_id "
+                "WHERE a.provider_id = %s AND a.assignment_status = 'ACTIVE' "
+                "ORDER BY u.last_name, u.first_name", (provider_id,))
+            return {"patients": [dict(zip(("user_id", "first_name", "last_name", "date_of_birth"), row)) for row in cursor.fetchall()]}
+    finally:
+        conn.close()
+
+
+@router.get("/patients/{patient_id}")
+def patient_detail(patient_id: int, current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            return authorized_patient(cursor, provider_id_for(cursor, current_user.user_id), patient_id)
+    finally:
+        conn.close()
+
+
+@router.get("/patients/{patient_id}/metrics")
+def patient_metrics(patient_id: int, metric_type: Vitals,
+                    limit: int = Query(20, ge=1, le=200), offset: int = Query(0, ge=0),
+                    current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SET time_zone = %s", ("+00:00",))
+            authorized_patient(cursor, provider_id_for(cursor, current_user.user_id), patient_id)
+            table, fields = METRIC_TABLES[metric_type]
+            timestamp = "recorded_at" if metric_type == Vitals.BODY_MASS_INDEX else "logged_at"
+            cursor.execute(
+                f"SELECT log_id, {', '.join(fields)}, {timestamp} FROM {table} "
+                f"WHERE user_id = %s ORDER BY {timestamp} DESC, log_id DESC LIMIT %s OFFSET %s",
+                (patient_id, limit, offset))
+            records = [record_from_row(metric_type, fields, row) for row in cursor.fetchall()]
+            return {"metric_type": metric_type.value, "count": len(records), "records": records}
+    finally:
+        conn.close()

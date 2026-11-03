@@ -6,7 +6,7 @@ os.environ.setdefault('jwt_secret_key', 'mobile-followup-test')
 from fastapi.testclient import TestClient
 from backend.app import app
 from backend.security import get_current_user
-from backend.routers import goals, portal, metrics
+from backend.routers import goals, metrics
 from backend.tests.test_metrics import ConnectionAdapter, CursorAdapter
 
 class DailyCursor(CursorAdapter):
@@ -23,20 +23,7 @@ class FollowupTests(unittest.TestCase):
         self.addCleanup(self.client.close)
         self.addCleanup(lambda:(app.dependency_overrides.clear(), app.dependency_overrides.update(self.previous)))
 
-    def test_roles_reject_before_database(self):
-        with patch.object(portal,'get_db_connection') as db:
-            for path in ['/provider/patients','/provider/patients/8/metrics?metric_type=SLEEP','/admin/users']:
-                self.assertEqual(self.client.get(path).status_code,403)
-            db.assert_not_called()
 
-    def test_provider_needs_explicit_consent(self):
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(user_id=9,role='provider')
-        conn=Mock();cursor=conn.cursor.return_value.__enter__.return_value;cursor.fetchone.return_value=None
-        with patch.object(portal,'get_db_connection',return_value=conn),patch.object(portal,'get_metrics') as fetch:
-            self.assertEqual(self.client.get('/provider/patients/7/metrics?metric_type=SLEEP').status_code,403)
-            fetch.assert_not_called()
-            self.assertIn('c.allowed = 1',cursor.execute.call_args.args[0])
-            self.assertEqual(cursor.execute.call_args.args[1],(9,7))
 
     def test_daily_habit_replaces_only_same_local_day(self):
         conn=ConnectionAdapter();conn.cursor=lambda: DailyCursor(conn)
@@ -93,23 +80,17 @@ class FollowupTests(unittest.TestCase):
         self.assertEqual(response.status_code,201,response.text)
         self.assertEqual(response.json()['classification']['context']['peak_personal_best'],500)
 
-    def test_patient_can_grant_and_revoke_only_their_own_consent(self):
+    def test_admin_directory_uses_role_guard_and_pagination(self):
+        from backend.routers import admin_directory
+        from backend.models.User import UserRole
+        with patch.object(admin_directory, 'get_db_connection') as db:
+            self.assertEqual(self.client.get('/admin/users').status_code,403)
+            db.assert_not_called()
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(user_id=9,role=UserRole.ADMIN)
         conn=Mock();cursor=conn.cursor.return_value.__enter__.return_value
-        cursor.fetchone.return_value=(19,)
-        with patch.object(portal,'get_db_connection',return_value=conn):
-            for allowed in (True,False):
-                response=self.client.put('/sharing/19',json={'allowed':allowed,'patient_user_id':999})
-                self.assertEqual(response.status_code,200,response.text)
-                self.assertEqual(cursor.execute.call_args.args[1],(7,19,allowed))
-        self.assertEqual(conn.commit.call_count,2)
-
-    def test_provider_reads_only_consented_patient(self):
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(user_id=9,role='provider')
-        conn=Mock();cursor=conn.cursor.return_value.__enter__.return_value
-        cursor.fetchone.return_value=(7,)
-        with patch.object(portal,'get_db_connection',return_value=conn),patch.object(portal,'get_metrics',return_value={'records':[]}) as fetch:
-            self.assertEqual(self.client.get('/provider/patients/7/metrics?metric_type=SLEEP').status_code,200)
-            self.assertEqual(fetch.call_args.args[3].user_id,7)
-            cursor.fetchone.return_value=None
-            self.assertEqual(self.client.get('/provider/patients/7/metrics?metric_type=SLEEP').status_code,403)
-            self.assertEqual(fetch.call_count,1)
+        cursor.fetchall.return_value=[(7,'Test','Patient','patient')]
+        with patch.object(admin_directory,'get_db_connection',return_value=conn):
+            response=self.client.get('/admin/users?offset=50')
+        self.assertEqual(response.status_code,200,response.text)
+        self.assertEqual(cursor.execute.call_args.args[1],(50,50))
+        self.assertEqual(response.json()['users'][0]['firstname'],'Test')

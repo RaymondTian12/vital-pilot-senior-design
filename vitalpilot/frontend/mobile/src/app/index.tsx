@@ -4,5 +4,5 @@ import { useAuth } from "@/context/auth-context";
 export default function IndexScreen() {
   const { user, loading } = useAuth();
   if (loading) return null;
-  return <Redirect href={user ? user.role === "patient" ? "/home" : "/portal" : "/welcome"} />;
+  return <Redirect href={user?.role === "provider" ? "/doctor-portal" : user?.role === "admin" ? "/portal" : user ? "/home" : "/welcome"} />;
 }

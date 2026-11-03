@@ -6,6 +6,7 @@ export default function TabLayout() {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Redirect href="/signin" />;
-  if (user.role !== "patient") return <Redirect href="/portal" />;
+  if (user.role === "provider") return <Redirect href="/doctor-portal" />;
+  if (user.role === "admin") return <Redirect href="/portal" />;
   return <AppTabs />;
 }

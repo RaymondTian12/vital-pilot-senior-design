@@ -1,4 +1,5 @@
 import os
+import pymysql
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -22,6 +23,51 @@ class RegisterRequest(BaseModel):
     lastname: str
     email: str
     password: str
+
+
+class ProviderRegisterRequest(BaseModel):
+    firstname: str = Field(min_length=1, max_length=50)
+    lastname: str = Field(min_length=1, max_length=50)
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=12, max_length=128)
+    npi: str = Field(pattern=r"^\d{10}$")
+    specialty: str = Field(min_length=1, max_length=100)
+    license_state: str = Field(pattern=r"^[A-Za-z]{2}$")
+    license_number: str = Field(min_length=1, max_length=50)
+
+
+@router.post("/register-provider", status_code=201)
+def register_provider(payload: ProviderRegisterRequest):
+    if not payload.firstname.strip() or not payload.lastname.strip() or not payload.specialty.strip() or not payload.license_number.strip():
+        raise HTTPException(400, "Complete all professional details")
+    if "@" not in payload.email or not payload.email.split("@")[-1].count("."):
+        raise HTTPException(400, "Enter a valid email address")
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Database unavailable")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO Users (first_name, last_name, email, password_hash, role) "
+                "VALUES (%s, %s, %s, %s, 'provider')",
+                (payload.firstname.strip(), payload.lastname.strip(), payload.email.strip().lower(), PasswordHasher().hash(payload.password)),
+            )
+            user_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO Providers (user_id, npi, specialty, license_state, license_number, verification_status) "
+                "VALUES (%s, %s, %s, %s, %s, 'PENDING')",
+                (user_id, payload.npi, payload.specialty.strip(), payload.license_state.upper(), payload.license_number.strip()),
+            )
+        conn.commit()
+        return {"message": "Doctor registration submitted for verification", "status": "PENDING"}
+    except pymysql.err.IntegrityError:
+        conn.rollback()
+        raise HTTPException(409, "An account with this email or NPI already exists")
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     
 class Vitals(Enum):
     BLOOD_PRESSURE = "BLOOD_PRESSURE"

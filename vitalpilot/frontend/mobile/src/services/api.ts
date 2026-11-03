@@ -94,14 +94,20 @@ export const api = {
   reportCapabilities: () => request<{ai_available:boolean;ai_provider:string}>("/reports/capabilities"),
   reportHistory: (offset=0) => request<{reports:import("@/components/design/report-exports").GeneratedReport[]}>(`/reports?offset=${offset}`),
   generateReport: (payload: {start_at:string;today_start:string;end_at:string;timezone_name:string;include_ai:boolean;ai_consent:boolean}) => request<import("@/components/design/report-exports").GeneratedReport>("/reports",{method:"POST",body:JSON.stringify(payload)},90000),
-  sharing: () => request<{providers: {provider_id:number;firstname:string;lastname:string;specialty:string;allowed:boolean}[]}>("/sharing"),
-  setSharing: (providerId:number, allowed:boolean) => request("/sharing/"+providerId,{method:"PUT",body:JSON.stringify({allowed})}),
-  patients: () => request<{patients:{user_id:number;firstname:string;lastname:string}[]}>("/provider/patients"),
-  patientMetrics: (id:number, metric:string, offset=0) => request<{records:import("@/types/vitalpilot").SavedMetricReading[]}>(`/provider/patients/${id}/metrics?metric_type=${metric}&offset=${offset}`),
   adminUsers: (offset=0) => request<{users:{user_id:number;firstname:string;lastname:string;role:string}[]}>(`/admin/users?offset=${offset}`),
   metricReport: (window: { start_at: string; today_start: string; end_at: string }) => request<import("./daily-summary").DailySummaryResponse>(`/metric-report?${new URLSearchParams({ ...window, timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone })}`),
   goals: () => request<{ goals: Partial<Record<import("@/types/vitalpilot").VitalType, number>> }>("/goals"),
   updateGoals: (goals: Record<string, number>) => request<{ goals: Partial<Record<import("@/types/vitalpilot").VitalType, number>> }>("/goals", { method: "PATCH", body: JSON.stringify(goals) }),
+  registerDoctor: (payload: { firstname: string; lastname: string; email: string; password: string; npi: string; specialty: string; license_state: string; license_number: string }) =>
+    request<{ message: string; status: string }>("/auth/register-provider", { method: "POST", body: JSON.stringify(payload) }),
+  doctorStatus: () => request<{ status: "PENDING" | "APPROVED" | "REJECTED" }>("/portal/provider-status"),
+  myProviders: () => request<{ providers: { provider_id: number; first_name: string; last_name: string; specialty: string; status: string }[] }>("/portal/my-providers"),
+  grantProvider: (id: number) => request<{ status: string }>(`/portal/my-providers/${id}`, { method: "PUT" }),
+  revokeProvider: (id: number) => request<{ status: string }>(`/portal/my-providers/${id}`, { method: "DELETE" }),
+  doctorPatients: () => request<{ patients: { user_id: number; first_name: string; last_name: string; date_of_birth: string }[] }>("/portal/patients"),
+  doctorPatient: (id: number) => request<{ user_id: number; first_name: string; last_name: string; date_of_birth: string }>(`/portal/patients/${id}`),
+  doctorPatientMetrics: (id: number, metric: import("@/types/vitalpilot").VitalType) =>
+    request<{ records: { log_id: number; recorded_at: string; metric_type: string; [key: string]: unknown }[] }>(`/portal/patients/${id}/metrics?metric_type=${metric}`),
   dailySummary: (window: { start_at: string; today_start: string; end_at: string }) =>
     request<import("./daily-summary").DailySummaryResponse>(`/daily-summary?${new URLSearchParams({ ...window, timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone })}`),
   submitVital: (metricType: import("@/types/vitalpilot").OtherVitalType, values: Record<string, number | string>) =>

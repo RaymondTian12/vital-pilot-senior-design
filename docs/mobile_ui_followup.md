@@ -24,13 +24,11 @@
 - Reports now load real 7/30/90-day readings. Habit bars use latest local-day totals;
   measurement charts show observations, including separate BP components. Truncated
   datasets are labeled. PDF export, private history/downloads and optional OpenAI narratives are now connected; see `docs/report_generation.md`.
-- Mobile doctor portal lists explicitly consenting patients and provides paginated,
-  read-only metric histories. Admin portal is a paginated read-only account directory.
-  Provider/admin accounts are routed to the portal instead of patient tabs.
-- Patients use Profile > Doctor sharing to confirm all-metric access for a registered
-  provider or revoke it. Backend role/ownership/consent checks are authoritative;
-  existing assignments alone never grant consent. Access does not recall previously
-  viewed information. No role changes or provider self-registration are exposed.
+- Doctor portal, provider verification and patient sharing now use the team's
+  merged `origin/main` implementation (`/portal/*`, `/doctor-portal`, `/sharing`).
+  Our duplicate sharing/provider API and screen were replaced during integration.
+  The local admin account directory remains read-only; the team's full admin
+  approval workflow is on a separate branch and is not merged yet.
 
 ## Database rollout
 
@@ -67,3 +65,18 @@ check DST/day rollover and a new day, save peak flow without typing a best, open
 real reports, review notifications, and test sharing/grant/revoke using separate
 patient/provider accounts. Confirm denied access and account-switch isolation.
 Check large text, keyboard visibility, small screens and network failures.
+
+## Team sync on November 2, 2026
+
+Backup commit `f4d0603` preserves the full local work before integrating
+`origin/main`. The integration branch retains goals, metric history, notifications,
+doctor distances and report exports while adopting the team's provider portal.
+The earlier PatientSharingConsents table is unused by the canonical portal; it was
+left in place without deleting data. PatientProviderAssignments is now the sharing
+source of truth. Review the team's November 1 migration status before deployment;
+its consent migration revokes existing ACTIVE assignments and must not be rerun
+blindly. No shared-database writes were made during this Git integration.
+
+The report implementation still needs reconciliation with the Gemini report branch;
+local PDF/AI work remains preserved, with no live OpenAI calls made. Omar's shared
+Gemini chatbot endpoint and Mohammad's admin branch are separate integrations.

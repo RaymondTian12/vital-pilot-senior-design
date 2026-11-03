@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import auth, doctors, metrics, provider_directory, summary
-from backend.routers import auth, doctors, metrics
+from backend.routers import auth, doctors, metrics, provider_directory, summary, portal
 
 class CoordinatePrivacyMiddleware:
     def __init__(self, app):
@@ -16,7 +15,7 @@ class CoordinatePrivacyMiddleware:
                     (k, "[redacted]" if k in ("latitude", "longitude") else v)
                     for k, v in parse_qsl(scope.get("query_string", b"").decode())
                 ]).encode()
-            if message["type"] == "http.response.start" and scope.get("path", "").startswith(("/sharing", "/provider/", "/admin/", "/goals", "/metric-report", "/reports")):
+            if message["type"] == "http.response.start" and scope.get("path", "").startswith(("/portal/", "/sharing", "/provider/", "/admin/", "/goals", "/metric-report", "/reports")):
                 message["headers"] = [(k,v) for k,v in message.get("headers", []) if k.lower() != b"cache-control"] + [(b"cache-control", b"no-store")]
             await send(message)
         await self.app(scope, receive, private_send)
@@ -45,10 +44,12 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(doctors.router, prefix="/doctors", tags=["doctors"])
 app.include_router(metrics.router, tags=["metrics"])
 app.include_router(summary.router, tags=["summary"])
-from backend.routers import goals, portal, reports
+from backend.routers import goals, reports, admin_directory
 app.include_router(goals.router, tags=["goals"])
 app.include_router(portal.router, tags=["portal"])
 app.include_router(reports.router)
+app.include_router(admin_directory.router)
+
 
 @app.get("/health")
 def health_check():

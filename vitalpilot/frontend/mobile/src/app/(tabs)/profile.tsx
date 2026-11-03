@@ -57,7 +57,6 @@ export default function Profile() {
       </View>
       <Card>
         <Text style={ui.eyebrow}>ACCOUNT</Text>
-        <Row title={user?.role === "patient" ? "Doctor sharing" : "Account portal"} detail="Manage access and review account tools" icon="person" onPress={() => router.push("/portal")} />
         <Row title="Goals & personal best" detail="Sleep, water, steps and peak flow" icon="vitals" onPress={() => router.push("/goals")} />
         <Row
           title="Account details"
@@ -105,6 +104,7 @@ export default function Profile() {
           icon="doctor"
           onPress={() => router.push("/doctors")}
         />
+        <Row title="Share with doctors" detail="Manage who can see your readings" icon="doctor" onPress={() => router.push("/sharing")} />
         <Row
           title="Notifications"
           icon="bell"

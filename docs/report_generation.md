@@ -80,9 +80,11 @@ cleanup and generation throttling. Check multi-page reports with fictional readi
 sharing/cancelling, account switches, unavailable native modules and no network on
 an actual phone before demoing.
 
-A remote fetch found newer team doctor-portal commits on origin/main. They were not
-merged into the modified checkout. Reconcile those portal changes separately before
-publishing the combined branch; report work does not replace them.
+The newer team doctor-portal commits on origin/main have been integrated on the
+local integration branch. AI/PDF provider reconciliation is still pending: the team
+selected Gemini, and origin/claude/dreamy-bell-v6ntot contains its report generator.
+The preserved local OpenAI report adapter must be reconciled before release; do not
+configure an OpenAI key solely for these reports.
 
 API integration reference: [OpenAI Responses documentation](https://developers.openai.com/api/docs/guides/migrate-to-responses?api-mode=responses).
 Native sharing follows the [Expo SDK 57 sharing API](https://docs.expo.dev/versions/v57.0.0/sdk/sharing/).
