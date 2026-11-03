@@ -14,11 +14,19 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from backend.engine.clinical_evaluator import classify_blood_pressure
 from backend.routers.auth import Vitals
 from backend.routers.metrics import METRIC_TABLES, record_from_row
+
+LOGO_PATH = os.path.join(os.path.dirname(__file__), "assets", "logo.png")
+AI_DISCLAIMER = (
+    "The History of Present Illness and Summary sections above were drafted by an AI model "
+    "(Gemini) from this patient's logged data. They are not written or reviewed by a clinician "
+    "and may contain errors or omissions. Verify this narrative against the data tables above, "
+    "and do not use it as the sole basis for a medical decision."
+)
 
 # Per-metric (label, unit, value field(s)) used for the "tracked metrics" table.
 METRIC_DISPLAY = {
@@ -134,10 +142,8 @@ def generate_narrative(system_instruction, context):
         from google import genai
 
         client = genai.Client(api_key=api_key)
-        # NOTE: verify this model name against current Gemini API docs once a
-        # real key is wired in -- naming may have moved on since this was written.
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             contents=json.dumps(context, default=str),
             config={"system_instruction": system_instruction},
         )
@@ -160,11 +166,20 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ])
 
-    elements = [
+    title_block = [
         Paragraph("VitalPilot Health Report", styles["Title"]),
         Paragraph(f"{period_label} summary &middot; {start.date()} to {end.date()}", body),
-        Spacer(1, 12),
     ]
+    if os.path.exists(LOGO_PATH):
+        logo = Image(LOGO_PATH, width=0.55 * inch, height=0.55 * inch)
+        masthead = Table([[logo, title_block]], colWidths=[0.75 * inch, 420])
+        masthead.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (0, 0), 0),
+        ]))
+        elements = [masthead, Spacer(1, 12)]
+    else:
+        elements = [*title_block, Spacer(1, 12)]
 
     header_table = Table(
         [
@@ -223,6 +238,9 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
 
     elements.append(Paragraph("Summary", heading))
     elements.append(Paragraph(narrative.get("summary", ""), body))
+
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"<i>{AI_DISCLAIMER}</i>", small))
 
     elements.append(Spacer(1, 16))
     elements.append(Paragraph(
