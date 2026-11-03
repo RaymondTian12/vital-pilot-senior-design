@@ -1,3 +1,4 @@
+import { AssessmentStatus } from "./assessment-status";
 import { useState } from "react";
 import { Linking, Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -15,7 +16,7 @@ export function MetricGuidance({ assessment, onFindCare, showActions = true }: {
   const review = assessment?.next_action === "review";
   const color = urgent ? C.danger : assessment?.alert_state.includes("WARNING") || assessment?.status !== "classified" ? C.warning : C.primaryDark;
   return <View style={{ gap: 9, marginTop: 8 }}>
-    <Text style={[ui.heading, { color }]}>{assessment?.classification || "Classification unavailable"}</Text>
+    <AssessmentStatus title={assessment?.classification || "Classification unavailable"} tone={urgent ? "critical" : !assessment || assessment.status !== "classified" ? "unknown" : assessment.alert_state.includes("WARNING") || review ? "warning" : "normal"} />
     <Text style={ui.body}>{assessment?.guidance || "This saved value has no clinical assessment yet. This does not mean the reading is normal or clear."}</Text>
     {!!assessment && <Text style={ui.small}>{assessment.basis}</Text>}
     {urgent && <Text style={[ui.body, { color: C.danger }]}>For severe symptoms, trouble breathing, fainting, or confusion, call your local emergency number now. In the U.S., call 911. Do not wait for a routine doctor appointment.</Text>}

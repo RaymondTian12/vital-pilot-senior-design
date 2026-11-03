@@ -91,11 +91,22 @@ async function request<T>(
   }
 }
 export const api = {
+  reportCapabilities: () => request<{ai_available:boolean;ai_provider:string}>("/reports/capabilities"),
+  reportHistory: (offset=0) => request<{reports:import("@/components/design/report-exports").GeneratedReport[]}>(`/reports?offset=${offset}`),
+  generateReport: (payload: {start_at:string;today_start:string;end_at:string;timezone_name:string;include_ai:boolean;ai_consent:boolean}) => request<import("@/components/design/report-exports").GeneratedReport>("/reports",{method:"POST",body:JSON.stringify(payload)},90000),
+  sharing: () => request<{providers: {provider_id:number;firstname:string;lastname:string;specialty:string;allowed:boolean}[]}>("/sharing"),
+  setSharing: (providerId:number, allowed:boolean) => request("/sharing/"+providerId,{method:"PUT",body:JSON.stringify({allowed})}),
+  patients: () => request<{patients:{user_id:number;firstname:string;lastname:string}[]}>("/provider/patients"),
+  patientMetrics: (id:number, metric:string, offset=0) => request<{records:import("@/types/vitalpilot").SavedMetricReading[]}>(`/provider/patients/${id}/metrics?metric_type=${metric}&offset=${offset}`),
+  adminUsers: (offset=0) => request<{users:{user_id:number;firstname:string;lastname:string;role:string}[]}>(`/admin/users?offset=${offset}`),
+  metricReport: (window: { start_at: string; today_start: string; end_at: string }) => request<import("./daily-summary").DailySummaryResponse>(`/metric-report?${new URLSearchParams({ ...window, timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone })}`),
+  goals: () => request<{ goals: Partial<Record<import("@/types/vitalpilot").VitalType, number>> }>("/goals"),
+  updateGoals: (goals: Record<string, number>) => request<{ goals: Partial<Record<import("@/types/vitalpilot").VitalType, number>> }>("/goals", { method: "PATCH", body: JSON.stringify(goals) }),
   dailySummary: (window: { start_at: string; today_start: string; end_at: string }) =>
-    request<import("./daily-summary").DailySummaryResponse>(`/daily-summary?${new URLSearchParams(window)}`),
+    request<import("./daily-summary").DailySummaryResponse>(`/daily-summary?${new URLSearchParams({ ...window, timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone })}`),
   submitVital: (metricType: import("@/types/vitalpilot").OtherVitalType, values: Record<string, number | string>) =>
     request<import("@/types/vitalpilot").OtherMetricReading>("/metrics", {
-      method: "POST", body: JSON.stringify({ ...values, metric_type: metricType }),
+      method: "POST", body: JSON.stringify({ ...values, metric_type: metricType, ...(["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(metricType) ? { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } : {}) }),
     }),
   getVital: (metricType: import("@/types/vitalpilot").OtherVitalType, offset = 0) =>
     request<{ count: number; records: import("@/types/vitalpilot").OtherMetricReading[] }>(`/metrics?metric_type=${metricType}&limit=20&offset=${offset}`),
@@ -140,6 +151,8 @@ export const api = {
     }),
   getCareTeam: (specialty = "") => request<{ source: string; count: number; doctors: { provider_id: number; npi: string; first_name: string; last_name: string; specialty: string; license_state: string; clinic_name: string | null; phone: string | null }[] }>(`/care-team${specialty ? `?specialty=${encodeURIComponent(specialty)}` : ""}`),
   searchDoctors: (filters: {
+    latitude?: number;
+    longitude?: number;
     specialty?: string;
     city?: string;
     state?: string;
@@ -147,11 +160,12 @@ export const api = {
   }) => {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(filters))
-      if (value?.trim()) query.set(key, value.trim());
+      if (value !== undefined && String(value).trim()) query.set(key, String(value).trim());
     return request<{
       count: number;
       doctors: Doctor[];
-    }>(`/doctors/search?${query}`);
+      distance_incomplete?: boolean;
+    }>(`/doctors/search?${query}`, undefined, 45000);
   },
   me: () => request<AuthUser>("/auth/me"),
   logout: () =>

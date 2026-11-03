@@ -1,3 +1,5 @@
+import { useNotifications } from "@/context/notification-context";
+import { AssessmentStatus } from "./assessment-status";
 import { MetricGuidance } from "./metric-guidance";
 import { useCallback, useRef, useState } from "react";
 import { AppState, Text, View } from "react-native";
@@ -12,6 +14,7 @@ import { ReadingResult } from "./blood-pressure-panel";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 
 export function DailySummary() {
+  const { syncSummary } = useNotifications();
   const [data, setData] = useState<DailySummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,13 +28,13 @@ export function DailySummary() {
     setLoading(true); setError(""); setData(null);
     try {
       const response = await api.dailySummary(window);
-      if (generation.current === id) setData(response);
+      if (generation.current === id) { setData(response); syncSummary(response); }
     } catch (cause) {
       if (generation.current === id) setError(cause instanceof Error ? cause.message : "Your summary couldn’t be loaded.");
     } finally {
       if (generation.current === id) setLoading(false);
     }
-  }, []);
+  }, [syncSummary]);
   useFocusEffect(useCallback(() => {
     void refresh();
     const subscription = AppState.addEventListener("change", (state) => { if (state === "active") void refresh(); });
@@ -55,12 +58,13 @@ export function DailySummary() {
     <Card style={{ backgroundColor: C.blue }}>
       <Text accessibilityRole="header" style={ui.heading}>Today’s summary</Text>
       <Text style={ui.body}>{logged} of 8 metric types logged today</Text>
+      {data.temporal && <Text style={ui.body}>Logging streak: {data.temporal.current_streak} days within this loaded window</Text>}
       <Text style={ui.small}>Based on saved entries in your phone’s local day. Logging progress does not measure how healthy you are.</Text>
       <Button secondary disabled={loading} onPress={() => void refresh()}>Refresh summary</Button>
     </Card>
     <Card>
       <Text accessibilityRole="header" style={ui.heading}>Overall result</Text>
-      <Text style={[ui.heading, { color: data.overall_result?.status === "urgent" ? C.danger : data.overall_result?.status === "no_alerts" ? C.primaryDark : C.warning }]}>{data.overall_result?.title || "Assessment unavailable"}</Text>
+      <AssessmentStatus title={data.overall_result?.title || "Assessment unavailable"} tone={data.overall_result?.status === "urgent" ? "critical" : data.overall_result?.status === "no_alerts" ? "normal" : data.overall_result?.status === "needs_review" ? "warning" : "unknown"} />
       <Text style={ui.body}>{data.overall_result?.message || "The readings are saved, but the overall assessment is not available. This is not a normal or clear result."}</Text>
       {data.overall_result && <>
         <Text style={ui.small}>Habit goals: {data.overall_result.habit_goals_met} met · {data.overall_result.habit_goals_below} below target. Habit goals are separate from health alerts.</Text>

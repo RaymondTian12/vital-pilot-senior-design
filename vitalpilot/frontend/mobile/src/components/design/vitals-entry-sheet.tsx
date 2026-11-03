@@ -1,3 +1,5 @@
+import { vitalInput } from "@/services/vital-readings";
+import { pressureNumbers } from "@/services/blood-pressure";
 import { VitalReadingResult } from "./vital-history-panel";
 import { useRouter } from "expo-router";
 import { SaveConfirmation } from "./save-confirmation";
@@ -81,6 +83,13 @@ export function VitalsEntrySheet({
 }) {
   const router = useRouter();
   const config = metricConfig(metric);
+  let validationError = "";
+  if (draft.primary.trim() && (!config.secondary || draft.secondary.trim())) {
+    try {
+      if (config.type === "BLOOD_PRESSURE") pressureNumbers(draft.primary, draft.secondary);
+      else vitalInput(config.type, draft.primary);
+    } catch (error) { validationError = error instanceof Error ? error.message : "Check this value."; }
+  }
   const { signOut } = useAuth();
   const freshResult = saved?.metric_type === config.type ? saved : null;
   const result = preview ? null : freshResult ?? (latestReading?.metric_type === config.type ? latestReading : null);
@@ -264,7 +273,7 @@ export function VitalsEntrySheet({
                   <Text style={ui.link}>Hide keyboard</Text>
                 </Pressable>
               </View>
-              <Text style={ui.body}>{config.hint}</Text>
+              <Text style={ui.body}>{["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(config.type) ? "Enter today’s total. Saving again replaces today’s latest entry instead of adding a new reading." : config.hint}</Text>
               {metric === "Blood Glucose" && <View style={{ gap: 10 }}>
                 <Text style={ui.body}>Was this a fasting reading?</Text>
                 <Text style={ui.small}>Fasting means at least 8 hours without food or drinks other than water.</Text>
@@ -275,8 +284,7 @@ export function VitalsEntrySheet({
                 </View>
               </View>}
               {metric === "Peak Flow" && <View style={{ gap: 8 }}>
-                <Field label="Personal best (L/min)" value={draft.personalBest || ""} onChangeText={(value) => onChange("personalBest", value)} keyboardType="number-pad" inputMode="numeric" editable={!saving} placeholder="Optional" />
-                <Text style={ui.small}>Use your established personal best from your asthma action plan. Without it, the reading is saved without a zone classification.</Text>
+                <Text style={ui.small}>Your saved personal best is used for this reading. Set or change it in Profile → Goals & personal best. If missing, the reading is saved without a zone assessment.</Text>
               </View>}
               <View
                 testID="vitals-inputs"
@@ -324,6 +332,16 @@ export function VitalsEntrySheet({
                   </View>
                 )}
               </View>
+              {!!validationError && <Text accessibilityRole="alert" style={{ color: C.danger }}>{validationError}</Text>}
+              {metric === "Water Intake" && <View style={{ gap: 8 }}>
+                <Text style={ui.small}>Adjust today’s total in cups. Saving replaces today’s latest total.</Text>
+                <View style={[ui.row, { flexWrap: "wrap" }]}>
+                  {[0.25, 0.5, 1].map(amount => <Button key={amount} secondary disabled={saving || !!validationError} onPress={() => {
+                    const next = Math.round(((Number(draft.primary) || 0) + amount) * 100) / 100;
+                    if (next <= 99.99) onChange("primary", String(next));
+                  }}>+{amount} cup</Button>)}
+                </View>
+              </View>}
               <View style={styles.status}>
                 <Icon name="info" size={20} />
                 <Text style={[ui.small, { flex: 1, color: C.title }]}>
@@ -352,7 +370,7 @@ export function VitalsEntrySheet({
                   disabled={
                     preview ||
                     saving ||
-                    !draft.primary.trim() ||
+                    !!validationError || !draft.primary.trim() ||
                     (!!config.secondary && !draft.secondary.trim())
                   }
                   onPress={() => {
@@ -361,7 +379,7 @@ export function VitalsEntrySheet({
                     void onSave?.();
                   }}
                 >
-                  {saving ? "Saving…" : "Save reading"}
+                  {saving ? "Saving…" : ["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(config.type) ? "Save today’s total" : "Save reading"}
                 </Button>
               )}
               <View

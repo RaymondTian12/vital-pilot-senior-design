@@ -101,3 +101,11 @@ test('missing configuration never reports saved measurements or generates a demo
   await assert.rejects(api.chat('Explain my readings', []), /not configured/);
   assert.equal(calls.length, 0);
 });
+
+ test('doctor search preserves numeric coordinates including zero', async () => {
+ const {api,calls}=client();
+ await api.searchDoctors({city:'Test',state:'TX',latitude:0,longitude:-97.1});
+ const query=new URL(calls[0][0]).searchParams;
+ assert.equal(query.get('latitude'),'0');
+ assert.equal(query.get('longitude'),'-97.1');
+ });

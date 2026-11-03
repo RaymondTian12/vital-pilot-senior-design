@@ -22,5 +22,5 @@ export async function locateDoctorSearchArea() {
   const position = await location.getCurrentPositionAsync({ accuracy: location.Accuracy.Balanced });
   const addresses = await location.reverseGeocodeAsync(position.coords);
   if (!addresses[0]) throw new Error("We couldn’t identify your area. Enter your city and state manually.");
-  return searchArea(addresses[0]);
+  return { ...searchArea(addresses[0]), latitude: position.coords.latitude, longitude: position.coords.longitude };
 }

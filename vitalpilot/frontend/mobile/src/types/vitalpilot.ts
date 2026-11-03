@@ -71,6 +71,7 @@ export type QuestionnaireRequest = {
   peak_flow_goal?: number;
 };
 export type Doctor = {
+  distance_miles?: number | null;
   npi: number | string;
   first_name: string | null;
   last_name: string | null;

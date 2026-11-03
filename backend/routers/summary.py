@@ -1,5 +1,7 @@
 """Read-only summary for a client-defined local calendar window."""
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from backend.engine.temporal_engine import calculate_logging_streak
 from fastapi import APIRouter, Depends, HTTPException
 from backend.db import get_db_connection
 from backend.metric_assessments import attach_assessments, overall_result
@@ -14,12 +16,20 @@ PER_METRIC_LIMIT = 2000
 
 @router.get("/daily-summary")
 def daily_summary(start_at: datetime, today_start: datetime, end_at: datetime,
-                  current_user=Depends(get_current_user)):
+                  timezone_name: str = "UTC", current_user=Depends(get_current_user)):
+    return build_summary(start_at, today_start, end_at, current_user, timezone_name, 8)
+
+
+def build_summary(start_at, today_start, end_at, current_user, timezone_name="UTC", max_days=8):
+    try:
+        zone = ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(422, "Invalid timezone")
     bounds = (start_at, today_start, end_at)
     if any(value.tzinfo is None or value.utcoffset() is None for value in bounds):
         raise HTTPException(400, "Summary boundaries must include a timezone offset.")
     start, today, end = (value.astimezone(timezone.utc) for value in bounds)
-    if not start <= today < end or end - start > timedelta(days=8) or end - today > timedelta(hours=26):
+    if not start <= today < end or end - start > timedelta(days=max_days) or end - today > timedelta(hours=26):
         raise HTTPException(400, "Invalid summary window. Request at most eight days including one current local day.")
     conn = get_db_connection()
     if not conn:
@@ -43,7 +53,7 @@ def daily_summary(start_at: datetime, today_start: datetime, end_at: datetime,
                     record = record_from_row(metric, fields, row)
                     # Preserve all today's BP classifications, including an earlier
                     # warning even if a later reading is within the normal tier.
-                    if metric == Vitals.BLOOD_PRESSURE and record["recorded_at"] >= today:
+                    if metric == Vitals.BLOOD_PRESSURE and (record["recorded_at"] >= today or max_days > 8):
                         record["classification"] = classify_blood_pressure(cursor, record["systolic_mmhg"], record["diastolic_mmhg"])
                     records.append(record)
             attach_assessments(cursor, current_user.user_id, records)
@@ -57,8 +67,15 @@ def daily_summary(start_at: datetime, today_start: datetime, end_at: datetime,
                 if name in goal_types and goal_types[name] not in goals and value is not None and float(value) > 0:
                     goals[goal_types[name]] = float(value)
         return {"overall_result": overall_result(records, today, end, truncated), "records": records, "goals": goals, "truncated_metrics": truncated,
-                "start_at": start, "today_start": today, "end_at": end}
+                "start_at": start, "today_start": today, "end_at": end,
+                "temporal": {**calculate_logging_streak({r["recorded_at"].astimezone(zone).date() for r in records if r["recorded_at"] <= datetime.now(timezone.utc)}, today=today.astimezone(zone).date()), "window_start": start, "limited_window": True}}
     except Exception:
         raise HTTPException(503, "Your daily summary could not be loaded. Please try again.")
     finally:
         conn.close()
+
+
+@router.get("/metric-report")
+def metric_report(start_at: datetime, today_start: datetime, end_at: datetime,
+                  timezone_name: str = "UTC", current_user=Depends(get_current_user)):
+    return build_summary(start_at, today_start, end_at, current_user, timezone_name, 92)

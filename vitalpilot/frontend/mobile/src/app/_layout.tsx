@@ -85,6 +85,9 @@ function Navigation() {
               <Stack.Screen name="care-team" />
               <Stack.Screen name="change-password" />
               <Stack.Screen name="notifications" />
+              <Stack.Screen name="metric-history" />
+              <Stack.Screen name="goals" />
+              <Stack.Screen name="portal" />
               <Stack.Screen name="(tabs)" />
             </Stack.Protected>
           </Stack>

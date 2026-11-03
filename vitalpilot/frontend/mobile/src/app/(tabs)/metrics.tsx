@@ -1,8 +1,6 @@
 import { useVitalReading } from "@/context/vital-readings-context";
-import { VitalHistoryPanel } from "@/components/design/vital-history-panel";
 import { readingValue } from "@/services/vital-readings";
 import { useBloodPressure } from "@/context/blood-pressure-context";
-import { BloodPressurePanel } from "@/components/design/blood-pressure-panel";
 import type { BloodPressureReading, SavedMetricReading } from "@/types/vitalpilot";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -15,16 +13,15 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
 import { usePreview } from "@/context/preview-context";
-import { Card, Screen, ui } from "@/components/design/ui";
+import { Button, Card, Screen, ui } from "@/components/design/ui";
 import { Icon } from "@/components/design/icon";
-import { Sparkline } from "@/components/design/charts";
 import {
   emptyDraft,
   habitMetrics,
@@ -40,9 +37,11 @@ import {
 } from "@/components/design/vitals-entry-sheet";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 export default function Metrics() {
+  const router = useRouter();
   const { metric } = useLocalSearchParams<{
     metric?: string | string[];
   }>();
+  const handledMetric = useRef<string | undefined>(undefined);
   const [selected, setSelected] = useState<Metric>("Blood Pressure");
   const [open, setOpen] = useState(false);
   const [drafts, setDrafts] = useState<Partial<Record<Metric, Draft>>>({});
@@ -51,6 +50,7 @@ export default function Metrics() {
   const singleColumn = width < 360 || fontScale >= 1.3;
   const tileWidth = singleColumn ? "100%" : (Math.min(width, 640) - 52) / 2;
   const bp = useBloodPressure();
+  useFocusEffect(useCallback(() => { void bp.refresh(); }, [bp.refresh]));
   const selectedType = metricConfig(selected).type;
   const other = useVitalReading(selectedType === "BLOOD_PRESSURE" ? "BLOOD_GLUCOSE" : selectedType);
   const active = selectedType === "BLOOD_PRESSURE" ? bp : other;
@@ -77,7 +77,8 @@ export default function Metrics() {
   useFocusEffect(
     useCallback(() => {
       const requested = Array.isArray(metric) ? metric[0] : metric;
-      if (isMetric(requested)) {
+      if (isMetric(requested) && handledMetric.current !== requested) {
+        handledMetric.current = requested;
         opener.current = null;
         setSaved(null);
         setSelected(requested);
@@ -86,7 +87,10 @@ export default function Metrics() {
       return () => setOpen(false);
     }, [metric]),
   );
-  function edit(name: Metric, node: View | null) {
+  function edit(name: Metric, node: View | null, latest?: SavedMetricReading) {
+    if (latest && ["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(latest.metric_type) && new Date(latest.recorded_at).toDateString() === new Date().toDateString()) {
+      setDrafts(current => current[name]?.primary ? current : { ...current, [name]: { ...emptyDraft, primary: readingValue(latest) } });
+    }
     opener.current = node;
     setSaved(null);
     setSelected(name);
@@ -104,7 +108,6 @@ export default function Metrics() {
       [selected]: { ...(current[selected] ?? emptyDraft), [field]: value },
     }));
   }
-  const config = metricConfig(selected);
   return (
     <>
       <Screen>
@@ -143,7 +146,7 @@ export default function Metrics() {
           <View style={styles.connection}>
             <Icon name="info" size={18} />
             <Text style={[ui.small, { flex: 1 }]}>
-              Save your readings to your account and review each metric’s history below.
+              Save readings to your account. Tap View history on any metric to review past entries.
             </Text>
           </View>
           <View style={styles.previewControl}>
@@ -203,75 +206,7 @@ export default function Metrics() {
               </View>
             </View>
           ))}
-          {preview ? (
-            <View style={{ gap: 16 }}>
-              <Card style={{ borderRadius: 22 }}>
-                <View
-                  style={[
-                    ui.row,
-                    { justifyContent: "space-between", flexWrap: "wrap" },
-                  ]}
-                >
-                  <Text accessibilityRole="header" style={ui.heading}>
-                    Sample trend
-                  </Text>
-                  <Text style={styles.sampleTag}>EXAMPLE</Text>
-                </View>
-                <Text style={ui.body}>
-                  {selected} · {config.unit}
-                </Text>
-                <SampleTrend
-                  label={config.secondary ? "Systolic" : selected}
-                  values={config.trend}
-                  unit={config.unit}
-                />
-                {config.secondaryTrend && (
-                  <SampleTrend
-                    label="Diastolic"
-                    values={config.secondaryTrend}
-                    unit={config.unit}
-                    color={C.textSecondary}
-                  />
-                )}
-                <Text style={ui.small}>
-                  Illustrative readings only. This is not your measurement
-                  history.
-                </Text>
-              </Card>
-              <Card style={{ borderRadius: 22 }}>
-                <Text accessibilityRole="header" style={ui.heading}>
-                  Sample history
-                </Text>
-                {config.history.map((value, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.historyRow,
-                      {
-                        borderBottomWidth:
-                          i < config.history.length - 1 ? 1 : 0,
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text style={ui.body}>Example {i + 1}</Text>
-                      <Text style={ui.small}>Not a saved record</Text>
-                    </View>
-                    <View
-                      style={{ gap: 4, alignItems: "flex-end", flexShrink: 1 }}
-                    >
-                      <Text style={styles.historyValue}>{value}</Text>
-                      <Text style={ui.small}>{config.unit}</Text>
-                    </View>
-                  </View>
-                ))}
-              </Card>
-            </View>
-          ) : selected === "Blood Pressure" ? (
-            <BloodPressurePanel />
-          ) : (
-            <VitalHistoryPanel type={selectedType === "BLOOD_PRESSURE" ? "BLOOD_GLUCOSE" : selectedType} name={selected} unit={config.unit} />
-          )}
+
         </View>
       </Screen>
       {open && (
@@ -288,8 +223,8 @@ export default function Metrics() {
           saved={saved}
           latestReading={active.records[0]}
           onReviewHistory={() => {
-            void active.refresh();
-            close();
+            setOpen(false);
+            router.push({ pathname: "/metric-history", params: { metric: selectedType } });
           }}
           onSave={async () => {
             const draft = drafts[selected] ?? emptyDraft;
@@ -337,8 +272,9 @@ function MetricTile({
   reading?: BloodPressureReading;
   hasDraft: boolean;
   reducedMotion: boolean;
-  onOpen: (name: Metric, node: View | null) => void;
+  onOpen: (name: Metric, node: View | null, latest?: SavedMetricReading) => void;
 }) {
+  const router = useRouter();
   const config = metricConfig(name);
   const other = useVitalReading(config.type === "BLOOD_PRESSURE" ? "BLOOD_GLUCOSE" : config.type);
   const latest: SavedMetricReading | undefined = config.type === "BLOOD_PRESSURE" ? reading : other.records[0];
@@ -351,13 +287,13 @@ function MetricTile({
     transform: [{ scale: scale.value }],
   }));
   return (
-    <Animated.View style={[{ width }, animated]}>
+    <Animated.View style={[{ width, gap: 8 }, animated]}>
       <Pressable
         ref={trigger}
         accessibilityRole="button"
         accessibilityLabel={`Enter ${name}`}
         accessibilityHint={`Opens the ${name} draft form. ${preview ? "Displayed value is an example." : latest ? `Latest saved reading: ${readingValue(latest)} ${config.unit}.` : "No saved readings."}${hasDraft ? " You have an unsaved draft." : ""}`}
-        onPress={() => onOpen(name, trigger.current)}
+        onPress={() => onOpen(name, trigger.current, latest)}
         onPressIn={() => {
           scale.value = withTiming(reducedMotion ? 1 : 0.98, { duration: 90 });
         }}
@@ -393,29 +329,8 @@ function MetricTile({
         )}
         {hasDraft && <Text style={styles.draftLabel}>Draft — not saved</Text>}
       </Pressable>
+      <Button secondary onPress={() => router.push({ pathname: "/metric-history", params: { metric: config.type } })}>View {name.toLowerCase()} history</Button>
     </Animated.View>
-  );
-}
-function SampleTrend({
-  label,
-  values,
-  unit,
-  color = C.primary,
-}: {
-  label: string;
-  values: number[];
-  unit: string;
-  color?: string;
-}) {
-  return (
-    <View
-      accessible
-      accessibilityLabel={`Sample ${label} trend: ${values.join(", ")} ${unit}. Examples, not saved readings.`}
-      style={{ gap: 6 }}
-    >
-      <Text style={ui.small}>{label} · example</Text>
-      <Sparkline values={values} color={color} />
-    </View>
   );
 }
 const styles = StyleSheet.create({

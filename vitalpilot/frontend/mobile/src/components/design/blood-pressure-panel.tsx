@@ -1,3 +1,5 @@
+import { AssessmentStatus } from "./assessment-status";
+import { HistoryReading } from "./history-reading";
 import { BloodPressureCare } from "./blood-pressure-care";
 import { useCallback } from "react";
 import { Text, View } from "react-native";
@@ -31,7 +33,7 @@ export function ReadingResult({ reading, showCare = false, onFindCare }: {
       <Text style={ui.small}>
         {new Date(reading.recorded_at).toLocaleString()}
       </Text>
-      <Text style={[ui.body, { color, fontWeight: "700" }]}>{view.title}</Text>
+      <AssessmentStatus title={view.title} tone={view.critical ? "critical" : view.tone === "normal" ? "normal" : view.tone === "warning" ? "warning" : "unknown"} />
       {view.tone === "unknown" && (
         <Text style={ui.small}>
           One or both values could not be classified. This is not a normal/clear
@@ -108,16 +110,10 @@ export function BloodPressurePanel({ compact = false }: { compact?: boolean }) {
         </Text>
       )}
       {(compact ? bp.records.slice(0, 1) : bp.records).map((reading) => (
-        <View
-          key={reading.log_id}
-          style={{
-            paddingVertical: 12,
-            borderBottomColor: C.border,
-            borderBottomWidth: 1,
-          }}
-        >
+        compact ? <View key={reading.log_id}><ReadingResult reading={reading} showCare /></View> :
+        <HistoryReading key={reading.log_id} reading={reading} unit="mmHg">
           <ReadingResult reading={reading} showCare={reading.log_id === latest?.log_id} />
-        </View>
+        </HistoryReading>
       ))}
       {chronological.length >= 2 && (
         <View style={{ gap: 12 }}>
