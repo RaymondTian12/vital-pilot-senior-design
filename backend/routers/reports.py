@@ -12,28 +12,31 @@ from backend.report_generator import (
     fetch_previous_report,
     gather_period_records,
     generate_narrative,
+    parse_combined_narrative,
     summarize_metric_stats,
 )
 from backend.security import get_current_user
 
 router = APIRouter()
 
-HPI_INSTRUCTIONS = (
-    "You are drafting the History of Present Illness section of a patient's self-monitoring "
-    "health report, in a clear, professional clinical tone. You are given structured JSON data "
-    "about the patient and the metrics they tracked over a period. Write 1-2 short paragraphs: "
-    "state the patient's age and sex, the length of the tracked period, and which metrics they "
-    "tracked. If prior-period data is included, briefly note how this period compares. "
-    "Do not invent any number not present in the provided data. Do not diagnose or prescribe."
-)
-SUMMARY_INSTRUCTIONS = (
-    "You are writing the closing summary of a patient self-monitoring health report, in a clear, "
-    "professional clinical tone, for the patient and their healthcare provider to read together. "
-    "You are given structured JSON data: tracked metric statistics and any urgent/warning alerts "
-    "from the period. Write one short paragraph synthesizing the overall picture: what stands out, "
-    "what's reassuring, and what's worth discussing with a healthcare professional. "
+# One combined call (not two) to stay within Gemini's free-tier daily request
+# quota -- this doubles how many reports a day the quota actually covers.
+COMBINED_INSTRUCTIONS = (
+    "You are drafting two sections of a patient's self-monitoring health report, in a clear, "
+    "professional clinical tone. You are given structured JSON data about the patient, the "
+    "metrics they tracked over a period, and any urgent/warning alerts from that period.\n\n"
+    "Write exactly two sections, each starting on its own line with the exact marker shown:\n\n"
+    "===HPI===\n"
+    "1-2 short paragraphs: state the patient's age and sex, the length of the tracked period, "
+    "and which metrics they tracked. If prior-period data is included, briefly note how this "
+    "period compares.\n\n"
+    "===SUMMARY===\n"
+    "One short paragraph synthesizing the overall picture: what stands out, what's reassuring, "
+    "and what's worth discussing with a healthcare professional. End with a brief reminder that "
+    "this is not a medical diagnosis.\n\n"
     "Do not invent any number not present in the provided data. Do not diagnose or prescribe. "
-    "End with a brief reminder that this is not a medical diagnosis."
+    "Use the exact markers '===HPI===' and '===SUMMARY===' verbatim, each on its own line, "
+    "before each section."
 )
 
 
@@ -66,18 +69,14 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
                 "end": end.date().isoformat(),
                 "metrics_tracked": {k: v for k, v in stats.items() if v["count"] > 0},
                 "previous_period": previous,
-            }
-            hpi_text = generate_narrative(HPI_INSTRUCTIONS, narrative_context)
-            summary_context = {
-                **narrative_context,
                 "urgent_readings": overall["urgent_readings"],
                 "warning_readings": overall["warning_readings"],
             }
-            summary_text = generate_narrative(SUMMARY_INSTRUCTIONS, summary_context)
+            combined_text = generate_narrative(COMBINED_INSTRUCTIONS, narrative_context)
+            narrative = parse_combined_narrative(combined_text)
 
             pdf_bytes = build_report_pdf(
-                header, f"{days}-day", start, end, overall, stats, previous,
-                {"hpi": hpi_text, "summary": summary_text},
+                header, f"{days}-day", start, end, overall, stats, previous, narrative,
             )
 
             report_summary = json.dumps({

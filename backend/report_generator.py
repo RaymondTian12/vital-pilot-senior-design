@@ -153,6 +153,17 @@ def generate_narrative(system_instruction, context):
         return f"[AI-generated narrative unavailable: {exc}]"
 
 
+def parse_combined_narrative(text):
+    """Splits a single Gemini response into its HPI and Summary sections.
+    Falls back to showing the same text (including an error placeholder)
+    in both slots if the model didn't follow the marker format."""
+    _, hpi_marker, after_hpi = text.partition("===HPI===")
+    hpi_text, summary_marker, summary_text = after_hpi.partition("===SUMMARY===")
+    if not hpi_marker or not summary_marker:
+        return {"hpi": text.strip(), "summary": text.strip()}
+    return {"hpi": hpi_text.strip(), "summary": summary_text.strip()}
+
+
 def build_report_pdf(header, period_label, start, end, overall, stats, previous, narrative):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=LETTER, topMargin=0.75 * inch, bottomMargin=0.75 * inch)
