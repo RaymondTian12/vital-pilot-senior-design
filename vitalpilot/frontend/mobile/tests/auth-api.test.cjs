@@ -97,7 +97,7 @@ test('questionnaire validation errors identify the invalid field', async () => {
 
 test('missing configuration never reports saved measurements or generates a demo AI response', async () => {
   const { api, calls } = client('');
-  await assert.rejects(api.submitMetric('Sleep', '8'), /not configured/);
+  await assert.rejects(api.submitBloodPressure(116, 75), /not configured/);
   await assert.rejects(api.chat('Explain my readings', []), /not configured/);
   assert.equal(calls.length, 0);
 });

@@ -103,6 +103,7 @@ export default function Profile() {
           icon="doctor"
           onPress={() => router.push("/doctors")}
         />
+        <Row title="Share with doctors" detail="Manage who can see your readings" icon="doctor" onPress={() => router.push("/sharing")} />
         <Row
           title="Notifications"
           icon="bell"

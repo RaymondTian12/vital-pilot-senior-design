@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { ReportFeedback, type ReportPhase } from "@/components/design/report-feedback";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { usePreview } from "@/context/preview-context";
 import {
@@ -14,6 +15,14 @@ import {
 } from "@/components/design/ui";
 import { SleepChart } from "@/components/design/charts";
 export default function Reports() {
+  const [demoPhase, setDemoPhase] = useState<ReportPhase | null>(null);
+  const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (demoTimer.current) clearTimeout(demoTimer.current); }, []);
+  function previewCompletion() {
+    if (demoTimer.current) clearTimeout(demoTimer.current);
+    setDemoPhase("generating");
+    demoTimer.current = setTimeout(() => setDemoPhase("ready"), 1500);
+  }
   const [period, setPeriod] = useState("30 days");
   const { preview, setPreview } = usePreview();
   return (
@@ -55,6 +64,14 @@ export default function Reports() {
           </Button>
         </>
       )}
+      <Card>
+        <Text style={ui.heading}>A preview of the finishing touch</Text>
+        <Text style={ui.small}>Try the report completion animation. This preview does not generate a PDF or access your readings.</Text>
+        <Button secondary disabled={demoPhase === "generating"} onPress={previewCompletion}>
+          {demoPhase === "generating" ? "Previewing…" : demoPhase === "ready" ? "Replay animation" : "Preview completion animation"}
+        </Button>
+        {demoPhase && <ReportFeedback phase={demoPhase} preview />}
+      </Card>
       <Button disabled>Generate report</Button>
       <Button disabled secondary>
         Download PDF

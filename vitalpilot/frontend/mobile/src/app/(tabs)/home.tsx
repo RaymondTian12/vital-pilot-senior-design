@@ -1,3 +1,4 @@
+import { DailySummary } from "@/components/design/daily-summary";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/auth-context";
@@ -5,7 +6,6 @@ import { usePreview } from "@/context/preview-context";
 import {
   Button,
   Card,
-  Empty,
   Heading,
   PreviewBadge,
   Row,
@@ -63,7 +63,7 @@ export default function Home() {
           <Text style={ui.link}>Log a reading →</Text>
         </Pressable>
       </Card>
-      <Text style={ui.heading}>Latest readings</Text>
+      {preview && <Text style={ui.heading}>Latest readings</Text>}
       {preview ? (
         <>
           <View style={[ui.row, { alignItems: "stretch", flexWrap: "wrap" }]}>
@@ -111,11 +111,7 @@ export default function Home() {
         </>
       ) : (
         <>
-          <Empty
-            title="Your picture starts here"
-            message="Saved readings and trends will appear here when health tracking is connected."
-            icon="vitals"
-          />
+          <DailySummary />
           <Button secondary onPress={() => setPreview(true)}>
             Preview sample readings
           </Button>

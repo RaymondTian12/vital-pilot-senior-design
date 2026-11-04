@@ -12,8 +12,44 @@ import { VscLayoutSidebarLeftDock } from "react-icons/vsc";
 // import { IoMdAdd } from "react-icons/io";
 import Image from "next/image";
 
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+// Turns a plain-text reply into spaced paragraphs and bullet lists
+// (no extra packages needed).
+const renderContent = (text: string) =>
+  text
+    .trim()
+    .split(/\n{2,}/)
+    .map((block, i) => {
+      const lines = block.split("\n").filter((l) => l.trim() !== "");
+      const isList =
+        lines.length > 0 && lines.every((l) => /^\s*[-*•]\s+/.test(l));
+
+      if (isList) {
+        return (
+          <ul key={i} className="list-disc pl-5 mb-3 last:mb-0 space-y-1">
+            {lines.map((l, j) => (
+              <li key={j}>{l.replace(/^\s*[-*•]\s+/, "")}</li>
+            ))}
+          </ul>
+        );
+      }
+
+      return (
+        <p key={i} className="mb-3 last:mb-0 whitespace-pre-wrap">
+          {block}
+        </p>
+      );
+    });
+
 const Chatbot = () => {
   const [clicked, setClicked] = useState<boolean>(false);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
@@ -26,6 +62,55 @@ const Chatbot = () => {
 
     textarea.style.overflowY =
       textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  };
+
+  const sendMessage = async () => {
+    if (!message.trim() || loading) return;
+
+    const userMessage = message.trim();
+
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: userMessage },
+    ]);
+
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get AI response.");
+      }
+
+      const data = await response.json();
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.reply },
+      ]);
+    } catch (error) {
+      console.error(error);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I couldn't process your request.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -102,26 +187,51 @@ const Chatbot = () => {
             height={50}
           />
         </Link>
-        <div className=" drop-shadow-lg">
-          <h2 className="font-medium font-[georgia]">Hello, Username</h2>
-          <h4 className="font-semibold text-gray-600">
-            I'm Pilot AI How can I help you today with your health today?
-          </h4>
-          <div className="flex-center gap-x-4 mt-5">
-            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
-              Check Symptoms
-            </button>
-            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
-              Explain My Vitals
-            </button>
-            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
-              Find a Specialist
-            </button>
-            <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
-              Lifestyle Recommendations
-            </button>
+        {messages.length === 0 ? (
+          <div className=" drop-shadow-lg">
+            <h2 className="font-medium font-[georgia]">Hello, Username</h2>
+            <h4 className="font-semibold text-gray-600">
+              I'm Pilot AI How can I help you today with your health today?
+            </h4>
+            <div className="flex-center gap-x-4 mt-5">
+              <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+                Check Symptoms
+              </button>
+              <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+                Explain My Vitals
+              </button>
+              <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+                Find a Specialist
+              </button>
+              <button className="bg-fourth text-title rounded-full py-2 px-5 font-semibold cursor-pointer hover:bg-main transition duration-300">
+                Lifestyle Recommendations
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-4 w-[800px] overflow-y-auto flex-1 py-10">
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                className={
+                  msg.role === "user"
+                    ? "self-end bg-main text-white rounded-2xl px-4 py-3 max-w-[70%]"
+                    : "self-start bg-fourth rounded-2xl px-4 py-3 max-w-[70%]"
+                }
+              >
+                {msg.role === "assistant"
+                  ? renderContent(msg.content)
+                  : msg.content}
+              </div>
+            ))}
+
+            {loading && (
+              <div className="self-start bg-fourth rounded-2xl px-4 py-3">
+                Pilot AI is thinking...
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CHAT INPUT */}
         <div
@@ -151,6 +261,8 @@ const Chatbot = () => {
             {/* TEXTAREA */}
             <textarea
               rows={1}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
               onInput={handleInput}
               placeholder="Describe your symptom(s) or ask any health questions..."
               className="
@@ -196,6 +308,8 @@ const Chatbot = () => {
               <div className="flex items-center gap-2 w-full justify-end">
                 <button
                   type="button"
+                  onClick={sendMessage}
+                  disabled={loading || !message.trim()}
                   className="
                   flex
                   h-9
@@ -208,6 +322,7 @@ const Chatbot = () => {
                   text-white
                   transition
                   hover:bg-secondary
+                  disabled:opacity-50
                 "
                 >
                   <FaArrowUp />

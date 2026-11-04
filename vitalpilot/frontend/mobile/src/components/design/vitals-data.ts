@@ -109,7 +109,7 @@ export const vitals = {
 } satisfies Record<string, MetricConfig>;
 
 export type Metric = keyof typeof vitals;
-export type Draft = { primary: string; secondary: string };
+export type Draft = { primary: string; secondary: string; glucoseContext?: string; personalBest?: string };
 export const emptyDraft: Draft = { primary: "", secondary: "" };
 export const healthMetrics: Metric[] = [
   "Blood Pressure",

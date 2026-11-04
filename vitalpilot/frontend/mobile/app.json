@@ -51,6 +51,14 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.123952545473-snihrina8crjf4s8iuu563jnoct86e47"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow VitalPilot to use your location to find doctors in your area.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
       ]
     ],
     "experiments": {

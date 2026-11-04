@@ -4,7 +4,7 @@ Shared by seed/demo scripts now; the same lookups are what a real
 logging endpoint would call to classify a reading at insert time.
 """
 
-from typing import Optional, Tuple
+from typing import Optional
 
 # Severity order per metric, used to pick the worse of two component
 # readings (e.g. blood pressure's systolic vs diastolic classification).
@@ -41,7 +41,7 @@ def classify_value(cursor, metric_type: str, sub_metric: str, value: float) -> O
 
 
 def classify_blood_pressure(cursor, systolic: int, diastolic: int) -> dict:
-    """Classifies a BP reading as the worse of its systolic/diastolic tiers."""
+    """Return the worse recognized tier, or an explicit unclassified result."""
     systolic_result = classify_value(cursor, "BLOOD_PRESSURE", "SYSTOLIC", systolic)
     diastolic_result = classify_value(cursor, "BLOOD_PRESSURE", "DIASTOLIC", diastolic)
 
@@ -53,11 +53,22 @@ def classify_blood_pressure(cursor, systolic: int, diastolic: int) -> dict:
         except ValueError:
             return -1
 
-    worse = systolic_result if severity(systolic_result) >= severity(diastolic_result) else diastolic_result
+    # An absent or unrecognized tier must not lose to the other component's
+    # normal tier. Preserve the component results, but leave the overall
+    # classification unavailable until BOTH components can be evaluated.
+    unclassified = [
+        name for name, result in (("systolic", systolic_result), ("diastolic", diastolic_result))
+        if severity(result) < 0
+    ]
+    worse = None
+    if not unclassified:
+        worse = systolic_result if severity(systolic_result) >= severity(diastolic_result) else diastolic_result
     return {
         "systolic": systolic_result,
         "diastolic": diastolic_result,
         "overall": worse,
+        "status": "unclassified" if unclassified else "classified",
+        "unclassified_components": unclassified,
     }
 
 
