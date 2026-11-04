@@ -1,9 +1,9 @@
 import { ReportFeedback, type ReportPhase } from "@/components/design/report-feedback";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import * as Sharing from "expo-sharing";
 import { usePreview } from "@/context/preview-context";
-import { api, ApiError } from "@/services/api";
+import { api, ApiError, type ReportHistoryItem } from "@/services/api";
 import {
   Button,
   Card,
@@ -19,6 +19,18 @@ import { SleepChart } from "@/components/design/charts";
 
 const PERIODS = { "7 days": 7, "30 days": 30, "90 days": 90 } as const;
 type PeriodLabel = keyof typeof PERIODS;
+
+async function shareReportFile(uri: string): Promise<string | null> {
+  try {
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, { mimeType: "application/pdf" });
+      return null;
+    }
+    return "Sharing is not available on this device. The PDF is saved on your device's app storage.";
+  } catch {
+    return "Could not open the share sheet for this report.";
+  }
+}
 
 export default function Reports() {
   const [demoPhase, setDemoPhase] = useState<ReportPhase | null>(null);
@@ -37,6 +49,28 @@ export default function Reports() {
   const [reportUri, setReportUri] = useState<string | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
 
+  const [history, setHistory] = useState<ReportHistoryItem[] | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const { reports } = await api.getReportHistory();
+      setHistory(reports);
+      setHistoryError(null);
+    } catch (error: unknown) {
+      setHistoryError(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : "Failed to load report history.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
   async function handleGenerate() {
     setReportPhase("generating");
     setReportError(null);
@@ -45,6 +79,7 @@ export default function Reports() {
       const { uri } = await api.generateReport(PERIODS[period]);
       setReportUri(uri);
       setReportPhase("ready");
+      loadHistory();
     } catch (error: unknown) {
       setReportError(
         error instanceof ApiError || error instanceof Error
@@ -57,14 +92,25 @@ export default function Reports() {
 
   async function handleDownload() {
     if (!reportUri) return;
+    const shareError = await shareReportFile(reportUri);
+    if (shareError) setReportError(shareError);
+  }
+
+  async function handleHistoryDownload(item: ReportHistoryItem) {
+    setDownloadingId(item.report_id);
+    setHistoryError(null);
     try {
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(reportUri, { mimeType: "application/pdf" });
-      } else {
-        setReportError("Sharing is not available on this device. The PDF is saved on your device's app storage.");
-      }
-    } catch {
-      setReportError("Could not open the share sheet for this report.");
+      const { uri } = await api.downloadReport(item.report_id);
+      const shareError = await shareReportFile(uri);
+      if (shareError) setHistoryError(shareError);
+    } catch (error: unknown) {
+      setHistoryError(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : "Failed to download report.",
+      );
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -126,10 +172,36 @@ export default function Reports() {
       {reportPhase && <ReportFeedback phase={reportPhase} />}
       {reportError && <Notice>{reportError}</Notice>}
       <Text style={ui.heading}>Report history</Text>
-      <Empty
-        title="No generated reports yet"
-        message="Completed reports will appear here."
-      />
+      {historyError && <Notice>{historyError}</Notice>}
+      {history === null ? (
+        <Text style={ui.small}>Loading report history…</Text>
+      ) : history.length === 0 ? (
+        <Empty
+          title="No generated reports yet"
+          message="Completed reports will appear here."
+        />
+      ) : (
+        history.map((item) => (
+          <Card key={item.report_id}>
+            <Text style={ui.heading}>{item.report_title}</Text>
+            <Text style={ui.small}>
+              {item.start_date} to {item.end_date} · generated{" "}
+              {new Date(item.created_at).toLocaleDateString()}
+            </Text>
+            <Button
+              secondary
+              disabled={!item.downloadable || downloadingId === item.report_id}
+              onPress={() => handleHistoryDownload(item)}
+            >
+              {!item.downloadable
+                ? "Not available for re-download"
+                : downloadingId === item.report_id
+                  ? "Downloading…"
+                  : "Download"}
+            </Button>
+          </Card>
+        ))
+      )}
     </Screen>
   );
 }

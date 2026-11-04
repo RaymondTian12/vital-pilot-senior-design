@@ -17,6 +17,15 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(
   /\/$/,
   "",
 );
+export interface ReportHistoryItem {
+  report_id: number;
+  report_title: string;
+  start_date: string;
+  end_date: string;
+  file_size_kb: number;
+  created_at: string;
+  downloadable: boolean;
+}
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -213,21 +222,34 @@ export const api = {
       `/metrics?metric_type=BLOOD_PRESSURE&limit=20&offset=${offset}`,
     ),
   async generateReport(days: 7 | 30 | 90): Promise<{ uri: string; filename: string }> {
-    if (!API_BASE_URL)
-      throw new Error("EXPO_PUBLIC_API_BASE_URL is not configured.");
-    const token = await session.get();
     const filename = `vitalpilot-report-${days}day-${Date.now()}.pdf`;
-    const destination = `${FileSystem.documentDirectory}${filename}`;
-    const result = await FileSystem.downloadAsync(
-      `${API_BASE_URL}/reports/generate?days=${days}`,
-      destination,
-      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-    );
-    if (result.status !== 200)
-      throw new ApiError(
-        `Failed to generate report (status ${result.status}).`,
-        result.status,
-      );
-    return { uri: result.uri, filename };
+    return downloadReportFile(`/reports/generate?days=${days}`, filename);
+  },
+  getReportHistory: () =>
+    request<{ reports: ReportHistoryItem[] }>("/reports/history"),
+  async downloadReport(reportId: number): Promise<{ uri: string; filename: string }> {
+    const filename = `vitalpilot-report-${reportId}-${Date.now()}.pdf`;
+    return downloadReportFile(`/reports/${reportId}/download`, filename);
   },
 };
+
+async function downloadReportFile(
+  endpoint: string,
+  filename: string,
+): Promise<{ uri: string; filename: string }> {
+  if (!API_BASE_URL)
+    throw new Error("EXPO_PUBLIC_API_BASE_URL is not configured.");
+  const token = await session.get();
+  const destination = `${FileSystem.documentDirectory}${filename}`;
+  const result = await FileSystem.downloadAsync(
+    `${API_BASE_URL}${endpoint}`,
+    destination,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  );
+  if (result.status !== 200)
+    throw new ApiError(
+      `Failed to download report (status ${result.status}).`,
+      result.status,
+    );
+  return { uri: result.uri, filename };
+}
