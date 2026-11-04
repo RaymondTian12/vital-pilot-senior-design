@@ -158,10 +158,10 @@ export function Screen({
     </SafeAreaView>
   );
 }
-export function Brand({ guestDestination = "/welcome" }: { guestDestination?: "/welcome" | "/signup" }) {
+export function Brand() {
   const router = useRouter();
   const { user } = useAuth();
-  const destination = user?.role === "admin" ? "/admin-portal" : user?.role === "provider" ? "/doctor-portal" : user ? "/home" : guestDestination;
+  const destination = user?.role === "admin" ? "/admin-portal" : user?.role === "provider" ? "/doctor-portal" : user ? "/home" : "/welcome";
   return (
     <Pressable accessibilityRole="link" accessibilityLabel="VitalPilot home" onPress={() => router.replace(destination)} style={[ui.row, { gap: 8, minHeight: 48 }]}>
       <VitalPilotLogo size={34} />
