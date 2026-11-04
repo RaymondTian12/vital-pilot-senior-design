@@ -21,7 +21,7 @@ export type AdminProvider = {
   specialty: string;
   license_state: string;
   license_number: string;
-  verification_status: "PENDING" | "APPROVED" | "REJECTED";
+  verification_status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED";
   created_at: string;
 };
 export type AdminAccount = {

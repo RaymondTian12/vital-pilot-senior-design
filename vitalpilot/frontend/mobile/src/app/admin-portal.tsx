@@ -6,8 +6,9 @@ import type { AdminAccount, AdminProvider } from "@/types/vitalpilot";
 import { Button, Card, Empty, Field, Heading, Notice, Screen, ui } from "@/components/design/ui";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 import { defaultWelcomeSlides, mergeWelcomeSlides, type WelcomeSlide } from "@/constants/welcome-slides";
+import { AdminTeam } from "@/components/admin/admin-team";
 
-type ReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
+type ReviewStatus = "PENDING" | "APPROVED" | "REJECTED" | "REMOVED";
 
 function AccountCard({ account, onChanged }: { account: AdminAccount; onChanged: () => Promise<void> }) {
   const [reason, setReason] = useState("");
@@ -108,18 +109,20 @@ function WelcomeEditor() {
   </View>;
 }
 
-function ProviderCard({ provider, onReviewed }: { provider: AdminProvider; onReviewed: (decision: "APPROVED" | "REJECTED") => Promise<void> }) {
+function ProviderCard({ provider, onReviewed }: { provider: AdminProvider; onReviewed: (decision: "APPROVED" | "REJECTED" | "REMOVED") => Promise<void> }) {
   const [note, setNote] = useState("");
   const [verified, setVerified] = useState(false);
+  const [confirmedRemoval, setConfirmedRemoval] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function decide(decision: "APPROVED" | "REJECTED") {
+  async function decide(decision: "APPROVED" | "REJECTED" | "REMOVED") {
     if (busy) return;
     if (note.trim().length < 3) { setError("Enter a review note before deciding."); return; }
     if (decision === "APPROVED" && !verified) { setError("Confirm identity and active license verification before approval."); return; }
+    if (decision === "REMOVED" && !confirmedRemoval) { setError("Confirm that existing patient sharing will be revoked."); return; }
     setBusy(true); setError("");
     try {
-      await api.reviewProvider(provider.provider_id, decision, note.trim(), verified);
+      await api.reviewProvider(provider.provider_id, decision, note.trim(), verified, confirmedRemoval);
       await onReviewed(decision);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to review this application."); }
     finally { setBusy(false); }
@@ -130,23 +133,33 @@ function ProviderCard({ provider, onReviewed }: { provider: AdminProvider; onRev
     <Text style={ui.body}>NPI: {provider.npi}</Text>
     <Text style={ui.body}>Specialty: {provider.specialty}</Text>
     <Text style={ui.body}>License: {provider.license_state} {provider.license_number}</Text>
-    {provider.verification_status === "PENDING" ? <>
+    <Text style={ui.small}>Status: {provider.verification_status === "APPROVED" ? "Approved" : provider.verification_status === "REJECTED" ? "Rejected" : provider.verification_status === "REMOVED" ? "Removed" : "Pending"}</Text>
+    {provider.verification_status === "APPROVED" ? <>
+      <Notice>Removing this doctor blocks patient record access and revokes every existing patient grant. Patients must share again if the doctor is reapproved.</Notice>
+      <Field label="Removal reason" value={note} onChangeText={setNote} multiline placeholder="Explain why this doctor is being removed" />
+      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: confirmedRemoval }} onPress={() => setConfirmedRemoval(!confirmedRemoval)} style={[ui.row, { minHeight: 48 }]}>
+        <Text style={ui.body}>{confirmedRemoval ? "☑" : "☐"} I understand existing patient sharing will be revoked</Text>
+      </Pressable>
+      {!!error && <Notice error>{error}</Notice>}
+      <Button secondary loading={busy} onPress={() => void decide("REMOVED")}>Remove doctor</Button>
+    </> : <>
       <Notice>Check the NPI Registry, identity, and active state license before approving. An NPI match alone does not verify a license.</Notice>
       <Button secondary onPress={() => void Linking.openURL("https://npiregistry.cms.hhs.gov/")}>Open NPI Registry</Button>
-      <Field label="Review note" value={note} onChangeText={setNote} multiline placeholder="Record what you checked or why you rejected this application" />
+      <Field label="Review note" value={note} onChangeText={setNote} multiline placeholder="Record what you checked or why you made this decision" />
       <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: verified }} onPress={() => setVerified(!verified)} style={[ui.row, { minHeight: 48 }]}>
         <Text style={ui.body}>{verified ? "☑" : "☐"} I verified identity and active license</Text>
       </Pressable>
       {!!error && <Notice error>{error}</Notice>}
-      <Button loading={busy} onPress={() => void decide("APPROVED")}>Approve doctor</Button>
-      <Button secondary disabled={busy} onPress={() => void decide("REJECTED")}>Reject application</Button>
-    </> : <Text style={ui.small}>Status: {provider.verification_status === "APPROVED" ? "Approved" : "Rejected"}</Text>}
+      <Button loading={busy} onPress={() => void decide("APPROVED")}>{provider.verification_status === "PENDING" ? "Approve doctor" : "Approve again"}</Button>
+      {provider.verification_status === "PENDING" && <Button secondary disabled={busy} onPress={() => void decide("REJECTED")}>Reject application</Button>}
+      {provider.verification_status === "REMOVED" && <Notice>Previous patient sharing remains revoked after reapproval.</Notice>}
+    </>}
   </Card>;
 }
 
 export default function AdminPortal() {
   const { user, signOut } = useAuth();
-  const [section, setSection] = useState<"doctors" | "accounts" | "content">("doctors");
+  const [section, setSection] = useState<"doctors" | "accounts" | "content" | "team">("doctors");
   const [status, setStatus] = useState<ReviewStatus>("PENDING");
   const [offset, setOffset] = useState(0);
   const [providers, setProviders] = useState<AdminProvider[]>([]);
@@ -161,8 +174,8 @@ export default function AdminPortal() {
   }, [status, offset]);
   useEffect(() => { void load(); }, [load]);
   function showStatus(next: ReviewStatus) { setStatus(next); setOffset(0); setMessage(""); }
-  async function reviewed(decision: "APPROVED" | "REJECTED") {
-    setMessage(decision === "APPROVED" ? "Doctor approved. They can now receive patient sharing requests." : "Application rejected.");
+  async function reviewed(decision: "APPROVED" | "REJECTED" | "REMOVED") {
+    setMessage(decision === "APPROVED" ? "Doctor approved. They can now receive new patient sharing requests." : decision === "REMOVED" ? "Doctor removed. Existing patient sharing was revoked." : "Application rejected.");
     await load();
   }
   return <Screen brand={false}>
@@ -171,16 +184,17 @@ export default function AdminPortal() {
       <Button secondary onPress={() => setSection("doctors")}>Doctor reviews</Button>
       <Button secondary onPress={() => setSection("accounts")}>Accounts</Button>
       <Button secondary onPress={() => setSection("content")}>Welcome page</Button>
+      <Button secondary onPress={() => setSection("team")}>Add admins</Button>
     </View>
-    {section === "accounts" ? <Accounts /> : section === "content" ? <WelcomeEditor /> : <>
+    {section === "accounts" ? <Accounts /> : section === "content" ? <WelcomeEditor /> : section === "team" ? <AdminTeam /> : <>
     <Notice>Review doctor applications before they can receive patient access.</Notice>
     <View style={[ui.row, { gap: 8 }]}>
-      {(["PENDING", "APPROVED", "REJECTED"] as const).map((option) =>
+      {(["PENDING", "APPROVED", "REJECTED", "REMOVED"] as const).map((option) =>
         <Pressable key={option} accessibilityRole="button" accessibilityState={{ selected: status === option }}
           onPress={() => showStatus(option)} style={{ flex: 1, minHeight: 48, borderRadius: 12,
             backgroundColor: status === option ? C.primary : C.white, borderColor: C.border, borderWidth: 1,
             alignItems: "center", justifyContent: "center" }}>
-          <Text style={[ui.small, { fontWeight: "700", color: status === option ? C.white : C.primaryDark }]}>{option === "PENDING" ? "Pending" : option === "APPROVED" ? "Approved" : "Rejected"}</Text>
+          <Text style={[ui.small, { fontWeight: "700", color: status === option ? C.white : C.primaryDark }]}>{option === "PENDING" ? "Pending" : option === "APPROVED" ? "Approved" : option === "REJECTED" ? "Rejected" : "Removed"}</Text>
         </Pressable>)}
     </View>
     {!!message && <Notice>{message}</Notice>}

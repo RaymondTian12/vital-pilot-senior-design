@@ -22,6 +22,11 @@ The portal lists pending, approved, and rejected applications. Before approval, 
 
 The admin can also search patient and doctor accounts, suspend or restore non-admin access with a required reason, and edit the four welcome panels. Apply `20261102_admin_accounts.sql` before starting this version of the API, then `20261102_welcome_content.sql`. Suspension blocks both new sign-ins and existing tokens; neither the account directory nor welcome editor exposes patient health records. The admin cannot change user roles or suspend another admin through the portal.
 
+To add another admin, an existing admin opens **Add admins** and enters a teammate's name, unused email, and a unique initial password. The password is stored as an Argon2 hash and is never returned by the API. Share the initial password privately with that teammate; they sign in through the normal admin link. The current app does not offer a password-change flow, so do not reuse an existing admin password.
+
+The doctor review tabs include **Removed**. Removing an approved doctor requires a note and explicit confirmation, records an audit decision, and revokes all existing patient sharing in the same transaction. Reapproving a rejected or removed doctor requires fresh identity and active-license verification. Previously revoked patient grants do not resume; patients must share again. The doctor account remains for audit purposes and can sign in to see its status, but cannot read patient records while removed.
+Apply `database/migrations/20261103_doctor_removal.sql` before using the doctor review changes.
+
 ## Patient flow
 
 In **Profile → Share with doctors**, the patient can open the registered care directory. **Share my readings** requires confirmation and activates access for that provider. The same screen lists current grants and allows removal. Removal blocks future doctor API reads immediately.
