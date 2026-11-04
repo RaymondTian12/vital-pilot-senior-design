@@ -86,13 +86,18 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
             })
             cursor.execute(
                 "INSERT INTO ClinicalReports (patient_profile_id, generated_by_user_id, report_title, "
-                "start_date, end_date, summary_text, file_url, file_size_kb) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                "start_date, end_date, summary_text, file_url, file_size_kb, pdf_data) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     header["profile_id"], current_user.user_id, f"{days}-Day Health Report",
                     start.date(), end.date(), report_summary,
-                    "generated-on-demand", max(1, len(pdf_bytes) // 1024),
+                    "pending", max(1, len(pdf_bytes) // 1024), pdf_bytes,
                 ),
+            )
+            report_id = cursor.lastrowid
+            cursor.execute(
+                "UPDATE ClinicalReports SET file_url = %s WHERE report_id = %s",
+                (f"/reports/{report_id}/download", report_id),
             )
         conn.commit()
     except HTTPException:
@@ -108,6 +113,75 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
     filename = f"vitalpilot-report-{days}day-{end.date()}.pdf"
     return Response(
         content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/history")
+def report_history(current_user=Depends(get_current_user)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Report history is temporarily unavailable.")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT report_id, report_title, start_date, end_date, file_size_kb, created_at, "
+                "pdf_data IS NOT NULL AS downloadable "
+                "FROM ClinicalReports WHERE generated_by_user_id = %s "
+                "ORDER BY created_at DESC",
+                (current_user.user_id,),
+            )
+            rows = cursor.fetchall()
+    except Exception as exc:
+        print(f"Error occurred while loading report history. Error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to load report history")
+    finally:
+        conn.close()
+    return {
+        "reports": [
+            {
+                "report_id": row[0],
+                "report_title": row[1],
+                "start_date": row[2],
+                "end_date": row[3],
+                "file_size_kb": row[4],
+                "created_at": row[5],
+                "downloadable": bool(row[6]),
+            }
+            for row in rows
+        ]
+    }
+
+
+@router.get("/reports/{report_id}/download")
+def download_report(report_id: int, current_user=Depends(get_current_user)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Report download is temporarily unavailable.")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT generated_by_user_id, report_title, end_date, pdf_data "
+                "FROM ClinicalReports WHERE report_id = %s",
+                (report_id,),
+            )
+            row = cursor.fetchone()
+    except Exception as exc:
+        print(f"Error occurred while downloading report. Error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to download report")
+    finally:
+        conn.close()
+    # 404 (not 403) for both "doesn't exist" and "not yours" -- don't reveal
+    # that a report_id belonging to someone else exists.
+    if not row or row[0] != current_user.user_id:
+        raise HTTPException(404, "Report not found.")
+    _, title, end_date, pdf_data = row
+    if pdf_data is None:
+        raise HTTPException(410, "This report was generated before PDF storage was added and can't be re-downloaded. Generate a new one.")
+    filename = f"vitalpilot-report-{report_id}-{end_date}.pdf"
+    return Response(
+        content=pdf_data,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
