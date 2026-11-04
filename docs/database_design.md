@@ -16,6 +16,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `email` | `VARCHAR(255)` | `NOT NULL`, `UNIQUE`| User's email address used for login |
 | `password_hash` | `VARCHAR(255)`| `NOT NULL` | Securely hashed password|
 | `role` | `ENUM('patient', 'provider', 'admin')` | `NOT NULL, DEFAULT 'patient'` | System role used for role-based authorization |
+| `is_active` | `BOOLEAN` | `NOT NULL, DEFAULT TRUE` | Suspended accounts cannot sign in or use existing sessions |
 | `date_created` | `DATETIME` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | Date and time the user account was created|
 
 ### UserHealthProfiles
@@ -49,6 +50,7 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `specialty` | `VARCHAR(100)` | `NOT NULL` | Medical practice specialty (e.g. Cardiology, Endocrinology) |
 | `license_state` | `VARCHAR(2)` | `NOT NULL` | State abbreviation of clinical licensure |
 | `license_number` | `VARCHAR(50)` | `NOT NULL` | State medical license registration number |
+| `verification_status` | `ENUM('PENDING', 'APPROVED', 'REJECTED', 'REMOVED')` | `NOT NULL, DEFAULT 'PENDING'` | Administrator review status; only approved providers can access granted patient records |
 | `clinic_name` | `VARCHAR(255)` | `NULL` | Associated clinic or healthcare system |
 | `clinic_phone` | `VARCHAR(20)` | `NULL` | Practice contact phone number |
 | `created_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider profile was created |
@@ -63,8 +65,30 @@ Rather than tightly coupling the database engine to static disease states, this 
 | `assignment_id` | `SERIAL` | `PRIMARY KEY` | Unique internal identifier for the care assignment record |
 | `provider_id` | `INT` | `FOREIGN KEY, NOT NULL` | References `Providers.provider_id` (`ON DELETE CASCADE`) |
 | `patient_profile_id` | `INT` | `FOREIGN KEY, NOT NULL` | References `UserHealthProfiles.profile_id` (`ON DELETE CASCADE`) |
-| `assignment_status` | `ENUM('ACTIVE', 'PENDING', 'REVOKED')` | `NOT NULL, DEFAULT 'ACTIVE'` | Access status controlling provider record visibility |
+| `assignment_status` | `ENUM('ACTIVE', 'PENDING', 'REVOKED')` | `NOT NULL, DEFAULT 'PENDING'` | Access status controlling provider record visibility; only a patient grant makes it active |
 | `assigned_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Date and time the provider was granted patient access |
+
+### ProviderReviews
+
+*Records decisions made through the admin portal. Approval requires an independent identity and active-license check.*
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `review_id` | `SERIAL` | `PRIMARY KEY` | Unique review record |
+| `provider_id` | `BIGINT UNSIGNED` | `FOREIGN KEY, NOT NULL` | Reviewed provider |
+| `admin_user_id` | `BIGINT UNSIGNED` | `FOREIGN KEY, NOT NULL` | Admin who made the decision |
+| `decision` | `ENUM('APPROVED', 'REJECTED', 'REMOVED')` | `NOT NULL` | Review outcome |
+| `review_note` | `VARCHAR(500)` | `NOT NULL` | Admin's explanation or verification note |
+| `reviewed_at` | `TIMESTAMP` | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Decision time |
+
+### AdminAccountActions
+*Records account suspensions and restorations with a reason and the responsible admin. Admin accounts cannot be changed through this control.*
+
+### WelcomeSlides
+*Stores optional admin-edited copy for the four public welcome panels. The app uses built-in copy when a panel has no override or the API is unavailable.*
+
+### Doctor review lifecycle
+*Providers can move from pending to approved or rejected; rejected or removed providers can be approved after a new identity and license check; approved providers can be removed. Removal revokes all patient assignments in the same transaction, and later approval does not reactivate them. `ProviderReviews` records each decision.*
 
 ---
 

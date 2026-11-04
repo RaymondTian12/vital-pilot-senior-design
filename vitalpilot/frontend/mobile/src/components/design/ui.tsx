@@ -77,12 +77,14 @@ export const ui = StyleSheet.create({
 export function Screen({
   children,
   back = false,
+  backFallback = "/home",
   brand = true,
   footer,
   scroll = true,
 }: {
   children: ReactNode;
   back?: boolean;
+  backFallback?: "/home" | "/doctor-portal" | "/welcome";
   brand?: boolean;
   footer?: ReactNode;
   scroll?: boolean;
@@ -121,7 +123,7 @@ export function Screen({
                     onPress={() =>
                       router.canGoBack()
                         ? router.back()
-                        : router.replace("/home")
+                        : router.replace(backFallback)
                     }
                     style={[ui.row, { minHeight: 48, minWidth: 48 }]}
                   >

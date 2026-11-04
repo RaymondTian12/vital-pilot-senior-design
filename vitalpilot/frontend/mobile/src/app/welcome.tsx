@@ -15,41 +15,25 @@ import { useRouter } from "expo-router";
 import { Brand, Button, ui } from "@/components/design/ui";
 import { WelcomeStory } from "@/components/design/welcome-story";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
-const slides = [
-  {
-    eyebrow: "WELCOME TO VITALPILOT",
-    title: "A little more clarity.\nA little more you.",
-    description:
-      "Meet your health companion: a place for your readings, everyday habits, and the questions that come with them.",
-  },
-  {
-    eyebrow: "START WITH YOUR EVERYDAY",
-    title: "Small check-ins.\nA fuller picture.",
-    description:
-      "Choose what matters to you—from blood pressure and glucose to sleep, water, and movement. Build a routine that fits your life.",
-  },
-  {
-    eyebrow: "MAKE SENSE OF YOUR STORY",
-    title: "More than numbers.\nRoom to understand.",
-    description:
-      "VitalPilot is being built to bring your readings into trends, reports, and helpful explanations. Start with the tools available today.",
-  },
-  {
-    eyebrow: "TAKE YOUR NEXT STEP",
-    title: "Your questions.\nYour care. Your pace.",
-    description:
-      "Find healthcare providers by location and specialty. Bring your questions to your next visit—searching never shares your health information.",
-  },
-];
+import { api } from "@/services/api";
+import { defaultWelcomeSlides, mergeWelcomeSlides } from "@/constants/welcome-slides";
 export default function Welcome() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [pageWidth, setPageWidth] = useState(width);
   const [step, setStep] = useState(0);
+  const [slides, setSlides] = useState(defaultWelcomeSlides);
   const [reduced, setReduced] = useState(true);
   const list = useRef<ScrollView>(null);
   const position = useRef(new Animated.Value(0)).current;
   const current = useRef(0);
+  useEffect(() => {
+    let active = true;
+    api.welcomeSlides().then(({ slides: overrides }) => {
+      if (active) setSlides(mergeWelcomeSlides(overrides));
+    }).catch(() => { /* Keep built-in copy when the API is unavailable. */ });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     let active = true;
     AccessibilityInfo.isReduceMotionEnabled().then((value) => {
@@ -85,14 +69,16 @@ export default function Welcome() {
     <SafeAreaView style={s.root} edges={["top", "bottom", "left", "right"]}>
       <View style={s.header}>
         <Brand />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Skip introduction and sign in"
-          onPress={() => router.push("/signin")}
-          style={s.skip}
-        >
-          <Text style={ui.link}>Skip</Text>
-        </Pressable>
+        <View style={s.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Admin sign in"
+            onPress={() => router.push("/signin?portal=admin")}
+            style={s.skip}
+          >
+            <Text style={ui.link}>Admin</Text>
+          </Pressable>
+        </View>
       </View>
       <View
         style={{ flex: 1 }}
@@ -254,6 +240,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
+  headerActions: { flexDirection: "column", alignItems: "flex-end" },
   skip: {
     minHeight: 48,
     minWidth: 48,

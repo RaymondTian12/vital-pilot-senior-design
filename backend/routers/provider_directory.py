@@ -16,7 +16,9 @@ def care_team(specialty: Optional[str] = None, limit: int = Query(50, ge=1, le=2
         }.get(specialty, [specialty])
         filters.append('(' + ' OR '.join('p.specialty LIKE %s' for _ in terms) + ')')
         values.extend(terms)
-    where = ' WHERE ' + ' AND '.join(filters) if filters else ''
+    filters.append("p.verification_status = 'APPROVED'")
+    filters.append("u.is_active = TRUE")
+    where = ' WHERE ' + ' AND '.join(filters)
     conn = get_db_connection()
     if not conn:
         raise HTTPException(503, 'Provider directory is temporarily unavailable')

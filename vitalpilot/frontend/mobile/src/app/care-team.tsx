@@ -1,17 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { Linking, Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Linking, Platform, Text } from "react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { api } from "@/services/api";
 import { Button, Card, Empty, Heading, Notice, Screen, ui } from "@/components/design/ui";
 
 type Provider = { provider_id: number; npi: string; first_name: string; last_name: string; specialty: string; license_state: string; clinic_name: string | null; phone: string | null };
 export default function CareTeam() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ specialty?: string }>();
   const [specialty, setSpecialty] = useState(params.specialty ?? "");
   const [doctors, setDoctors] = useState<Provider[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [granted, setGranted] = useState<number[]>([]);
+  const [sharing, setSharing] = useState(false);
   const generation = useRef(0);
   useEffect(() => {
     const id = ++generation.current;
@@ -23,9 +26,31 @@ export default function CareTeam() {
     }).finally(() => { if (generation.current === id) setBusy(false); });
     return () => { generation.current++; };
   }, [specialty, attempt]);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    api.myProviders().then((r) => { if (active) setGranted(r.providers.map((p) => p.provider_id)); }).catch(() => {});
+    return () => { active = false; };
+  }, []));
+  async function grant(provider: Provider) {
+    setSharing(true); setError("");
+    try { await api.grantProvider(provider.provider_id); setGranted((ids) => [...ids, provider.provider_id]); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not share records."); }
+    finally { setSharing(false); }
+  }
+  function confirmGrant(provider: Provider) {
+    const message = `Dr. ${provider.last_name} will be able to view your saved readings until you remove access.`;
+    if (Platform.OS === "web") {
+      if (window.confirm(message)) void grant(provider);
+      return;
+    }
+    Alert.alert("Share health readings?", message, [
+      { text: "Cancel", style: "cancel" }, { text: "Share readings", onPress: () => void grant(provider) },
+    ]);
+  }
   return <Screen back>
     <Heading title="VitalPilot care directory" subtitle={specialty ? `${specialty} providers registered with VitalPilot` : "Providers registered with VitalPilot"} />
     <Notice>Contact a provider to confirm location, availability, insurance, and whether they can help with your concern. This directory is for follow-up care, not emergency care.</Notice>
+    <Button secondary onPress={() => router.push("/sharing")}>Manage doctor access</Button>
     {busy && <Text accessibilityLiveRegion="polite" style={ui.body}>Loading providers…</Text>}
     {!!error && <><Text accessibilityRole="alert" style={ui.body}>{error}</Text><Button onPress={() => setAttempt((n) => n + 1)}>Try again</Button></>}
     {!busy && !error && doctors.length === 0 && <Empty title="No matching providers yet" message="There are no registered providers matching this filter in the VitalPilot database. Contact your usual healthcare professional for follow-up." />}
@@ -35,6 +60,7 @@ export default function CareTeam() {
       <Text style={ui.body}>{doctor.specialty}</Text>
       {!!doctor.clinic_name && <Text style={ui.body}>{doctor.clinic_name}</Text>}
       <Text style={ui.small}>License state: {doctor.license_state} · NPI: {doctor.npi}</Text>
+      <Button disabled={sharing || granted.includes(doctor.provider_id)} onPress={() => confirmGrant(doctor)}>{granted.includes(doctor.provider_id) ? "Access granted" : "Share my readings"}</Button>
       {doctor.phone ? <><Text style={ui.body}>{doctor.phone}</Text><Button secondary onPress={() => void Linking.openURL(`tel:${doctor.phone!.replace(/[^\d+]/g, "")}`).catch(() => setError("Couldn’t open the dialer. Please call the displayed number directly."))}>Call provider</Button></> : <Text style={ui.small}>No clinic phone number on file.</Text>}
     </Card>)}
   </Screen>;
