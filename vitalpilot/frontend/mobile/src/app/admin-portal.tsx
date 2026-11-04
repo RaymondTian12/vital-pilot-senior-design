@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 import { useAuth } from "@/context/auth-context";
+import { SignOutButton } from "@/components/sign-out-button";
 import { api } from "@/services/api";
 import type { AdminAccount, AdminProvider } from "@/types/vitalpilot";
 import { Button, Card, Empty, Field, Heading, Notice, Screen, ui } from "@/components/design/ui";
@@ -158,7 +159,7 @@ function ProviderCard({ provider, onReviewed }: { provider: AdminProvider; onRev
 }
 
 export default function AdminPortal() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [section, setSection] = useState<"doctors" | "accounts" | "content" | "team">("doctors");
   const [status, setStatus] = useState<ReviewStatus>("PENDING");
   const [offset, setOffset] = useState(0);
@@ -179,6 +180,7 @@ export default function AdminPortal() {
     await load();
   }
   return <Screen brand={false}>
+    <SignOutButton />
     <Heading title="Admin portal" subtitle={`Welcome, ${user?.firstname ?? ""}`} />
     <View style={[ui.row, { gap: 12, flexWrap: "wrap" }]}>
       <Button secondary onPress={() => setSection("doctors")}>Doctor reviews</Button>
@@ -207,6 +209,5 @@ export default function AdminPortal() {
     </View>
     <Button secondary onPress={() => void load()}>Refresh</Button>
     </>}
-    <Button secondary onPress={() => void signOut()}>Sign out</Button>
   </Screen>;
 }

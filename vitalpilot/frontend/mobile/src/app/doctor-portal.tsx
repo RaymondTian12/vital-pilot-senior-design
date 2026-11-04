@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Text } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/auth-context";
+import { SignOutButton } from "@/components/sign-out-button";
 import { api } from "@/services/api";
 import { Button, Card, Empty, Heading, Notice, Screen, ui } from "@/components/design/ui";
 
 type Patient = { user_id: number; first_name: string; last_name: string; date_of_birth: string };
 export default function DoctorPortal() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [status, setStatus] = useState<"PENDING" | "APPROVED" | "REJECTED" | "REMOVED" | null>(null);
@@ -26,6 +27,7 @@ export default function DoctorPortal() {
   }, []);
   useEffect(() => { void load(); }, [load]);
   return <Screen brand={false}>
+    <SignOutButton />
     <Heading title="Doctor portal" subtitle={`Welcome, Dr. ${user?.lastname ?? ""}`} />
     {status === "APPROVED" && <Notice>Only patients who currently share their records with you appear here.</Notice>}
     {status === "PENDING" && <Notice>Your doctor account is awaiting verification. You can check back here after the VitalPilot team reviews your details.</Notice>}
@@ -40,6 +42,5 @@ export default function DoctorPortal() {
       <Button onPress={() => router.push({ pathname: "/doctor-patient", params: { id: String(p.user_id) } })}>View records</Button>
     </Card>)}
     <Button secondary onPress={() => void load()}>Refresh</Button>
-    <Button secondary onPress={() => void signOut()}>Sign out</Button>
   </Screen>;
 }
