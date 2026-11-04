@@ -129,26 +129,21 @@ def fetch_previous_report(cursor, profile_id, before_start):
 
 
 def generate_narrative(system_instruction, context):
-    """Calls Gemini for one section of prose. Returns a clearly-labeled
-    placeholder (not an error) when GEMINI_API_KEY isn't configured yet, so
-    the rest of the report still works end-to-end without it."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return (
-            "[AI-generated narrative unavailable: GEMINI_API_KEY is not configured. "
-            "Every other figure in this report reflects real, saved data.]"
-        )
-    try:
-        from google import genai
+    """Calls the LLM (via backend.llm's multi-model fallback chain) for the
+    report's prose. Returns a clearly-labeled placeholder (not an error) on
+    any failure -- missing API key, every model exhausted, a timeout -- so
+    the rest of the report still works end-to-end without it.
 
-        # 20s timeout: a hung Gemini call must not hang the whole report request.
-        client = genai.Client(api_key=api_key, http_options={"timeout": 20000})
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=json.dumps(context, default=str),
-            config={"system_instruction": system_instruction},
-        )
-        return (response.text or "").strip()
+    Imports backend.llm lazily: that module builds its Gemini client at
+    import time and raises immediately if GEMINI_API_KEY isn't set, so a
+    top-level import here would take down the whole backend on startup
+    whenever the key is missing, not just this one feature.
+    """
+    prompt = f"{system_instruction}\n\nDATA:\n{json.dumps(context, default=str)}"
+    try:
+        from backend.llm import call_model_with_fallbacks
+
+        return (call_model_with_fallbacks(prompt) or "").strip()
     except Exception as exc:
         return f"[AI-generated narrative unavailable: {exc}]"
 
