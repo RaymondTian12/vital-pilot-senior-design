@@ -5,4 +5,5 @@ pymysql
 cryptography
 argon2-cffi
 pyjwt
+google-genai
 httpx
