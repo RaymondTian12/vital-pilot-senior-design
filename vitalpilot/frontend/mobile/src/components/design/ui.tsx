@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useAuth } from "@/context/auth-context";
 import { VitalPilotLogo } from "@/components/vitalpilot/logo";
 import { VitalPilotColors as C, Layout } from "@/constants/vitalpilot";
 import { Icon, type IconName } from "./icon";
@@ -90,6 +91,7 @@ export function Screen({
   scroll?: boolean;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: C.background }}
@@ -134,7 +136,7 @@ export function Screen({
                   <Brand />
                 )}
                 {back && brand && <Brand />}
-                {!back && (
+                {!back && user?.role === "patient" && (
                   <Pressable
                     accessibilityLabel="Open notifications"
                     accessibilityRole="button"
@@ -156,9 +158,12 @@ export function Screen({
     </SafeAreaView>
   );
 }
-export function Brand() {
+export function Brand({ guestDestination = "/welcome" }: { guestDestination?: "/welcome" | "/signup" }) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const destination = user?.role === "admin" ? "/admin-portal" : user?.role === "provider" ? "/doctor-portal" : user ? "/home" : guestDestination;
   return (
-    <View style={[ui.row, { gap: 8 }]}>
+    <Pressable accessibilityRole="link" accessibilityLabel="VitalPilot home" onPress={() => router.replace(destination)} style={[ui.row, { gap: 8, minHeight: 48 }]}>
       <VitalPilotLogo size={34} />
       <Text
         style={{
@@ -170,7 +175,7 @@ export function Brand() {
       >
         VitalPilot
       </Text>
-    </View>
+    </Pressable>
   );
 }
 export function Heading({

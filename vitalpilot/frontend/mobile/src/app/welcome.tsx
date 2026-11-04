@@ -68,7 +68,7 @@ export default function Welcome() {
   return (
     <SafeAreaView style={s.root} edges={["top", "bottom", "left", "right"]}>
       <View style={s.header}>
-        <Brand />
+        <Brand guestDestination="/signup" />
         <View style={s.headerActions}>
           <Pressable
             accessibilityRole="button"

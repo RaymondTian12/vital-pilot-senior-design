@@ -43,7 +43,7 @@ export default function DoctorSignUp() {
         firstname: first.trim(), lastname: last.trim(), email: email.trim(), password,
         npi: npi.trim(), specialty: specialty.trim(), license_state: state.trim().toUpperCase(), license_number: license.trim(),
       });
-      router.replace("/signin?registered=doctor");
+      router.replace("/doctor-signup-success");
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to submit your registration."); }
     finally { setBusy(false); }
   }
