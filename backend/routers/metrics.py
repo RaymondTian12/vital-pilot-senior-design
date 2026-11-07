@@ -9,6 +9,7 @@ from backend.db import get_db_connection
 from backend.engine.clinical_evaluator import classify_blood_pressure
 from backend.models.User import User
 from backend.metric_assessments import load_settings, save_assessment, attach_assessments
+from backend.notifications import evaluate_temporal_alerts, notify_reading
 from backend.routers.auth import Vitals
 from backend.security import get_current_user
 
@@ -110,6 +111,17 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                 if payload.metric_type == Vitals.BLOOD_GLUCOSE: context["glucose_context"] = payload.glucose_context
                 if payload.metric_type == Vitals.PEAK_FLOW_RATE and payload.peak_personal_best: context["peak_personal_best"] = payload.peak_personal_best
                 classification = save_assessment(cursor, current_user.user_id, record, load_settings(cursor, current_user.user_id), context)
+
+            try:
+                metric_value_text = (
+                    f"{payload.systolic_mmhg}/{payload.diastolic_mmhg}" if payload.metric_type == Vitals.BLOOD_PRESSURE
+                    else str(getattr(payload, input_fields[0]))
+                )
+                notify_reading(cursor, current_user.user_id, payload.metric_type.value, classification, metric_value_text)
+                evaluate_temporal_alerts(cursor, current_user.user_id, payload.metric_type)
+            except Exception as notify_exc:
+                # Never let a notification bug block saving the reading itself.
+                print(f"Error occurred while creating notifications for a saved metric. Error: {notify_exc}")
         conn.commit()
     except HTTPException:
         conn.rollback()

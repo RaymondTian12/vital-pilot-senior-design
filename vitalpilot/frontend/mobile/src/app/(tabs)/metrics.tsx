@@ -22,6 +22,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { usePreview } from "@/context/preview-context";
+import { useNotifications } from "@/context/notification-context";
 import { Card, Screen, ui } from "@/components/design/ui";
 import { Icon } from "@/components/design/icon";
 import { Sparkline } from "@/components/design/charts";
@@ -56,6 +57,7 @@ export default function Metrics() {
   const active = selectedType === "BLOOD_PRESSURE" ? bp : other;
   const [saved, setSaved] = useState<SavedMetricReading | null>(null);
   const { preview, setPreview } = usePreview();
+  const { refreshNotifications } = useNotifications();
   const opener = useRef<View | null>(null);
   const overview = useRef<Text>(null);
   useEffect(() => {
@@ -305,6 +307,7 @@ export default function Metrics() {
                 ...current,
                 [selected]: { ...emptyDraft },
               }));
+              void refreshNotifications();
             }
           }}
           onChange={change}

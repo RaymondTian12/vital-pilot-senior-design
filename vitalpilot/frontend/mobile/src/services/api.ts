@@ -13,6 +13,7 @@ import type {
   SignInResponse,
   SignUpResponse,
 } from "@/types/vitalpilot";
+import type { VitalNotification } from "@/types/notification";
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(
   /\/$/,
   "",
@@ -54,6 +55,35 @@ export interface ReportPreviewData {
     recorded_at: string;
     severity: "URGENT" | "WARNING";
   }[];
+}
+interface NotificationRecord {
+  notification_id: number;
+  title: string;
+  message: string;
+  severity: "info" | "success" | "warning" | "critical";
+  category: "metric" | "report" | "reminder" | "system" | "health-alert";
+  metric_name: string | null;
+  metric_value: string | null;
+  action_label: string | null;
+  action_route: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+function toVitalNotification(record: NotificationRecord): VitalNotification {
+  return {
+    id: String(record.notification_id),
+    title: record.title,
+    message: record.message,
+    severity: record.severity,
+    category: record.category,
+    read: record.is_read,
+    createdAt: record.created_at,
+    metricName: record.metric_name ?? undefined,
+    metricValue: record.metric_value ?? undefined,
+    action: record.action_label && record.action_route
+      ? { label: record.action_label, route: record.action_route }
+      : undefined,
+  };
 }
 export class ApiError extends Error {
   constructor(
@@ -262,6 +292,23 @@ export const api = {
   },
   getReportPreview: (reportId: number) =>
     request<ReportPreviewData>(`/reports/${reportId}/preview`),
+  async getNotifications(): Promise<{ notifications: VitalNotification[]; unreadCount: number }> {
+    const { notifications, unread_count } = await request<{
+      notifications: NotificationRecord[];
+      unread_count: number;
+    }>("/notifications");
+    return { notifications: notifications.map(toVitalNotification), unreadCount: unread_count };
+  },
+  markNotificationRead: (id: string) =>
+    request<{ notification_id: number; is_read: boolean }>(`/notifications/${id}/read`, {
+      method: "POST",
+    }),
+  markAllNotificationsRead: () =>
+    request<{ updated: number }>("/notifications/read-all", { method: "POST" }),
+  deleteNotification: (id: string) =>
+    request<{ notification_id: number }>(`/notifications/${id}`, { method: "DELETE" }),
+  clearNotifications: () =>
+    request<{ cleared: number }>("/notifications", { method: "DELETE" }),
 };
 
 function headerValue(

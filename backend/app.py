@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import auth, doctors, metrics, provider_directory, reports, summary, portal, admin, content
+from backend.routers import auth, doctors, metrics, notifications, provider_directory, reports, summary, portal, admin, content
 
 app = FastAPI(title="Vital Pilot API", version="1.0.0")
 
@@ -23,6 +23,7 @@ app.include_router(provider_directory.router, tags=["care-team"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(doctors.router, prefix="/doctors", tags=["doctors"])
 app.include_router(metrics.router, tags=["metrics"])
+app.include_router(notifications.router, tags=["notifications"])
 app.include_router(summary.router, tags=["summary"])
 app.include_router(reports.router, tags=["reports"])
 app.include_router(portal.router, tags=["portal"])

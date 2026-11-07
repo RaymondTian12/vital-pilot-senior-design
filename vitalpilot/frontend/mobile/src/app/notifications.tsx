@@ -37,8 +37,15 @@ const samples = [
   },
 ];
 export default function Notifications() {
-  const { notifications, markAsRead, markAllAsRead, clearAllNotifications } =
-    useNotifications();
+  const {
+    notifications,
+    loading,
+    error,
+    markAsRead,
+    markAllAsRead,
+    clearAllNotifications,
+    refreshNotifications,
+  } = useNotifications();
   const { preview, setPreview } = usePreview();
   const [unread, setUnread] = useState(false);
   const [sampleRead, setSampleRead] = useState<string[]>([]);
@@ -50,6 +57,7 @@ export default function Notifications() {
         title="Notifications"
         subtitle="Important updates, clearly organized."
       />
+      {error && <Notice error>{error}</Notice>}
       <View style={ui.row}>
         <Chip selected={!unread} onPress={() => setUnread(false)}>
           All
@@ -136,7 +144,11 @@ export default function Notifications() {
         <>
           <Empty
             title="You’re all caught up"
-            message="There are no notifications in this session. Saved notification history is not connected yet."
+            message={
+              loading
+                ? "Loading your notifications…"
+                : "You have no notifications yet. We'll let you know when there's something worth seeing."
+            }
             icon="bell"
           />
           <Button secondary onPress={() => setPreview(true)}>
@@ -146,9 +158,12 @@ export default function Notifications() {
       )}
       {!!notifications.length && (
         <Button secondary onPress={clearAllNotifications}>
-          Clear session notifications
+          Clear all notifications
         </Button>
       )}
+      <Button secondary onPress={() => void refreshNotifications()}>
+        Refresh
+      </Button>
     </Screen>
   );
 }

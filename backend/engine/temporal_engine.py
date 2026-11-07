@@ -50,7 +50,7 @@ def evaluate_persistent_condition(
     condition: Callable[[Dict[str, Any]], bool],
     window_days: int = 30,
     min_days_required: int = 12,
-    reference_date: datetime | None = None
+    reference_date: Optional[datetime] = None
 ) -> Dict[str, Any]:
     """
     Evaluates whether a condition has occurred on a minimum number of
