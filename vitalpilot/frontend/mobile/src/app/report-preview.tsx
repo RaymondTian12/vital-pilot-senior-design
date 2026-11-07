@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Text, View, type StyleProp, type TextStyle } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { api, ApiError, type ReportPreviewData } from "@/services/api";
 import { Button, Card, Heading, Notice, Screen, ui } from "@/components/design/ui";
@@ -17,6 +17,26 @@ function formatDateTime(iso: string): string {
 
 function formatNumber(value: number): string {
   return parseFloat(value.toFixed(1)).toString();
+}
+
+// Long single-string paragraphs can silently lose their final wrapped line
+// on-device (a known RN Text layout issue with very long content). Splitting
+// into nested per-sentence Text fragments keeps the same inline paragraph
+// flow while sidestepping the bug, since each fragment is measured on its
+// own rather than one very long string.
+function sentenceFragments(text: string): string[] {
+  const matches = text.match(/[^.!?]+[.!?]*\s*/g);
+  return matches && matches.length > 0 ? matches : [text];
+}
+
+function Paragraph({ text, style }: { text: string; style?: StyleProp<TextStyle> }) {
+  return (
+    <Text style={style}>
+      {sentenceFragments(text).map((sentence, index) => (
+        <Text key={index}>{sentence}</Text>
+      ))}
+    </Text>
+  );
 }
 
 export default function ReportPreview() {
@@ -95,7 +115,7 @@ export default function ReportPreview() {
 
       <Card>
         <Text style={ui.heading}>History of present illness</Text>
-        <Text style={[ui.body, { flexShrink: 1 }]}>{data.narrative.hpi}</Text>
+        <Paragraph text={data.narrative.hpi} style={ui.body} />
         {data.previous_report && (
           <Text style={[ui.small, { fontStyle: "italic" }]}>
             Prior report on file: {data.previous_report.start_date} to{" "}
@@ -169,7 +189,7 @@ export default function ReportPreview() {
 
       <Card>
         <Text style={ui.heading}>Summary</Text>
-        <Text style={[ui.body, { flexShrink: 1 }]}>{data.narrative.summary}</Text>
+        <Paragraph text={data.narrative.summary} style={ui.body} />
       </Card>
 
       <Notice>
