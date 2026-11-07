@@ -18,7 +18,7 @@ Add `GEMINI_API_KEY` to the root `.env` and restart the backend. Do not paste ke
 into chat or mobile config. `backend/reporting.env.example` documents optional
 model/storage settings. PDF-only generation works without a key. The AI call has
 been tested with mocked responses; no live key was configured during implementation.
-The default model is `gemini-2.5-flash`, matching the team's branch. Set
+The default model is `gemini-3.5-flash`, matching Omar's current model choice. Set
 `GEMINI_REPORT_MODEL` to a model enabled on the team's project if that model is
 unavailable. Model access and billing must be available on the team's API project.
 
@@ -98,3 +98,8 @@ Omar's chatbot and Mohammad's full admin portal remain separate integrations.
 
 API reference: [Gemini text generation](https://ai.google.dev/gemini-api/docs/text-generation).
 Native sharing follows the [Expo SDK 57 sharing API](https://docs.expo.dev/versions/v57.0.0/sdk/sharing/).
+
+Model note (November 3, 2026): Google documents `gemini-3.5-flash` as deprecated
+and automatically routed to `gemini-3.6-flash`. The configured name follows Omar's
+request; it does not guarantee the underlying served model is 3.5. See
+https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash .

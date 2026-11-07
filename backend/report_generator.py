@@ -70,7 +70,7 @@ def report_facts(data):
 
 def ai_explanation(facts):
     key = os.getenv('GEMINI_API_KEY')
-    model = os.getenv('GEMINI_REPORT_MODEL', 'gemini-2.5-flash')
+    model = os.getenv('GEMINI_REPORT_MODEL', 'gemini-3.5-flash')
     if not key or not re.fullmatch(r'[A-Za-z0-9._-]+', model):
         return None, 'unavailable'
     instructions = (

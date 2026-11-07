@@ -96,7 +96,7 @@ class ReportTests(unittest.TestCase):
         with patch.dict(os.environ,{'GEMINI_API_KEY':'test-key'},clear=True),patch('backend.report_generator.httpx.post',return_value=response) as post:
             text,status=ai_explanation(report_facts(sample()))
         self.assertEqual(status,'included');self.assertIn('Educational',text)
-        self.assertTrue(post.call_args.args[0].endswith('/gemini-2.5-flash:generateContent'))
+        self.assertTrue(post.call_args.args[0].endswith('/gemini-3.5-flash:generateContent'))
         self.assertEqual(post.call_args.kwargs['headers']['x-goog-api-key'],'test-key')
         self.assertNotIn('test-key',post.call_args.args[0])
         self.assertNotIn('test-key',str(post.call_args.kwargs['json']))
