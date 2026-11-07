@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from backend.db import get_db_connection
 from backend.metric_assessments import attach_assessments, overall_result
 from backend.report_generator import (
+    build_report_data,
     build_report_pdf,
     fetch_patient_header,
     fetch_previous_report,
@@ -78,6 +79,9 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
             pdf_bytes = build_report_pdf(
                 header, f"{days}-day", start, end, overall, stats, previous, narrative,
             )
+            report_data = build_report_data(
+                header, f"{days}-day", start, end, overall, stats, previous, narrative,
+            )
 
             report_summary = json.dumps({
                 "metrics_tracked": {k: v["count"] for k, v in stats.items()},
@@ -86,12 +90,12 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
             })
             cursor.execute(
                 "INSERT INTO ClinicalReports (patient_profile_id, generated_by_user_id, report_title, "
-                "start_date, end_date, summary_text, file_url, file_size_kb, pdf_data) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "start_date, end_date, summary_text, file_url, file_size_kb, pdf_data, report_data) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     header["profile_id"], current_user.user_id, f"{days}-Day Health Report",
                     start.date(), end.date(), report_summary,
-                    "pending", max(1, len(pdf_bytes) // 1024), pdf_bytes,
+                    "pending", max(1, len(pdf_bytes) // 1024), pdf_bytes, json.dumps(report_data),
                 ),
             )
             report_id = cursor.lastrowid
@@ -114,7 +118,10 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Report-Id": str(report_id),
+        },
     )
 
 
@@ -127,7 +134,7 @@ def report_history(current_user=Depends(get_current_user)):
         with conn.cursor() as cursor:
             cursor.execute(
                 "SELECT report_id, report_title, start_date, end_date, file_size_kb, created_at, "
-                "pdf_data IS NOT NULL AS downloadable "
+                "pdf_data IS NOT NULL AS downloadable, report_data IS NOT NULL AS previewable "
                 "FROM ClinicalReports WHERE generated_by_user_id = %s "
                 "ORDER BY created_at DESC",
                 (current_user.user_id,),
@@ -148,10 +155,39 @@ def report_history(current_user=Depends(get_current_user)):
                 "file_size_kb": row[4],
                 "created_at": row[5],
                 "downloadable": bool(row[6]),
+                "previewable": bool(row[7]),
             }
             for row in rows
         ]
     }
+
+
+@router.get("/reports/{report_id}/preview")
+def preview_report(report_id: int, current_user=Depends(get_current_user)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Report preview is temporarily unavailable.")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT generated_by_user_id, report_data "
+                "FROM ClinicalReports WHERE report_id = %s",
+                (report_id,),
+            )
+            row = cursor.fetchone()
+    except Exception as exc:
+        print(f"Error occurred while loading report preview. Error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to load report preview")
+    finally:
+        conn.close()
+    # 404 (not 403) for both "doesn't exist" and "not yours" -- don't reveal
+    # that a report_id belonging to someone else exists.
+    if not row or row[0] != current_user.user_id:
+        raise HTTPException(404, "Report not found.")
+    _, report_data = row
+    if report_data is None:
+        raise HTTPException(410, "This report was generated before in-app preview was added and can't be previewed. Generate a new one.")
+    return json.loads(report_data)
 
 
 @router.get("/reports/{report_id}/download")

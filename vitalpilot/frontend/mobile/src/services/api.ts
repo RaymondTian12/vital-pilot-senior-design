@@ -25,6 +25,35 @@ export interface ReportHistoryItem {
   file_size_kb: number;
   created_at: string;
   downloadable: boolean;
+  previewable: boolean;
+}
+export interface ReportPreviewData {
+  period_label: string;
+  start_date: string;
+  end_date: string;
+  patient: {
+    name: string;
+    age: number;
+    sex: string;
+    dob: string;
+    height_in: number;
+    latest_weight_lbs: number | null;
+  };
+  narrative: { hpi: string; summary: string };
+  previous_report: { start_date: string; end_date: string } | null;
+  metrics: {
+    metric_type: string;
+    label: string;
+    unit: string;
+    count: number;
+    fields: Record<string, { min: number; max: number; avg: number }>;
+  }[];
+  alerts: {
+    metric_type: string;
+    classification: string;
+    recorded_at: string;
+    severity: "URGENT" | "WARNING";
+  }[];
 }
 export class ApiError extends Error {
   constructor(
@@ -221,22 +250,35 @@ export const api = {
     request<BloodPressurePage>(
       `/metrics?metric_type=BLOOD_PRESSURE&limit=20&offset=${offset}`,
     ),
-  async generateReport(days: 7 | 30 | 90): Promise<{ uri: string; filename: string }> {
+  async generateReport(days: 7 | 30 | 90): Promise<{ uri: string; filename: string; reportId: number | null }> {
     const filename = `vitalpilot-report-${days}day-${Date.now()}.pdf`;
     return downloadReportFile(`/reports/generate?days=${days}`, filename);
   },
   getReportHistory: () =>
     request<{ reports: ReportHistoryItem[] }>("/reports/history"),
-  async downloadReport(reportId: number): Promise<{ uri: string; filename: string }> {
+  async downloadReport(reportId: number): Promise<{ uri: string; filename: string; reportId: number | null }> {
     const filename = `vitalpilot-report-${reportId}-${Date.now()}.pdf`;
     return downloadReportFile(`/reports/${reportId}/download`, filename);
   },
+  getReportPreview: (reportId: number) =>
+    request<ReportPreviewData>(`/reports/${reportId}/preview`),
 };
+
+function headerValue(
+  headers: Record<string, string> | undefined,
+  name: string,
+): string | null {
+  if (!headers) return null;
+  const key = Object.keys(headers).find(
+    (candidate) => candidate.toLowerCase() === name.toLowerCase(),
+  );
+  return key ? headers[key] : null;
+}
 
 async function downloadReportFile(
   endpoint: string,
   filename: string,
-): Promise<{ uri: string; filename: string }> {
+): Promise<{ uri: string; filename: string; reportId: number | null }> {
   if (!API_BASE_URL)
     throw new Error("EXPO_PUBLIC_API_BASE_URL is not configured.");
   const token = await session.get();
@@ -251,5 +293,7 @@ async function downloadReportFile(
       `Failed to download report (status ${result.status}).`,
       result.status,
     );
-  return { uri: result.uri, filename };
+  const reportIdHeader = headerValue(result.headers, "X-Report-Id");
+  const parsedReportId = reportIdHeader ? Number(reportIdHeader) : NaN;
+  return { uri: result.uri, filename, reportId: Number.isFinite(parsedReportId) ? parsedReportId : null };
 }

@@ -14,7 +14,15 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    HRFlowable,
+    Image,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 from backend.engine.clinical_evaluator import classify_blood_pressure
 from backend.routers.auth import Vitals
@@ -27,6 +35,19 @@ AI_DISCLAIMER = (
     "and may contain errors or omissions. Verify this narrative against the data tables above, "
     "and do not use it as the sole basis for a medical decision."
 )
+
+# VitalPilot brand palette (kept in sync with mobile's VitalPilotColors).
+PRIMARY = colors.HexColor("#087F83")
+PRIMARY_DARK = colors.HexColor("#06676B")
+TITLE_COLOR = colors.HexColor("#142A35")
+TEXT_SECONDARY = colors.HexColor("#536B7C")
+MINT = colors.HexColor("#E5F4F5")
+MINT_STRONG = colors.HexColor("#D5ECEF")
+BORDER = colors.HexColor("#DCE5EC")
+DANGER = colors.HexColor("#B42318")
+DANGER_BG = colors.HexColor("#FDECEA")
+WARNING = colors.HexColor("#854D0E")
+WARNING_BG = colors.HexColor("#FFF4DF")
 
 # Per-metric (label, unit, value field(s)) used for the "tracked metrics" table.
 METRIC_DISPLAY = {
@@ -159,23 +180,84 @@ def parse_combined_narrative(text):
     return {"hpi": hpi_text.strip(), "summary": summary_text.strip()}
 
 
+def build_report_data(header, period_label, start, end, overall, stats, previous, narrative):
+    """Normalizes everything a report is made of into one JSON-serializable
+    dict. Used both to drive the PDF layout and as the response body for the
+    mobile app's in-app report preview screen, so the two views can never
+    drift apart."""
+    alerts = [
+        {**reading, "severity": "URGENT"} for reading in overall.get("urgent_readings", [])
+    ] + [
+        {**reading, "severity": "WARNING"} for reading in overall.get("warning_readings", [])
+    ]
+    alerts.sort(key=lambda reading: reading["recorded_at"], reverse=True)
+    return {
+        "period_label": period_label,
+        "start_date": start.date().isoformat(),
+        "end_date": end.date().isoformat(),
+        "patient": {
+            "name": header["name"],
+            "age": header["age"],
+            "sex": header["sex"],
+            "dob": header["dob"],
+            "height_in": header["height_in"],
+            "latest_weight_lbs": header["latest_weight_lbs"],
+        },
+        "narrative": {"hpi": narrative.get("hpi", ""), "summary": narrative.get("summary", "")},
+        "previous_report": previous,
+        "metrics": [
+            {"metric_type": metric_type, "label": entry["label"], "unit": entry["unit"],
+             "count": entry["count"], "fields": entry["fields"]}
+            for metric_type, entry in stats.items()
+        ],
+        "alerts": [
+            {
+                "metric_type": reading["metric_type"],
+                "classification": reading["classification"],
+                "recorded_at": reading["recorded_at"].isoformat()
+                if hasattr(reading["recorded_at"], "isoformat") else str(reading["recorded_at"]),
+                "severity": reading["severity"],
+            }
+            for reading in alerts
+        ],
+    }
+
+
+def _report_footer(canvas_obj, doc):
+    canvas_obj.saveState()
+    canvas_obj.setFont("Helvetica", 8)
+    canvas_obj.setFillColor(PRIMARY_DARK)
+    canvas_obj.drawString(0.75 * inch, 0.5 * inch, "VitalPilot")
+    canvas_obj.setFillColor(TEXT_SECONDARY)
+    canvas_obj.drawRightString(LETTER[0] - 0.75 * inch, 0.5 * inch, f"Page {canvas_obj.getPageNumber()}")
+    canvas_obj.restoreState()
+
+
 def build_report_pdf(header, period_label, start, end, overall, stats, previous, narrative):
+    data = build_report_data(header, period_label, start, end, overall, stats, previous, narrative)
+
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=LETTER, topMargin=0.75 * inch, bottomMargin=0.75 * inch)
+    doc = SimpleDocTemplate(buffer, pagesize=LETTER, topMargin=0.75 * inch, bottomMargin=0.85 * inch)
     styles = getSampleStyleSheet()
     body = styles["BodyText"]
-    heading = ParagraphStyle("SectionHeading", parent=styles["Heading2"], spaceBefore=14, spaceAfter=6)
-    small = ParagraphStyle("Small", parent=styles["BodyText"], fontSize=8, textColor=colors.grey)
+    title_style = ParagraphStyle("ReportTitle", parent=styles["Title"], textColor=TITLE_COLOR)
+    subtitle_style = ParagraphStyle("ReportSubtitle", parent=styles["BodyText"], textColor=TEXT_SECONDARY)
+    heading = ParagraphStyle("SectionHeading", parent=styles["Heading2"], textColor=PRIMARY_DARK, spaceBefore=16, spaceAfter=4)
+    small = ParagraphStyle("Small", parent=styles["BodyText"], fontSize=8, textColor=TEXT_SECONDARY)
     table_style = TableStyle([
         ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("BACKGROUND", (0, 0), (-1, 0), PRIMARY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, MINT]),
+        ("GRID", (0, 0), (-1, -1), 0.5, BORDER),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
     ])
 
     title_block = [
-        Paragraph("VitalPilot Health Report", styles["Title"]),
-        Paragraph(f"{period_label} summary &middot; {start.date()} to {end.date()}", body),
+        Paragraph("VitalPilot Health Report", title_style),
+        Paragraph(f"{period_label} summary &middot; {start.date()} to {end.date()}", subtitle_style),
     ]
     if os.path.exists(LOGO_PATH):
         logo = Image(LOGO_PATH, width=0.55 * inch, height=0.55 * inch)
@@ -184,9 +266,12 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING", (0, 0), (0, 0), 0),
         ]))
-        elements = [masthead, Spacer(1, 12)]
+        elements = [masthead]
     else:
-        elements = [*title_block, Spacer(1, 12)]
+        elements = [*title_block]
+    elements.append(Spacer(1, 6))
+    elements.append(HRFlowable(width="100%", thickness=1.5, color=PRIMARY))
+    elements.append(Spacer(1, 10))
 
     header_table = Table(
         [
@@ -200,12 +285,19 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
     )
     header_table.setStyle(TableStyle([
         ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("TEXTCOLOR", (0, 0), (0, -1), colors.grey),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("TEXTCOLOR", (0, 0), (0, -1), PRIMARY_DARK),
+        ("BACKGROUND", (0, 0), (-1, -1), MINT),
+        ("BOX", (0, 0), (-1, -1), 0.5, BORDER),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
     ]))
     elements.append(header_table)
 
     elements.append(Paragraph("History of Present Illness", heading))
+    elements.append(HRFlowable(width="100%", thickness=0.75, color=BORDER))
+    elements.append(Spacer(1, 6))
     elements.append(Paragraph(narrative.get("hpi", ""), body))
     if previous:
         elements.append(Spacer(1, 4))
@@ -214,8 +306,10 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
         ))
 
     elements.append(Paragraph("Tracked Metrics This Period", heading))
+    elements.append(HRFlowable(width="100%", thickness=0.75, color=BORDER))
+    elements.append(Spacer(1, 6))
     data_rows = [["Metric", "Readings", "Range", "Average"]]
-    for entry in stats.values():
+    for entry in data["metrics"]:
         if entry["count"] == 0:
             data_rows.append([entry["label"], "0", "-", "-"])
             continue
@@ -227,26 +321,47 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
     elements.append(data_table)
 
     elements.append(Paragraph("Notable Alerts", heading))
-    alerts = overall.get("urgent_readings", []) + overall.get("warning_readings", [])
+    elements.append(HRFlowable(width="100%", thickness=0.75, color=BORDER))
+    elements.append(Spacer(1, 6))
+    alerts = data["alerts"]
     if alerts:
         alert_rows = [["Date/Time", "Metric", "Classification"]]
-        for alert in sorted(alerts, key=lambda a: a["recorded_at"], reverse=True):
+        for alert in alerts:
             recorded = alert["recorded_at"]
             alert_rows.append([
-                recorded.strftime("%Y-%m-%d %H:%M") if hasattr(recorded, "strftime") else str(recorded),
+                recorded[:16].replace("T", " ") if isinstance(recorded, str) else str(recorded),
                 alert["metric_type"].replace("_", " ").title(),
                 alert["classification"],
             ])
         alert_table = Table(alert_rows, colWidths=[140, 140, 170])
-        alert_table.setStyle(table_style)
+        alert_style = [
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("BACKGROUND", (0, 0), (-1, 0), PRIMARY_DARK),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, BORDER),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ]
+        for row_index, alert in enumerate(alerts, start=1):
+            if alert["severity"] == "URGENT":
+                alert_style.append(("BACKGROUND", (0, row_index), (-1, row_index), DANGER_BG))
+                alert_style.append(("TEXTCOLOR", (2, row_index), (2, row_index), DANGER))
+            else:
+                alert_style.append(("BACKGROUND", (0, row_index), (-1, row_index), WARNING_BG))
+                alert_style.append(("TEXTCOLOR", (2, row_index), (2, row_index), WARNING))
+            alert_style.append(("FONTNAME", (2, row_index), (2, row_index), "Helvetica-Bold"))
+        alert_table.setStyle(TableStyle(alert_style))
         elements.append(alert_table)
     else:
         elements.append(Paragraph("No urgent or warning alerts were triggered during this period.", body))
 
     elements.append(Paragraph("Summary", heading))
+    elements.append(HRFlowable(width="100%", thickness=0.75, color=BORDER))
+    elements.append(Spacer(1, 6))
     elements.append(Paragraph(narrative.get("summary", ""), body))
 
-    elements.append(Spacer(1, 10))
+    elements.append(Spacer(1, 12))
     elements.append(Paragraph(f"<i>{AI_DISCLAIMER}</i>", small))
 
     elements.append(Spacer(1, 16))
@@ -256,5 +371,5 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
         small,
     ))
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=_report_footer, onLaterPages=_report_footer)
     return buffer.getvalue()

@@ -2,6 +2,7 @@ import { ReportFeedback, type ReportPhase } from "@/components/design/report-fee
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import * as Sharing from "expo-sharing";
+import { useRouter } from "expo-router";
 import { usePreview } from "@/context/preview-context";
 import { api, ApiError, type ReportHistoryItem } from "@/services/api";
 import {
@@ -44,9 +45,11 @@ export default function Reports() {
 
   const [period, setPeriod] = useState<PeriodLabel>("30 days");
   const { preview, setPreview } = usePreview();
+  const router = useRouter();
 
   const [reportPhase, setReportPhase] = useState<ReportPhase | null>(null);
   const [reportUri, setReportUri] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<number | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
 
   const [history, setHistory] = useState<ReportHistoryItem[] | null>(null);
@@ -75,9 +78,11 @@ export default function Reports() {
     setReportPhase("generating");
     setReportError(null);
     setReportUri(null);
+    setReportId(null);
     try {
-      const { uri } = await api.generateReport(PERIODS[period]);
+      const { uri, reportId: newReportId } = await api.generateReport(PERIODS[period]);
       setReportUri(uri);
+      setReportId(newReportId);
       setReportPhase("ready");
       loadHistory();
     } catch (error: unknown) {
@@ -169,6 +174,16 @@ export default function Reports() {
       <Button secondary disabled={!reportUri} onPress={handleDownload}>
         Download PDF
       </Button>
+      <Button
+        secondary
+        disabled={!reportId}
+        onPress={() =>
+          reportId &&
+          router.push({ pathname: "/report-preview", params: { id: String(reportId) } })
+        }
+      >
+        View in app
+      </Button>
       {reportPhase && <ReportFeedback phase={reportPhase} />}
       {reportError && <Notice>{reportError}</Notice>}
       <Text style={ui.heading}>Report history</Text>
@@ -188,6 +203,18 @@ export default function Reports() {
               {item.start_date} to {item.end_date} · generated{" "}
               {new Date(item.created_at).toLocaleDateString()}
             </Text>
+            <Button
+              secondary
+              disabled={!item.previewable}
+              onPress={() =>
+                router.push({
+                  pathname: "/report-preview",
+                  params: { id: String(item.report_id) },
+                })
+              }
+            >
+              {item.previewable ? "View in app" : "Not available to preview"}
+            </Button>
             <Button
               secondary
               disabled={!item.downloadable || downloadingId === item.report_id}
