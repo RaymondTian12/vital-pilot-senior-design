@@ -95,7 +95,7 @@ export default function ReportPreview() {
 
       <Card>
         <Text style={ui.heading}>History of present illness</Text>
-        <Text style={ui.body}>{data.narrative.hpi}</Text>
+        <Text style={[ui.body, { flexShrink: 1 }]}>{data.narrative.hpi}</Text>
         {data.previous_report && (
           <Text style={[ui.small, { fontStyle: "italic" }]}>
             Prior report on file: {data.previous_report.start_date} to{" "}
@@ -139,7 +139,7 @@ export default function ReportPreview() {
       <Card>
         <Text style={ui.heading}>Notable alerts</Text>
         {data.alerts.length === 0 ? (
-          <Text style={ui.body}>
+          <Text style={[ui.body, { flexShrink: 1 }]}>
             No urgent or warning alerts were triggered during this period.
           </Text>
         ) : (
@@ -169,7 +169,7 @@ export default function ReportPreview() {
 
       <Card>
         <Text style={ui.heading}>Summary</Text>
-        <Text style={ui.body}>{data.narrative.summary}</Text>
+        <Text style={[ui.body, { flexShrink: 1 }]}>{data.narrative.summary}</Text>
       </Card>
 
       <Notice>
