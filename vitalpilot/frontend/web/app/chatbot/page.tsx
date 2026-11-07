@@ -78,15 +78,17 @@ const Chatbot = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: userMessage,
-        }),
-      });
+         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/chat`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+       "Content-Type": "application/json",
+     },
+     body: JSON.stringify({
+       message: userMessage,
+       history: messages,
+     }),
+   });
 
       if (!response.ok) {
         throw new Error("Failed to get AI response.");

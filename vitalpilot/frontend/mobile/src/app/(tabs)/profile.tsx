@@ -1,37 +1,23 @@
-import { useState } from "react";
 import { Switch, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/auth-context";
+import { SignOutButton } from "@/components/sign-out-button";
 import { usePreview } from "@/context/preview-context";
 import {
-  Button,
   Card,
   Heading,
-  Notice,
   Row,
   Screen,
   ui,
 } from "@/components/design/ui";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 export default function Profile() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { preview, setPreview } = usePreview();
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function logout() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await signOut();
-    } catch {
-      setError("Unable to clear the session. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <Screen>
+      <SignOutButton />
       <Heading title="Your profile" />
       <View style={ui.row}>
         <View
@@ -111,10 +97,6 @@ export default function Profile() {
           onPress={() => router.push("/notifications")}
         />
       </Card>
-      {error && <Notice error>{error}</Notice>}
-      <Button secondary icon="logout" loading={busy} onPress={logout}>
-        Sign out
-      </Button>
     </Screen>
   );
 }

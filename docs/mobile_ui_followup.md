@@ -80,3 +80,27 @@ blindly. No shared-database writes were made during this Git integration.
 The report provider and statistics now follow the Gemini report branch; mobile
 PDF/history/share work is preserved, with no live AI calls made. Omar's shared
 Gemini chatbot endpoint and Mohammad's admin branch are separate integrations.
+
+## Team sync on November 7, 2026
+
+The new integration branch includes origin/main through `db2183f`: the full admin
+portal, doctor review controls, visible sign-out, registration improvements and
+Omar's Gemini backend chat route. Admin accounts enter `/admin-portal`; the older
+read-only directory remains a secondary route. Source changes for the selected
+report model were committed before merging. Editor settings were preserved in a
+separate stash; secrets and the shared database were untouched by this sync.
+
+The backend now requires `google-genai`; it is installed in the local virtual
+environment. Gemini clients initialize on request so missing AI configuration
+returns a service error instead of breaking backend startup. An incoming admin
+annotation was made compatible with the existing Python 3.9 environment.
+
+Mobile Pilot AI remains a preview. Omar's endpoint accepts
+`POST /chat {message, history:[{role, content}]}` and returns `{reply}`. The current
+mobile helper uses `{id,role,text}` history and expects `{text}`, so it still needs
+an explicit adapter and enabled chat UI. The endpoint currently uses conversation
+text, not a patient-reading database query. No live AI requests were made in tests.
+
+Incoming admin/content/provider migrations require review before running the new
+management features against an older database. Do not rerun consent-revocation
+migrations blindly. No migrations were applied during this Git merge.

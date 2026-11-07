@@ -11,7 +11,30 @@ CREATE TABLE IF NOT EXISTS Users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('patient', 'provider', 'admin') NOT NULL DEFAULT 'patient',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     date_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS WelcomeSlides (
+    slide_number TINYINT UNSIGNED PRIMARY KEY,
+    eyebrow VARCHAR(80) NOT NULL,
+    title VARCHAR(160) NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (updated_by) REFERENCES Users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS AdminAccountActions (
+    action_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    target_user_id BIGINT UNSIGNED NOT NULL,
+    admin_user_id BIGINT UNSIGNED NOT NULL,
+    action ENUM('SUSPEND', 'RESTORE') NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX target_action_history (target_user_id, created_at),
+    FOREIGN KEY (target_user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (admin_user_id) REFERENCES Users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS UserAuthIdentities (
@@ -49,7 +72,7 @@ CREATE TABLE IF NOT EXISTS Providers (
     specialty VARCHAR(100) NOT NULL,
     license_state VARCHAR(2) NOT NULL,
     license_number VARCHAR(50) NOT NULL,
-    verification_status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    verification_status ENUM('PENDING', 'APPROVED', 'REJECTED', 'REMOVED') NOT NULL DEFAULT 'PENDING',
     clinic_name VARCHAR(255) NULL,
     clinic_phone VARCHAR(20) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -66,6 +89,18 @@ CREATE TABLE IF NOT EXISTS PatientProviderAssignments (
     UNIQUE KEY unique_patient_provider (patient_profile_id, provider_id),
     FOREIGN KEY (provider_id) REFERENCES Providers(provider_id) ON DELETE CASCADE,
     FOREIGN KEY (patient_profile_id) REFERENCES UserHealthProfiles(profile_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ProviderReviews (
+    review_id SERIAL PRIMARY KEY,
+    provider_id BIGINT UNSIGNED NOT NULL,
+    admin_user_id BIGINT UNSIGNED NOT NULL,
+    decision ENUM('APPROVED', 'REJECTED', 'REMOVED') NOT NULL,
+    review_note VARCHAR(500) NOT NULL,
+    reviewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX provider_review_history (provider_id, reviewed_at),
+    FOREIGN KEY (provider_id) REFERENCES Providers(provider_id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_user_id) REFERENCES Users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS ClinicalThresholds (

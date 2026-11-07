@@ -13,7 +13,7 @@ class UserRole(Enum):
         return cls.PATIENT
 
 class User:
-    def __init__(self, firstname: str, lastname: str, email: str, password_hash: str, role: UserRole = UserRole.default(), user_id: typing.Optional[int] = None, created_at: typing.Optional[datetime] = None):
+    def __init__(self, firstname: str, lastname: str, email: str, password_hash: str, role: UserRole = UserRole.default(), user_id: typing.Optional[int] = None, created_at: typing.Optional[datetime] = None, is_active: bool = True):
         self.user_id = user_id
         self.firstname = firstname
         self.lastname = lastname
@@ -21,6 +21,7 @@ class User:
         self.password_hash = password_hash
         self.role = role
         self.created_at = created_at or datetime.now()
+        self.is_active = is_active
 
     def to_dict(self) -> typing.Dict[str, typing.Any]:
         return {
@@ -29,6 +30,7 @@ class User:
             "lastname": self.lastname,
             "email": self.email,
             "role": self.role,
+            "is_active": self.is_active,
             "created_at": self.created_at
         }
 
@@ -38,11 +40,11 @@ class User:
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    query = "SELECT user_id, first_name, last_name, email, password_hash, role, date_created FROM Users WHERE email = %s"
+                    query = "SELECT user_id, first_name, last_name, email, password_hash, role, date_created, is_active FROM Users WHERE email = %s"
                     cursor.execute(query, (email,))
                     result = cursor.fetchone()
                     if result:
-                        user_id, firstname, lastname, email, password_hash, role, created_at = result
+                        user_id, firstname, lastname, email, password_hash, role, created_at, is_active = result
                         return User(
                             user_id=user_id,
                             firstname=firstname,
@@ -50,7 +52,8 @@ class User:
                             email=email,
                             password_hash=password_hash,
                             role=UserRole(role),
-                            created_at=created_at
+                            created_at=created_at,
+                            is_active=bool(is_active),
                         )
             except Exception as e:
                 print(f"Error occurred while fetching user by email. Error: {e}")

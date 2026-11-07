@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { api } from "@/services/api";
+import { SignOutButton } from "@/components/sign-out-button";
 import type { VitalType } from "@/types/vitalpilot";
 import { Button, Card, Chip, Heading, Notice, Screen, ui } from "@/components/design/ui";
 
@@ -37,6 +38,7 @@ export default function DoctorPatient() {
   }, [id, metric]);
   useEffect(() => { void load(); }, [load]);
   return <Screen back backFallback="/doctor-portal" brand={false}>
+    <SignOutButton />
     <Heading title={patient ? `${patient.first_name} ${patient.last_name}` : "Patient records"} subtitle="Readings shared by this patient" />
     {!!error && <Notice error>{error}</Notice>}
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>

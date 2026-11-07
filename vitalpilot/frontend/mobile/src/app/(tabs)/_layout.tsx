@@ -7,6 +7,6 @@ export default function TabLayout() {
   if (loading) return null;
   if (!user) return <Redirect href="/signin" />;
   if (user.role === "provider") return <Redirect href="/doctor-portal" />;
-  if (user.role === "admin") return <Redirect href="/portal" />;
+  if (user.role === "admin") return <Redirect href="/admin-portal" />;
   return <AppTabs />;
 }

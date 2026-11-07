@@ -60,7 +60,7 @@ class GoogleAuthTests(unittest.TestCase):
         from unittest.mock import MagicMock
         conn = MagicMock()
         cursor = conn.cursor.return_value.__enter__.return_value
-        cursor.fetchone.return_value = (123, "Test", "User", "original@example.com", "hash", "patient", None)
+        cursor.fetchone.return_value = (123, "Test", "User", "original@example.com", "hash", "patient", None, 1)
         with patch("backend.google_auth.get_db_connection", return_value=conn):
             user, is_new = google_user(self.claims(email="changed@example.com"))
         self.assertEqual(user.user_id, 123)

@@ -44,13 +44,13 @@ def google_user(claims: dict) -> tuple[User, bool]:
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                """SELECT u.user_id, u.first_name, u.last_name, u.email, u.password_hash, u.role, u.date_created
+                """SELECT u.user_id, u.first_name, u.last_name, u.email, u.password_hash, u.role, u.date_created, u.is_active
                    FROM UserAuthIdentities i JOIN Users u ON u.user_id = i.user_id
                    WHERE i.provider = 'google' AND i.provider_subject = %s""", (claims["sub"],),
             )
             row = cursor.fetchone()
             if row:
-                return User(row[1], row[2], row[3], row[4], UserRole(row[5]), row[0], row[6]), False
+                return User(row[1], row[2], row[3], row[4], UserRole(row[5]), row[0], row[6], bool(row[7])), False
             email = claims["email"].strip().lower()
             cursor.execute("SELECT user_id FROM Users WHERE email = %s", (email,))
             if cursor.fetchone():

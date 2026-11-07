@@ -51,7 +51,10 @@ def grant_provider(provider_id: int, current_user: User = Depends(get_current_us
             profile = cursor.fetchone()
             if not profile:
                 raise HTTPException(409, "Complete your health profile before sharing records")
-            cursor.execute("SELECT provider_id FROM Providers WHERE provider_id = %s AND verification_status = 'APPROVED'", (provider_id,))
+            cursor.execute(
+                "SELECT p.provider_id FROM Providers p JOIN Users u ON u.user_id = p.user_id "
+                "WHERE p.provider_id = %s AND p.verification_status = 'APPROVED' AND u.is_active = TRUE FOR UPDATE",
+                (provider_id,))
             if not cursor.fetchone():
                 raise HTTPException(404, "Approved provider not found")
             cursor.execute(
@@ -96,7 +99,7 @@ def revoke_provider(provider_id: int, current_user: User = Depends(get_current_u
 
 
 def provider_id_for(cursor, user_id: int):
-    cursor.execute("SELECT provider_id, verification_status FROM Providers WHERE user_id = %s", (user_id,))
+    cursor.execute("SELECT provider_id, verification_status FROM Providers WHERE user_id = %s FOR SHARE", (user_id,))
     row = cursor.fetchone()
     if not row:
         raise HTTPException(403, "Provider account is not configured")
