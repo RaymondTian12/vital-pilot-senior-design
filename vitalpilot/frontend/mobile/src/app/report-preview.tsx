@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Text, View, type StyleProp, type TextStyle } from "react-native";
+import { InteractionManager, Text, View, type StyleProp, type TextStyle } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { api, ApiError, type ReportPreviewData } from "@/services/api";
 import { Button, Card, Heading, Notice, Screen, ui } from "@/components/design/ui";
@@ -46,6 +46,11 @@ export default function ReportPreview() {
   const [data, setData] = useState<ReportPreviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Mounting the long narrative text right as the push-navigation transition
+  // is still animating has caused the scroll container to mismeasure it on
+  // real devices (losing the last wrapped line). Hold the heavy content
+  // until the transition has actually settled.
+  const [transitionDone, setTransitionDone] = useState(false);
 
   const load = useCallback(async () => {
     if (!Number.isSafeInteger(reportId) || reportId <= 0) {
@@ -73,7 +78,12 @@ export default function ReportPreview() {
     void load();
   }, [load]);
 
-  if (loading) {
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setTransitionDone(true));
+    return () => task.cancel();
+  }, []);
+
+  if (loading || !transitionDone) {
     return (
       <Screen back brand={false}>
         <Heading title="Health report" subtitle="Loading your report…" />
