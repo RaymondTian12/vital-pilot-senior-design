@@ -189,9 +189,6 @@ export default function ReportPreview() {
 
       <Card>
         <Text style={ui.heading}>Summary</Text>
-        <Text style={{ color: "red", fontWeight: "700" }}>
-          DEBUG length: {data.narrative.summary.length} chars
-        </Text>
         <Paragraph text={data.narrative.summary} style={ui.body} />
       </Card>
 
