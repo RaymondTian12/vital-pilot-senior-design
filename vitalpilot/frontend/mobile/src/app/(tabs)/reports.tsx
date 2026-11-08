@@ -16,7 +16,8 @@ import {
   Screen,
   ui,
 } from "@/components/design/ui";
-import { SleepChart } from "@/components/design/charts";
+import { ReportPreviewBody } from "@/components/design/report-preview-body";
+import { buildSampleReportPreview } from "@/constants/sample-report";
 
 const PERIODS = { "7 days": 7, "30 days": 30, "90 days": 90 } as const;
 type PeriodLabel = keyof typeof PERIODS;
@@ -134,18 +135,17 @@ export default function Reports() {
         ))}
       </View>
       {preview ? (
-        <Card>
-          <PreviewBadge />
-          <Text style={ui.heading}>Example overview</Text>
-          <Text style={ui.subtitle}>
-            Illustrative sleep data · this is not a generated {period} report.
-          </Text>
-          <Text style={ui.title}>7.3 hours</Text>
-          <Text style={ui.small}>
-            Average of the seven example readings below
-          </Text>
-          <SleepChart />
-        </Card>
+        <>
+          <Card>
+            <PreviewBadge />
+            <Text style={ui.heading}>Sample {period} report</Text>
+            <Text style={ui.subtitle}>
+              Made-up data, shown in the exact layout a real report uses · this is not a
+              generated {period} report.
+            </Text>
+          </Card>
+          <ReportPreviewBody data={buildSampleReportPreview(PERIODS[period])} />
+        </>
       ) : (
         <>
           <Empty
