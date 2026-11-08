@@ -9,16 +9,25 @@ type Client = {
   ) => Promise<BloodPressureReading>;
   getBloodPressure: (offset?: number) => Promise<BloodPressurePage>;
 };
+// Realistic ranges, not just "a positive number" -- blood pressure had no
+// upper bound at all before and would accept a systolic reading of 10000.
+const SYSTOLIC_RANGE = { min: 50, max: 300 };
+const DIASTOLIC_RANGE = { min: 30, max: 200 };
+
 export function pressureNumbers(primary: string, secondary: string) {
-  const values = [primary, secondary].map((value) => {
+  const ranges = [SYSTOLIC_RANGE, DIASTOLIC_RANGE];
+  const labels = ["systolic", "diastolic"];
+  const values = [primary, secondary].map((value, index) => {
     const text = value.trim();
+    const range = ranges[index];
     if (
       !/^\d+$/.test(text) ||
       !Number.isSafeInteger(Number(text)) ||
-      Number(text) <= 0
+      Number(text) < range.min ||
+      Number(text) > range.max
     )
       throw new Error(
-        "Enter both blood-pressure values as positive whole numbers.",
+        `Enter ${labels[index]} pressure as a whole number from ${range.min} to ${range.max} mmHg.`,
       );
     return Number(text);
   });

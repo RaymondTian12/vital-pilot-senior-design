@@ -17,17 +17,20 @@ router = APIRouter()
 
 
 class MetricCreateRequest(BaseModel):
+    # Bounds below are realistic physiological/device ranges, not just "a
+    # positive number" -- e.g. blood pressure previously had no upper bound
+    # at all and would accept a systolic reading of 10000.
     glucose_context: Literal["fasting", "nonfasting", "unknown"] = "unknown"
-    peak_personal_best: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
+    peak_personal_best: Optional[int] = Field(default=None, ge=30, le=900, strict=True)
     metric_type: Vitals
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    systolic_mmhg: Optional[int] = Field(default=None, gt=0)
-    diastolic_mmhg: Optional[int] = Field(default=None, gt=0)
-    glucose_mgdl: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
-    spo2_percentage: Optional[int] = Field(default=None, gt=0, le=100, strict=True)
-    flow_rate_lmin: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
-    steps_taken: Optional[int] = Field(default=None, ge=0, le=2147483647, strict=True)
-    weight_lbs: Optional[Decimal] = Field(default=None, gt=0, le=Decimal("999.99"), max_digits=5, decimal_places=2)
+    systolic_mmhg: Optional[int] = Field(default=None, ge=50, le=300)
+    diastolic_mmhg: Optional[int] = Field(default=None, ge=30, le=200)
+    glucose_mgdl: Optional[int] = Field(default=None, ge=20, le=600, strict=True)
+    spo2_percentage: Optional[int] = Field(default=None, ge=50, le=100, strict=True)
+    flow_rate_lmin: Optional[int] = Field(default=None, ge=30, le=900, strict=True)
+    steps_taken: Optional[int] = Field(default=None, ge=0, le=200000, strict=True)
+    weight_lbs: Optional[Decimal] = Field(default=None, ge=Decimal("20"), le=Decimal("999.99"), max_digits=5, decimal_places=2)
     duration_hours: Optional[Decimal] = Field(default=None, ge=0, le=24, max_digits=4, decimal_places=2)
     amount_cups: Optional[Decimal] = Field(default=None, ge=0, le=Decimal("99.99"), max_digits=4, decimal_places=2)
 
