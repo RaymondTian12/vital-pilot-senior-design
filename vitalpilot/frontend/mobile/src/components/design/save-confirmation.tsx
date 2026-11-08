@@ -6,19 +6,22 @@ import { ui } from "./ui";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 
 // Confirms persistence only; the clinical result keeps its own severity styling.
-export function SaveConfirmation({ children, animate, reducedMotion }: {
+export function SaveConfirmation({ children, animate, reducedMotion, updated = false }: {
   children: ReactNode;
   animate: boolean;
   reducedMotion: boolean;
+  updated?: boolean;
 }) {
   const reveal = useSharedValue(animate ? 0 : 1);
   const check = useSharedValue(animate && !reducedMotion ? 0.6 : 1);
   useEffect(() => {
     reveal.value = withTiming(1, { duration: reducedMotion ? 100 : 260 });
     check.value = reducedMotion ? 1 : withSpring(1, { damping: 13, stiffness: 220 });
-    if (animate) AccessibilityInfo.announceForAccessibility("Reading saved to your account.");
+    if (animate) AccessibilityInfo.announceForAccessibility(
+      updated ? "Today's entry updated." : "Reading saved to your account.",
+    );
     return () => { cancelAnimation(reveal); cancelAnimation(check); };
-  }, [animate, reducedMotion, reveal, check]);
+  }, [animate, reducedMotion, updated, reveal, check]);
   const contentStyle = useAnimatedStyle(() => ({
     opacity: reveal.value,
     transform: [{ translateY: reducedMotion ? 0 : (1 - reveal.value) * 12 }],
@@ -34,8 +37,12 @@ export function SaveConfirmation({ children, animate, reducedMotion }: {
           <Icon name="check" size={23} color={C.primaryDark} />
         </Animated.View>
         <View style={{ flex: 1 }}>
-          <Text style={[ui.body, { fontWeight: "700" }]}>Reading saved</Text>
-          <Text style={ui.small}>Saved to your account</Text>
+          <Text style={[ui.body, { fontWeight: "700" }]}>
+            {updated ? "Entry updated" : "Reading saved"}
+          </Text>
+          <Text style={ui.small}>
+            {updated ? "This replaced your earlier entry for today." : "Saved to your account"}
+          </Text>
         </View>
       </Animated.View>
       {children}

@@ -83,6 +83,7 @@ export function VitalsEntrySheet({
   const config = metricConfig(metric);
   const { signOut } = useAuth();
   const freshResult = saved?.metric_type === config.type ? saved : null;
+  const justUpdated = Boolean(freshResult && "updated" in freshResult && freshResult.updated);
   const result = preview ? null : freshResult ?? (latestReading?.metric_type === config.type ? latestReading : null);
   const resultDetails = result && (result.metric_type === "BLOOD_PRESSURE"
     ? <ReadingResult reading={result} showCare onFindCare={(specialty) => {
@@ -224,7 +225,7 @@ export function VitalsEntrySheet({
                   }}
                 >
                   {freshResult ? (
-                    <SaveConfirmation key={`${result.metric_type}-${result.log_id}`} animate reducedMotion={reducedMotion}>
+                    <SaveConfirmation key={`${result.metric_type}-${result.log_id}`} animate reducedMotion={reducedMotion} updated={justUpdated}>
                       {resultDetails}
                     </SaveConfirmation>
                   ) : (

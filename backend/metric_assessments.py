@@ -93,8 +93,14 @@ def assess(record, settings, context=None, legacy=False):
 
 def save_assessment(cursor, user_id, record, settings, context):
     result = assess(record, settings, context)
-    cursor.execute('INSERT INTO MetricAssessments (user_id, metric_type, log_id, context_json, assessment_json) VALUES (%s, %s, %s, %s, %s)',
-                   (user_id, record['metric_type'], record['log_id'], json.dumps(result['context']), json.dumps(result)))
+    # ON DUPLICATE KEY UPDATE: one-entry-per-day goal metrics (see
+    # ONE_PER_DAY_METRICS in routers/metrics.py) reuse the same log_id when
+    # a user updates today's entry, which would otherwise collide with this
+    # table's (user_id, metric_type, log_id) primary key.
+    cursor.execute(
+        'INSERT INTO MetricAssessments (user_id, metric_type, log_id, context_json, assessment_json) VALUES (%s, %s, %s, %s, %s) '
+        'ON DUPLICATE KEY UPDATE context_json = VALUES(context_json), assessment_json = VALUES(assessment_json)',
+        (user_id, record['metric_type'], record['log_id'], json.dumps(result['context']), json.dumps(result)))
     return result
 
 

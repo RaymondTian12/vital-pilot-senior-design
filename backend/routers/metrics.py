@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.db import get_db_connection
 from backend.engine.clinical_evaluator import classify_blood_pressure
@@ -24,6 +24,10 @@ class MetricCreateRequest(BaseModel):
     peak_personal_best: Optional[int] = Field(default=None, ge=30, le=900, strict=True)
     metric_type: Vitals
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Start of the device's local calendar day (see mobile's summaryWindow),
+    # used only for the one-entry-per-day goal metrics to find today's
+    # existing row to update instead of inserting a new one.
+    local_day_start: Optional[datetime] = None
     systolic_mmhg: Optional[int] = Field(default=None, ge=50, le=300)
     diastolic_mmhg: Optional[int] = Field(default=None, ge=30, le=200)
     glucose_mgdl: Optional[int] = Field(default=None, ge=20, le=600, strict=True)
@@ -33,6 +37,20 @@ class MetricCreateRequest(BaseModel):
     weight_lbs: Optional[Decimal] = Field(default=None, ge=Decimal("20"), le=Decimal("999.99"), max_digits=5, decimal_places=2)
     duration_hours: Optional[Decimal] = Field(default=None, ge=0, le=24, max_digits=4, decimal_places=2)
     amount_cups: Optional[Decimal] = Field(default=None, ge=0, le=Decimal("99.99"), max_digits=4, decimal_places=2)
+
+    @field_validator("amount_cups")
+    @classmethod
+    def half_cup_increments(cls, value):
+        if value is not None and value % Decimal("0.5") != 0:
+            raise ValueError("Enter water intake in half-cup increments (e.g. 6, 6.5, 7).")
+        return value
+
+
+# Goal-tracking metrics (see metric_assessments.py's GOALS) get at most one
+# row per local calendar day: saving again today updates that row instead
+# of inserting another. Clinical health metrics (including peak flow, which
+# is tracked multiple times a day on purpose) are unaffected.
+ONE_PER_DAY_METRICS = {Vitals.SLEEP, Vitals.PHYSICAL_ACTIVITY, Vitals.WATER_INTAKE}
 
 
 # metric_type -> (table name, ordered (request field, numeric) columns to
@@ -101,11 +119,35 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                 if bmi <= 0 or bmi > Decimal("999.9"):
                     raise HTTPException(400, "Weight and profile height produce a BMI outside the supported storage range. Review your profile height.")
                 values.append(bmi)
-            cursor.execute(
-                f"INSERT INTO {table} (user_id, {columns}, {timestamp_column}) VALUES (%s, {placeholders}, %s)",
-                (current_user.user_id, *values, utc_timestamp(payload.recorded_at).replace(tzinfo=None)),
-            )
-            log_id = cursor.lastrowid
+
+            existing_log_id = None
+            if payload.metric_type in ONE_PER_DAY_METRICS and payload.local_day_start is not None:
+                day_start = utc_timestamp(payload.local_day_start).replace(tzinfo=None)
+                day_end = day_start + timedelta(hours=24)
+                cursor.execute(
+                    f"SELECT log_id FROM {table} WHERE user_id = %s AND {timestamp_column} >= %s AND {timestamp_column} < %s "
+                    f"ORDER BY {timestamp_column} DESC LIMIT 1",
+                    (current_user.user_id, day_start, day_end),
+                )
+                row = cursor.fetchone()
+                existing_log_id = row[0] if row else None
+
+            if existing_log_id is not None:
+                assignments = ", ".join(f"{field} = %s" for field in fields)
+                cursor.execute(
+                    f"UPDATE {table} SET {assignments}, {timestamp_column} = %s WHERE log_id = %s",
+                    (*values, utc_timestamp(payload.recorded_at).replace(tzinfo=None), existing_log_id),
+                )
+                log_id = existing_log_id
+                updated = True
+            else:
+                cursor.execute(
+                    f"INSERT INTO {table} (user_id, {columns}, {timestamp_column}) VALUES (%s, {placeholders}, %s)",
+                    (current_user.user_id, *values, utc_timestamp(payload.recorded_at).replace(tzinfo=None)),
+                )
+                log_id = cursor.lastrowid
+                updated = False
+
             if payload.metric_type == Vitals.BLOOD_PRESSURE:
                 classification = classify_blood_pressure(cursor, payload.systolic_mmhg, payload.diastolic_mmhg)
             else:
@@ -141,6 +183,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
         "metric_type": payload.metric_type.value,
         "recorded_at": utc_timestamp(payload.recorded_at),
         "classification": classification,
+        "updated": updated,
         **{field: float(value) if isinstance(value, Decimal) else value for field, value in zip(fields, values)},
     }
 

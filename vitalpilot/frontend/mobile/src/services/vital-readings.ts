@@ -6,23 +6,34 @@ export const vitalFields = {
   SLEEP: "duration_hours", PHYSICAL_ACTIVITY: "steps_taken", WATER_INTAKE: "amount_cups",
 } as const;
 // Realistic physiological/device ranges, not just "any positive number" --
-// e.g. peak flow meters top out well under a billion L/min.
-const limits: Record<OtherVitalType, { min: number; max: number; integer: boolean }> = {
+// e.g. peak flow meters top out well under a billion L/min. "step", where
+// set, restricts entries to multiples of it (water intake: half-cup only).
+const limits: Record<OtherVitalType, { min: number; max: number; integer: boolean; step?: number }> = {
   BLOOD_GLUCOSE: {min: 20, max: 600, integer: true},
   BLOOD_OXYGEN: {min: 50, max: 100, integer: true},
   PEAK_FLOW_RATE: {min: 30, max: 900, integer: true},
   PHYSICAL_ACTIVITY: {min: 0, max: 200000, integer: true},
   BODY_MASS_INDEX: {min: 20, max: 999.99, integer: false},
   SLEEP: {min: 0, max: 24, integer: false},
-  WATER_INTAKE: {min: 0, max: 99.99, integer: false},
+  WATER_INTAKE: {min: 0, max: 99.99, integer: false, step: 0.5},
 };
+// Goal-tracking metrics get at most one entry per local calendar day --
+// saving again today updates that entry instead of adding another. Peak
+// flow is a clinical metric tracked multiple times a day on purpose, so
+// it's excluded even though it also has a "personal best" goal-like field.
+const ONE_PER_DAY_TYPES: readonly OtherVitalType[] = ["SLEEP", "PHYSICAL_ACTIVITY", "WATER_INTAKE"];
 export function vitalInput(type: OtherVitalType, text: string) {
   const rule = limits[type];
   const trimmed = text.trim();
   const valid = rule.integer ? /^\d+$/.test(trimmed) : /^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(trimmed);
   const value = Number(trimmed);
-  if (!valid || !Number.isFinite(value) || value < rule.min || value > rule.max)
-    throw new Error(`Enter ${rule.integer ? "a whole number" : "a number with up to two decimal places"} from ${rule.min} to ${rule.max}.`);
+  const stepValid = !rule.step || Math.abs(Math.round(value / rule.step) - value / rule.step) < 1e-9;
+  if (!valid || !Number.isFinite(value) || value < rule.min || value > rule.max || !stepValid)
+    throw new Error(
+      rule.step
+        ? `Enter water intake in half-cup increments (e.g. 6, 6.5, 7) from ${rule.min} to ${rule.max}.`
+        : `Enter ${rule.integer ? "a whole number" : "a number with up to two decimal places"} from ${rule.min} to ${rule.max}.`,
+    );
   return { [vitalFields[type]]: value };
 }
 export function checkedVital(type: OtherVitalType, reading: OtherMetricReading) {
@@ -54,6 +65,10 @@ export function createVitalStore(type: OtherVitalType, client: Client) {
       const text = context.peak_personal_best.trim();
       if (!/^\d+$/.test(text) || Number(text) < 30 || Number(text) > 900) throw new Error("Enter your personal best as a whole number from 30 to 900 L/min.");
       values.peak_personal_best = Number(text);
+    }
+    if (ONE_PER_DAY_TYPES.includes(type)) {
+      const now = new Date();
+      values.local_day_start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     }
     return values;
   });
