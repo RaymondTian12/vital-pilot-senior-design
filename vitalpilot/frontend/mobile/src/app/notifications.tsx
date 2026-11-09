@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { api } from "@/services/api";
+import { summaryWindow } from "@/services/daily-summary";
+import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
-import { useRouter, type Href } from "expo-router";
+import { useRouter, useFocusEffect, type Href } from "expo-router";
 import { useNotifications } from "@/context/notification-context";
 import { usePreview } from "@/context/preview-context";
 import {
@@ -37,8 +39,16 @@ const samples = [
   },
 ];
 export default function Notifications() {
-  const { notifications, markAsRead, markAllAsRead, clearAllNotifications } =
+  const { syncSummary, notifications, markAsRead, markAllAsRead, clearAllNotifications } =
     useNotifications();
+  const [syncError, setSyncError] = useState("");
+  const [retry, setRetry] = useState(0);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setSyncError("");
+    api.dailySummary(summaryWindow()).then(data => { if (active) syncSummary(data); }).catch(() => { if (active) setSyncError("Couldn’t refresh saved alerts. Previously loaded alerts remain available."); });
+    return () => { active = false; };
+  }, [syncSummary, retry]));
   const { preview, setPreview } = usePreview();
   const [unread, setUnread] = useState(false);
   const [sampleRead, setSampleRead] = useState<string[]>([]);
@@ -50,6 +60,8 @@ export default function Notifications() {
         title="Notifications"
         subtitle="Important updates, clearly organized."
       />
+      <Text style={ui.small}>Saved reading alerts for this session. Read status is reset when you sign out or restart the app.</Text>
+      {!!syncError && <><Text accessibilityRole="alert" style={ui.body}>{syncError}</Text><Button secondary onPress={() => setRetry(v => v+1)}>Retry alerts</Button></>}
       <View style={ui.row}>
         <Chip selected={!unread} onPress={() => setUnread(false)}>
           All

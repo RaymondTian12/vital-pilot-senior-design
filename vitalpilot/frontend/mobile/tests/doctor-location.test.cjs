@@ -26,4 +26,5 @@ test('approved one-time lookup resolves city and state', async () => {
  const location = { Accuracy:{Balanced:3}, hasServicesEnabledAsync:async()=>true, requestForegroundPermissionsAsync:async()=>({granted:true}), getCurrentPositionAsync:async()=>({coords:{latitude:32.7,longitude:-97.1}}), reverseGeocodeAsync:async()=>[{city:'Arlington',region:'Texas',isoCountryCode:'US'}] };
  const result=await load(location).locateDoctorSearchArea();
  assert.equal(result.city,'Arlington');assert.equal(result.state,'TX');
+ assert.equal(result.latitude,32.7);assert.equal(result.longitude,-97.1);
 });

@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Literal
 
@@ -16,12 +17,13 @@ router = APIRouter()
 
 
 class MetricCreateRequest(BaseModel):
+    timezone: Optional[str] = None
     glucose_context: Literal["fasting", "nonfasting", "unknown"] = "unknown"
     peak_personal_best: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
     metric_type: Vitals
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    systolic_mmhg: Optional[int] = Field(default=None, gt=0)
-    diastolic_mmhg: Optional[int] = Field(default=None, gt=0)
+    systolic_mmhg: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
+    diastolic_mmhg: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
     glucose_mgdl: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
     spo2_percentage: Optional[int] = Field(default=None, gt=0, le=100, strict=True)
     flow_rate_lmin: Optional[int] = Field(default=None, gt=0, le=2147483647, strict=True)
@@ -97,19 +99,40 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                 if bmi <= 0 or bmi > Decimal("999.9"):
                     raise HTTPException(400, "Weight and profile height produce a BMI outside the supported storage range. Review your profile height.")
                 values.append(bmi)
-            cursor.execute(
-                f"INSERT INTO {table} (user_id, {columns}, {timestamp_column}) VALUES (%s, {placeholders}, %s)",
-                (current_user.user_id, *values, utc_timestamp(payload.recorded_at).replace(tzinfo=None)),
-            )
-            log_id = cursor.lastrowid
+            existing = None
+            if payload.metric_type in (Vitals.SLEEP, Vitals.WATER_INTAKE, Vitals.PHYSICAL_ACTIVITY) and payload.timezone:
+                try:
+                    zone = ZoneInfo(payload.timezone)
+                except (ZoneInfoNotFoundError, ValueError):
+                    raise HTTPException(422, "Invalid timezone")
+                local = utc_timestamp(payload.recorded_at).astimezone(zone)
+                start = local.replace(hour=0, minute=0, second=0, microsecond=0)
+                end = start + timedelta(days=1)
+                cursor.execute("SELECT user_id FROM Users WHERE user_id = %s FOR UPDATE", (current_user.user_id,))
+                cursor.fetchone()
+                cursor.execute(f"SELECT log_id FROM {table} WHERE user_id = %s AND {timestamp_column} >= %s AND {timestamp_column} < %s ORDER BY {timestamp_column} DESC, log_id DESC LIMIT 1", (current_user.user_id, start.astimezone(timezone.utc).replace(tzinfo=None), end.astimezone(timezone.utc).replace(tzinfo=None)))
+                existing = cursor.fetchone()
+            if existing:
+                log_id = existing[0]
+                cursor.execute(f"UPDATE {table} SET {', '.join(f'{field} = %s' for field in fields)}, {timestamp_column} = %s WHERE log_id = %s AND user_id = %s", (*values, utc_timestamp(payload.recorded_at).replace(tzinfo=None), log_id, current_user.user_id))
+                cursor.execute("DELETE FROM MetricAssessments WHERE user_id = %s AND metric_type = %s AND log_id = %s", (current_user.user_id, payload.metric_type.value, log_id))
+            else:
+                cursor.execute(
+                    f"INSERT INTO {table} (user_id, {columns}, {timestamp_column}) VALUES (%s, {placeholders}, %s)",
+                    (current_user.user_id, *values, utc_timestamp(payload.recorded_at).replace(tzinfo=None)),
+                )
+                log_id = cursor.lastrowid
             if payload.metric_type == Vitals.BLOOD_PRESSURE:
                 classification = classify_blood_pressure(cursor, payload.systolic_mmhg, payload.diastolic_mmhg)
             else:
                 record = {"log_id": log_id, "metric_type": payload.metric_type.value, "recorded_at": utc_timestamp(payload.recorded_at), **dict(zip(fields, values))}
                 context = {}
                 if payload.metric_type == Vitals.BLOOD_GLUCOSE: context["glucose_context"] = payload.glucose_context
-                if payload.metric_type == Vitals.PEAK_FLOW_RATE and payload.peak_personal_best: context["peak_personal_best"] = payload.peak_personal_best
-                classification = save_assessment(cursor, current_user.user_id, record, load_settings(cursor, current_user.user_id), context)
+                settings = load_settings(cursor, current_user.user_id)
+                if payload.metric_type == Vitals.PEAK_FLOW_RATE:
+                    best = settings['goals'].get('Peak Flow') or payload.peak_personal_best
+                    if best: context['peak_personal_best'] = best
+                classification = save_assessment(cursor, current_user.user_id, record, settings, context)
         conn.commit()
     except HTTPException:
         conn.rollback()

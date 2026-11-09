@@ -1,6 +1,6 @@
 """Administrator review and account controls."""
 import re
-from typing import Literal
+from typing import Literal, Optional
 
 import pymysql
 from argon2 import PasswordHasher
@@ -108,7 +108,7 @@ def update_welcome_slide(slide_number: int, payload: WelcomeSlideUpdate,
 
 @router.get("/accounts")
 def list_accounts(search: str = Query("", max_length=100),
-                  role: Literal["patient", "provider", "admin"] | None = None,
+                  role: Optional[Literal["patient", "provider", "admin"]] = None,
                   limit: int = Query(50, ge=1, le=100),
                   offset: int = Query(0, ge=0),
                   admin: User = Depends(require_admin)):

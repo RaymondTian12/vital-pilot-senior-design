@@ -17,6 +17,7 @@ export type OverallResult = {
   logged_metric_count: number;
 };
 export type DailySummaryResponse = {
+  temporal?: { current_streak: number; limited_window: boolean };
   overall_result?: OverallResult;
   records: SummaryReading[];
   goals: Partial<Record<VitalType, number>>;

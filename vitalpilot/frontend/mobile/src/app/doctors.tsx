@@ -30,6 +30,7 @@ const specialties: Record<string, string> = {
   All: "",
   Cardiology: "Cardiovascular Disease",
   "Primary care": "Family Medicine",
+  Pulmonology: "Pulmonary Disease",
   Endocrinology: "Endocrinology, Diabetes & Metabolism",
 };
 type LocalClinic = {
@@ -565,18 +566,30 @@ function getLocalClinic(doctor: Doctor): LocalClinic | null {
 }
 export default function Doctors() {
   const params = useLocalSearchParams<{ specialty?: string; reason?: string }>();
+  const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [distanceIncomplete, setDistanceIncomplete] = useState(false);
+  function invalidate(clearOrigin = false) {
+    requestId.current++;
+    locationRequest.current++;
+    setLocating(false); setBusy(false); setDoctors([]); setQueried(false);
+    setDetails(null); setAction(null); setError(""); setLocationMessage("");
+    setDistanceIncomplete(false);
+    if (clearOrigin) setOrigin(null);
+  }
   const [locating, setLocating] = useState(false);
   const locationRequest = useRef(0);
   const [locationMessage, setLocationMessage] = useState("");
   useEffect(() => () => { locationRequest.current++; }, []);
   async function useLocation() {
     if (locating || busy) return;
+    invalidate();
     const id = ++locationRequest.current;
     setLocating(true); setLocationMessage("");
     try {
       const area = await locateDoctorSearchArea();
       if (id !== locationRequest.current) return;
       setCity(area.city); setState(area.state);
+      setOrigin({ latitude: area.latitude, longitude: area.longitude });
       setDoctors([]); setQueried(false); setError("");
       setLocationMessage(`Search area set to ${area.city}, ${area.state}. Tap Search providers to continue.`);
     } catch (error) {
@@ -585,7 +598,7 @@ export default function Doctors() {
   }
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
-  const [specialty, setSpecialty] = useState(params.specialty === "Cardiology" || params.specialty === "Primary care" ? params.specialty : "All");
+  const [specialty, setSpecialty] = useState(params.specialty && Object.hasOwn(specialties, params.specialty) ? params.specialty : "All");
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -634,7 +647,7 @@ export default function Doctors() {
     [],
   );
   useEffect(() => {
-    if (params.specialty === "Cardiology" || params.specialty === "Primary care") setSpecialty(params.specialty);
+    if (params.specialty && Object.hasOwn(specialties, params.specialty)) { invalidate(); setSpecialty(params.specialty); }
   }, [params.specialty]);
   async function search() {
     if (busy || locating) return;
@@ -660,10 +673,12 @@ export default function Doctors() {
       const result = await api.searchDoctors({
         city,
         state,
+        ...(origin ?? {}),
         specialty: specialties[specialty],
       });
       if (id === requestId.current) {
         setDoctors(result.doctors);
+        setDistanceIncomplete(!!result.distance_incomplete);
         setQueried(true);
       }
     } catch (e) {
@@ -720,7 +735,7 @@ export default function Doctors() {
             label="City"
             value={city}
             editable={!locating}
-            onChangeText={setCity}
+            onChangeText={(v) => { invalidate(true); setCity(v); }}
             placeholder="City"
             returnKeyType="search"
             onSubmitEditing={search}
@@ -730,14 +745,15 @@ export default function Doctors() {
               label="State"
               value={state}
               editable={!locating}
-              onChangeText={(v) =>
+              onChangeText={(v) => {
+                invalidate(true);
                 setState(
                   v
                     .toUpperCase()
                     .replace(/[^A-Z]/g, "")
                     .slice(0, 2),
-                )
-              }
+                );
+              }}
               placeholder="TX"
               maxLength={2}
               autoCapitalize="characters"
@@ -745,7 +761,7 @@ export default function Doctors() {
           </View>
         </View>
         <Button secondary loading={locating} disabled={busy || Platform.OS === "web"} onPress={() => void useLocation()}>Use my location</Button>
-        <Text style={ui.small}>With your permission, we use your location once to fill your city and state. Your coordinates aren’t stored by VitalPilot. Results match the selected area; they aren’t sorted by distance.</Text>
+        <Text style={ui.small}>With your permission, we use your location once to fill your city and state and send coordinates to our backend to estimate distances. Coordinates are kept only in memory. Results cover the selected city/state, so closer providers in neighboring cities may be absent.</Text>
         {!!locationMessage && <Text accessibilityLiveRegion="polite" style={ui.small}>{locationMessage}</Text>}
         <Text style={ui.body}>Specialty</Text>
         <View style={[ui.row, { flexWrap: "wrap", gap: 8 }]}>
@@ -755,6 +771,7 @@ export default function Doctors() {
               selected={v === specialty}
               onPress={() => {
                 Keyboard.dismiss();
+                invalidate();
                 setSpecialty(v);
               }}
             >
@@ -766,6 +783,7 @@ export default function Doctors() {
           Search providers
         </Button>
       </Card>
+      {queried && origin && <Notice>Nearest among these results · approximate straight-line distances, not driving distances.{distanceIncomplete ? " Some distances are unavailable; those providers appear last." : ""}</Notice>}
       {error ? (
         <>
           <Notice error>{error}</Notice>
@@ -859,6 +877,7 @@ export default function Doctors() {
               </View>
             )}
 
+            {d.distance_miles != null && <Text style={ui.small}>About {d.distance_miles.toFixed(1)} miles away</Text>}
             {!localClinic &&
               !d.photo_url?.startsWith("https://") &&
               !photos[key]?.photo_url && (
@@ -982,6 +1001,7 @@ export default function Doctors() {
               <Icon name="pin" />
               <View style={{ flex: 1, gap: 3 }}>
                 <Text style={ui.body}>
+                  {d.distance_miles != null ? `About ${d.distance_miles.toFixed(1)} miles away · ` : ""}
                   {[d.city, d.state].filter(Boolean).join(", ") ||
                     "Location not listed"}
                 </Text>

@@ -4,6 +4,8 @@ Evaluates rolling time-window trends, sustained clinical threshold alerts,
 and behavioral streaks based on user telemetry logs.
 """
 
+from __future__ import annotations
+
 from typing import List, Dict, Any, Optional, Set, Callable, Tuple
 from datetime import date, datetime, timedelta
 

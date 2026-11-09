@@ -43,6 +43,7 @@ export default function Profile() {
       </View>
       <Card>
         <Text style={ui.eyebrow}>ACCOUNT</Text>
+        <Row title="Goals & personal best" detail="Sleep, water, steps and peak flow" icon="vitals" onPress={() => router.push("/goals")} />
         <Row
           title="Account details"
           detail="View only · editing is not available yet"

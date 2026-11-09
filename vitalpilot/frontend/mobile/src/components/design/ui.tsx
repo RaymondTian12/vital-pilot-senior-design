@@ -1,3 +1,5 @@
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useNotificationCount } from "@/context/notification-count";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { useMotionPreference } from "./motion";
 import { useState, type ReactNode } from "react";
@@ -92,6 +94,7 @@ export function Screen({
 }) {
   const router = useRouter();
   const { user } = useAuth();
+  const unreadCount = useNotificationCount();
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: C.background }}
@@ -137,14 +140,10 @@ export function Screen({
                 )}
                 {back && brand && <Brand />}
                 {!back && user?.role === "patient" && (
-                  <Pressable
-                    accessibilityLabel="Open notifications"
-                    accessibilityRole="button"
+                  <NotificationBell
+                    count={unreadCount}
                     onPress={() => router.push("/notifications")}
-                    style={{ padding: 12 }}
-                  >
-                    <Icon name="bell" color={C.title} />
-                  </Pressable>
+                  />
                 )}
               </View>
             )}

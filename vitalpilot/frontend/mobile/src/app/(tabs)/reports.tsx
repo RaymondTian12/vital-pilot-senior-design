@@ -1,86 +1,124 @@
-import { ReportFeedback, type ReportPhase } from "@/components/design/report-feedback";
-import { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
-import { usePreview } from "@/context/preview-context";
+import { useCallback, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { api } from "@/services/api";
+import { historyWindow, type HistoryPeriod } from "@/services/metric-history";
 import {
-  Button,
-  Card,
-  Chip,
-  Empty,
-  Heading,
-  Notice,
-  PreviewBadge,
-  Screen,
-  ui,
-} from "@/components/design/ui";
-import { SleepChart } from "@/components/design/charts";
+  summaryValue,
+  type DailySummaryResponse,
+} from "@/services/daily-summary";
+import { vitals, type Metric } from "@/components/design/vitals-data";
+import { Button, Card, Heading, Screen, ui } from "@/components/design/ui";
+import {
+  MetricHistorySection,
+  PeriodControl,
+} from "@/components/design/metric-history-section";
+import { ReportExports } from "@/components/design/report-exports";
+import { VitalPilotColors as C } from "@/constants/vitalpilot";
 export default function Reports() {
-  const [demoPhase, setDemoPhase] = useState<ReportPhase | null>(null);
-  const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (demoTimer.current) clearTimeout(demoTimer.current); }, []);
-  function previewCompletion() {
-    if (demoTimer.current) clearTimeout(demoTimer.current);
-    setDemoPhase("generating");
-    demoTimer.current = setTimeout(() => setDemoPhase("ready"), 1500);
-  }
-  const [period, setPeriod] = useState("30 days");
-  const { preview, setPreview } = usePreview();
+  const [days, setDays] = useState<HistoryPeriod>(30),
+    [metric, setMetric] = useState<Metric>("Blood Pressure");
+  const [data, setData] = useState<DailySummaryResponse | null>(null),
+    [error, setError] = useState(""),
+    [retry, setRetry] = useState(0);
+  const router = useRouter();
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setData(null);
+      setError("");
+      api
+        .metricReport(historyWindow(days))
+        .then((result) => {
+          if (active) setData(result);
+        })
+        .catch(() => {
+          if (active)
+            setError(
+              "Couldn’t refresh the overview. Retry to load your report period.",
+            );
+        });
+      return () => {
+        active = false;
+      };
+    }, [days, retry]),
+  );
   return (
     <Screen>
-      <Heading title="Health reports" subtitle="See the bigger picture." />
-      <View style={[ui.row, { flexWrap: "wrap" }]}>
-        {["7 days", "30 days", "90 days"].map((value) => (
-          <Chip
-            key={value}
-            selected={period === value}
-            onPress={() => setPeriod(value)}
-          >
-            {value}
-          </Chip>
-        ))}
-      </View>
-      <Notice>Report generation and PDF export are not available yet.</Notice>
-      {preview ? (
-        <Card>
-          <PreviewBadge />
-          <Text style={ui.heading}>Example overview</Text>
-          <Text style={ui.subtitle}>
-            Illustrative sleep data · this is not a generated {period} report.
-          </Text>
-          <Text style={ui.title}>7.3 hours</Text>
-          <Text style={ui.small}>
-            Average of the seven example readings below
-          </Text>
-          <SleepChart />
-        </Card>
-      ) : (
-        <>
-          <Empty
-            title="Your story, over time"
-            message="Reports will summarize your saved readings when reporting is connected."
-          />
-          <Button secondary onPress={() => setPreview(true)}>
-            Preview a sample summary
-          </Button>
-        </>
-      )}
-      <Card>
-        <Text style={ui.heading}>A preview of the finishing touch</Text>
-        <Text style={ui.small}>Try the report completion animation. This preview does not generate a PDF or access your readings.</Text>
-        <Button secondary disabled={demoPhase === "generating"} onPress={previewCompletion}>
-          {demoPhase === "generating" ? "Previewing…" : demoPhase === "ready" ? "Replay animation" : "Preview completion animation"}
-        </Button>
-        {demoPhase && <ReportFeedback phase={demoPhase} preview />}
-      </Card>
-      <Button disabled>Generate report</Button>
-      <Button disabled secondary>
-        Download PDF
-      </Button>
-      <Text style={ui.heading}>Report history</Text>
-      <Empty
-        title="No generated reports yet"
-        message="Completed reports will appear here."
+      <Heading
+        title="Health reports"
+        subtitle="Explore your progress, one metric at a time."
       />
+      <PeriodControl value={days} onChange={setDays} />
+      <Text style={ui.small}>
+        Select a metric below. Charts use saved data; missing entries do not
+        imply normal health.
+      </Text>
+      {!!error && (
+        <Card>
+          <Text accessibilityRole="alert" style={ui.body}>
+            {error}
+          </Text>
+          <Button secondary onPress={() => setRetry((value) => value + 1)}>
+            Retry overview
+          </Button>
+        </Card>
+      )}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        {(Object.keys(vitals) as Metric[]).map((name) => {
+          const latest = data?.records
+            .filter((record) => record.metric_type === vitals[name].type)
+            .sort(
+              (a, b) =>
+                Date.parse(b.recorded_at) - Date.parse(a.recorded_at) ||
+                b.log_id - a.log_id,
+            )[0];
+          return (
+            <Pressable
+              key={name}
+              accessibilityRole="button"
+              accessibilityState={{ selected: name === metric }}
+              onPress={() => setMetric(name)}
+              style={{
+                width: "48%",
+                minHeight: 112,
+                padding: 14,
+                borderRadius: 16,
+                borderWidth: name === metric ? 2 : 1,
+                borderColor: name === metric ? C.primary : C.border,
+                backgroundColor: name === metric ? C.mint : C.white,
+                gap: 7,
+              }}
+            >
+              <Text style={[ui.body, { fontWeight: "700" }]}>{name}</Text>
+              <Text style={ui.heading}>
+                {latest ? summaryValue(latest) : "—"}
+              </Text>
+              <Text style={ui.small}>
+                {vitals[name].unit} ·{" "}
+                {data
+                  ? latest
+                    ? "latest saved"
+                    : "no entries"
+                  : "loading overview"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <MetricHistorySection key={metric} name={metric} days={days} />
+      <Button
+        secondary
+        onPress={() =>
+          router.push({
+            pathname: "/metric-history",
+            params: { metric: vitals[metric].type, days: String(days) },
+          })
+        }
+      >
+        Open {metric.toLowerCase()} history
+      </Button>
+      <ReportExports data={data} />
     </Screen>
   );
 }

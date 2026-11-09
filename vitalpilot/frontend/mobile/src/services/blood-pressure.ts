@@ -15,7 +15,7 @@ export function pressureNumbers(primary: string, secondary: string) {
     if (
       !/^\d+$/.test(text) ||
       !Number.isSafeInteger(Number(text)) ||
-      Number(text) <= 0
+      Number(text) <= 0 || Number(text) > 2147483647
     )
       throw new Error(
         "Enter both blood-pressure values as positive whole numbers.",
@@ -225,7 +225,7 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
           );
         }
         update({
-          records: merge([reading, ...state.records]),
+          records: merge([reading, ...state.records.filter(record => record.log_id !== reading.log_id)]),
           saving: false,
           loaded: true,
         });
