@@ -95,11 +95,12 @@ environment. Gemini clients initialize on request so missing AI configuration
 returns a service error instead of breaking backend startup. An incoming admin
 annotation was made compatible with the existing Python 3.9 environment.
 
-Mobile Pilot AI remains a preview. Omar's endpoint accepts
-`POST /chat {message, history:[{role, content}]}` and returns `{reply}`. The current
-mobile helper uses `{id,role,text}` history and expects `{text}`, so it still needs
-an explicit adapter and enabled chat UI. The endpoint currently uses conversation
-text, not a patient-reading database query. No live AI requests were made in tests.
+Mobile Pilot AI is now connected to Omar's authenticated Gemini endpoint, with
+an adapter for `{role,content}` / `{reply}`, a redesigned conversation screen,
+optional consented reading summaries and session-only conversation state. See
+[Mobile Pilot AI](mobile_pilot_ai.md) for API contracts, configuration, privacy
+behavior and verification limits. Live general and fictional-context smoke tests
+succeeded; no real patient records were sent during those tests.
 
 Incoming admin/content/provider migrations require review before running the new
 management features against an older database. Do not rerun consent-revocation

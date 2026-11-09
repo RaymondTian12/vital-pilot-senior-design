@@ -42,9 +42,36 @@ export type SignUpResponse = {
   message: string;
   user: AuthUser;
 };
-export type ChatResponse = {
-  text: string;
+export type ChatContextSelection = {
+  metric_types: VitalType[];
+  start_at: string;
+  end_at: string;
+  timezone_name: string;
 };
+export type ChatContext = {
+  start_at: string;
+  end_at: string;
+  generated_at: string;
+  timezone_name: string;
+  note: string;
+  metrics: {
+    metric: VitalType;
+    unit: string;
+    assessment_counts: { label: string; alert_state: string; count: number }[];
+    summary: {
+      count: number;
+      days_logged: number;
+      values: Record<string, { min: number; max: number; avg: number }>;
+    };
+    latest: null | {
+      recorded_at: string;
+      values: Record<string, number | null>;
+      assessment: string;
+      guidance: string;
+    };
+  }[];
+};
+export type ChatResponse = { reply: string; context?: ChatContext | null };
 export type BPComponent = {
   classification: string;
   alert_state: string;

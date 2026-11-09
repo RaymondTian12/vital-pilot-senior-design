@@ -186,3 +186,12 @@ numeric storage. Existing assignments do not imply consent. See
 See `docs/report_generation.md` for backend key configuration, private file storage,
 Expo rebuild steps, download/share behavior and verification. PDF-only reports do
 not require AI credentials. Never place AI keys in mobile environment variables.
+
+## Metric charts and report viewing
+
+See `docs/metric_history_charts.md` for 7/30/90-day History and Reports behavior,
+new native dependency rebuild instructions, and separate View report/Download PDF
+flows. This feature does not need a database migration.
+
+For mobile Gemini chat, optional saved-reading context and device checks, see
+[Mobile Pilot AI](mobile_pilot_ai.md).

@@ -1,3 +1,4 @@
+import { chatSession } from "./chat-session";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 const KEY = "vitalpilot.access-token";
@@ -11,11 +12,13 @@ export const session = {
       : SecureStore.getItemAsync(KEY),
   async set(token: string) {
     revision += 1;
+    chatSession.reset();
     if (Platform.OS === "web") webToken = token;
     else await SecureStore.setItemAsync(KEY, token);
   },
   async clear() {
     revision += 1;
+    chatSession.reset();
     if (Platform.OS === "web") webToken = null;
     else await SecureStore.deleteItemAsync(KEY);
   },

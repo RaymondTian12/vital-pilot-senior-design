@@ -1,3 +1,4 @@
+import { NotificationCountContext } from "./notification-count";
 import { summaryNotifications } from "@/services/summary-notifications";
 import type { DailySummaryResponse } from "@/services/daily-summary";
 import {
@@ -305,7 +306,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         dismissCriticalAlert,
       }}
     >
-      {children}
+      <NotificationCountContext.Provider value={unreadCount}>
+        {children}
+      </NotificationCountContext.Provider>
 
       <AlertBanner
         visible={bannerNotification !== null}

@@ -1,41 +1,68 @@
 import os
+from time import monotonic
 import httpx
 from dotenv import load_dotenv
 from google import genai
 from google.genai import errors
 from google.genai import types
-# from time import time
+
 load_dotenv()
 
 
-
-def call_model_with_fallbacks(input_prompt: str, max_total_seconds: float = 30.0) -> str:
+def call_model_with_fallbacks(
+    input_prompt: str, max_total_seconds: float = 30.0
+) -> str:
     gemini_key = os.getenv("GEMINI_API_KEY")
     if not gemini_key:
         raise RuntimeError("Gemini is not configured")
     client = genai.Client(api_key=gemini_key)
-    models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash-lite"]
+    models = [
+        os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash"),
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-flash-lite",
+    ]
+    deadline = monotonic() + max_total_seconds
     for model in models:
+        remaining = deadline - monotonic()
+        # Gemini rejects requests with less than ten seconds of deadline.
+        if remaining < 10:
+            break
         try:
-            print(f"Attempting generation with: {model}...")
-            # start_time = time.start()
             response = client.models.generate_content(
                 model=model,
                 contents=input_prompt,
                 config=types.GenerateContentConfig(
                     # Timeout lives in http_options and is in milliseconds
-                    http_options=types.HttpOptions(timeout=int(max_total_seconds * 1000))
-                )
+                    http_options=types.HttpOptions(
+                        timeout=max(1, int(remaining * 1000)),
+                        retry_options=types.HttpRetryOptions(attempts=1),
+                    )
+                ),
             )
-            print(f"Success with {model}!")
-            return response.text
-        except errors.APIError as e:
-            print(f"Failed on {model}: {e.message}")
-            print("Moving to the next model...")
-        except httpx.TimeoutException:
-            print(f"Timed out on {model} after {max_total_seconds}s, moving to the next model...")
 
-    raise RuntimeError("All models failed to respond within their individual timeout windows.")
+            # Ignore thought/signature parts; only final text belongs in chat.
+            candidates = response.candidates or []
+            content = candidates[0].content if candidates else None
+            text = (
+                "\n".join(
+                    part.text
+                    for part in (content.parts or [])
+                    if part.text and not part.thought
+                )
+                if content
+                else ""
+            )
+            if text.strip() and monotonic() <= deadline:
+                return text.strip()
+        except (errors.APIError, httpx.HTTPError):
+            # Never log provider error bodies: they may include health content.
+            continue
+
+    raise RuntimeError(
+        "All models failed to respond within their shared timeout window."
+    )
 
 
 # test
