@@ -234,7 +234,7 @@ export function createReadingStore<R extends { log_id: number; recorded_at: stri
           );
         }
         update({
-          records: merge([reading, ...state.records]),
+          records: merge([reading, ...state.records.filter(record => record.log_id !== reading.log_id)]),
           saving: false,
           loaded: true,
         });

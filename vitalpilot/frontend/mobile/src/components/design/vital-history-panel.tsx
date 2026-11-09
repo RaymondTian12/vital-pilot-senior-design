@@ -1,7 +1,8 @@
+import { HistoryReading } from "./history-reading";
 import { MetricGuidance } from "./metric-guidance";
 import { useCallback } from "react";
 import { Text, View } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useVitalReading } from "@/context/vital-readings-context";
 import { useAuth } from "@/context/auth-context";
 import type { OtherMetricReading, OtherVitalType } from "@/types/vitalpilot";
@@ -9,11 +10,12 @@ import { readingValue } from "@/services/vital-readings";
 import { Button, Card, ui } from "./ui";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 export function VitalReadingResult({ reading, unit, onFindCare, showActions = true }: { reading: OtherMetricReading; unit: string; onFindCare?: () => void; showActions?: boolean }) {
+  const router = useRouter();
   return <View style={{ gap: 7 }}>
     <Text style={ui.heading}>{readingValue(reading)} {unit}</Text>
     <Text style={ui.small}>{new Date(reading.recorded_at).toLocaleString()}</Text>
     {reading.metric_type === "BODY_MASS_INDEX" && <Text style={ui.body}>BMI: {reading.bmi_value?.toFixed(1)}</Text>}
-    <MetricGuidance assessment={reading.classification} onFindCare={onFindCare} showActions={showActions} />
+    <MetricGuidance assessment={reading.classification} onFindCare={onFindCare ?? (reading.metric_type === "PEAK_FLOW_RATE" ? () => router.push({ pathname: "/doctors", params: { specialty: "Pulmonology", reason: "metric-review" } }) : undefined)} showActions={showActions} />
   </View>;
 }
 export function VitalHistoryPanel({ type, name, unit }: { type: OtherVitalType; name: string; unit: string }) {
@@ -30,7 +32,7 @@ export function VitalHistoryPanel({ type, name, unit }: { type: OtherVitalType; 
       <Button secondary disabled={!readings.retryReady || readings.loading} onPress={readings.allowRetry}>I checked history — enable retry</Button>
     </>}
     {!readings.records.length && readings.loaded && !readings.error && <Text style={ui.body}>No saved readings yet. Add your first reading to start your history.</Text>}
-    {readings.records.map((reading) => <View key={reading.log_id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border }}><VitalReadingResult reading={reading} unit={unit} showActions={reading.log_id === readings.records[0]?.log_id} /></View>)}
+    {readings.records.map((reading) => <HistoryReading key={reading.log_id} reading={reading} unit={unit}><VitalReadingResult reading={reading} unit={unit} showActions={reading.log_id === readings.records[0]?.log_id} /></HistoryReading>)}
     {readings.more && <Button secondary disabled={readings.loading || readings.saving} onPress={() => void readings.loadMore()}>Load more readings</Button>}
   </Card>;
 }

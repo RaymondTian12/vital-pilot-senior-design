@@ -1,4 +1,6 @@
 from typing import Optional
+import math
+from backend.doctor_distances import add_distances
 
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Response, status
@@ -37,6 +39,8 @@ def search_doctors(
     state: Optional[str] = None,
     gender: Optional[str] = None,
     limit: int = 20,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
 ):
     """
     Search for real, verified healthcare providers via the CMS NPI Registry.
@@ -45,10 +49,14 @@ def search_doctors(
     "Cardiovascular Disease", "Nephrology", "Pulmonary Disease". `gender` isn't
     a supported NPPES query param, so it's filtered client-side after fetching.
     """
+    if (latitude is None) != (longitude is None):
+        raise HTTPException(422, "Latitude and longitude must be provided together")
+    if latitude is not None and (not math.isfinite(latitude) or not math.isfinite(longitude) or not -90 <= latitude <= 90 or not -180 <= longitude <= 180):
+        raise HTTPException(422, "Invalid coordinates")
     params = {
         "version": "2.1",
         "enumeration_type": "NPI-1",  # individual providers only, not organizations
-        "limit": min(limit, 200),
+        "limit": max(1, min(limit, 20 if latitude is not None else 200)),
     }
     if specialty:
         params["taxonomy_description"] = specialty
@@ -107,4 +115,5 @@ def search_doctors(
             "registry_url": f"https://npiregistry.cms.hhs.gov/provider-view/{result.get('number')}",
         })
 
-    return {"count": len(doctors), "doctors": doctors}
+    incomplete = add_distances(doctors, (latitude, longitude)) if latitude is not None else False
+    return {"count": len(doctors), "doctors": doctors, "distance_incomplete": incomplete}

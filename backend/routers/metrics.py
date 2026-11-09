@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Literal
 
@@ -26,8 +27,11 @@ class MetricCreateRequest(BaseModel):
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # Start of the device's local calendar day (see mobile's summaryWindow),
     # used only for the one-entry-per-day goal metrics to find today's
-    # existing row to update instead of inserting a new one.
+    # existing row to update instead of inserting a new one. `timezone` (an
+    # IANA zone name) is accepted as a fallback for clients that don't send
+    # local_day_start -- the day boundary is then computed server-side.
     local_day_start: Optional[datetime] = None
+    timezone: Optional[str] = None
     systolic_mmhg: Optional[int] = Field(default=None, ge=50, le=300)
     diastolic_mmhg: Optional[int] = Field(default=None, ge=30, le=200)
     glucose_mgdl: Optional[int] = Field(default=None, ge=20, le=600, strict=True)
@@ -82,6 +86,25 @@ def record_from_row(metric_type: Vitals, fields: list[str], row: tuple) -> dict:
     return record
 
 
+def _local_day_window(payload: MetricCreateRequest) -> Optional[tuple[datetime, datetime]]:
+    """Returns the (start, end) UTC bounds of the submission's local calendar
+    day, preferring the client-computed local_day_start and falling back to
+    computing it server-side from an IANA timezone name."""
+    if payload.local_day_start is not None:
+        day_start = utc_timestamp(payload.local_day_start).replace(tzinfo=None)
+        return day_start, day_start + timedelta(hours=24)
+    if payload.timezone:
+        try:
+            zone = ZoneInfo(payload.timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise HTTPException(422, "Invalid timezone")
+        local = utc_timestamp(payload.recorded_at).astimezone(zone)
+        start = local.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+        return start.astimezone(timezone.utc).replace(tzinfo=None), end.astimezone(timezone.utc).replace(tzinfo=None)
+    return None
+
+
 @router.post("/metrics", status_code=status.HTTP_201_CREATED)
 def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get_current_user)):
     mapping = METRIC_TABLES.get(payload.metric_type)
@@ -105,6 +128,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
     placeholders = ", ".join(["%s"] * len(fields))
 
     classification = None
+    updated = False
     timestamp_column = "recorded_at" if payload.metric_type == Vitals.BODY_MASS_INDEX else "logged_at"
     try:
         with conn.cursor() as cursor:
@@ -121,22 +145,28 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                 values.append(bmi)
 
             existing_log_id = None
-            if payload.metric_type in ONE_PER_DAY_METRICS and payload.local_day_start is not None:
-                day_start = utc_timestamp(payload.local_day_start).replace(tzinfo=None)
-                day_end = day_start + timedelta(hours=24)
-                cursor.execute(
-                    f"SELECT log_id FROM {table} WHERE user_id = %s AND {timestamp_column} >= %s AND {timestamp_column} < %s "
-                    f"ORDER BY {timestamp_column} DESC LIMIT 1",
-                    (current_user.user_id, day_start, day_end),
-                )
-                row = cursor.fetchone()
-                existing_log_id = row[0] if row else None
+            if payload.metric_type in ONE_PER_DAY_METRICS:
+                window = _local_day_window(payload)
+                if window is not None:
+                    day_start, day_end = window
+                    # Row-locks the caller's own user row so two near-simultaneous
+                    # submissions for the same day serialize instead of racing
+                    # into two separate inserts.
+                    cursor.execute("SELECT user_id FROM Users WHERE user_id = %s FOR UPDATE", (current_user.user_id,))
+                    cursor.fetchone()
+                    cursor.execute(
+                        f"SELECT log_id FROM {table} WHERE user_id = %s AND {timestamp_column} >= %s AND {timestamp_column} < %s "
+                        f"ORDER BY {timestamp_column} DESC, log_id DESC LIMIT 1",
+                        (current_user.user_id, day_start, day_end),
+                    )
+                    row = cursor.fetchone()
+                    existing_log_id = row[0] if row else None
 
             if existing_log_id is not None:
                 assignments = ", ".join(f"{field} = %s" for field in fields)
                 cursor.execute(
-                    f"UPDATE {table} SET {assignments}, {timestamp_column} = %s WHERE log_id = %s",
-                    (*values, utc_timestamp(payload.recorded_at).replace(tzinfo=None), existing_log_id),
+                    f"UPDATE {table} SET {assignments}, {timestamp_column} = %s WHERE log_id = %s AND user_id = %s",
+                    (*values, utc_timestamp(payload.recorded_at).replace(tzinfo=None), existing_log_id, current_user.user_id),
                 )
                 log_id = existing_log_id
                 updated = True
@@ -146,7 +176,6 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                     (current_user.user_id, *values, utc_timestamp(payload.recorded_at).replace(tzinfo=None)),
                 )
                 log_id = cursor.lastrowid
-                updated = False
 
             if payload.metric_type == Vitals.BLOOD_PRESSURE:
                 classification = classify_blood_pressure(cursor, payload.systolic_mmhg, payload.diastolic_mmhg)
@@ -154,8 +183,11 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                 record = {"log_id": log_id, "metric_type": payload.metric_type.value, "recorded_at": utc_timestamp(payload.recorded_at), **dict(zip(fields, values))}
                 context = {}
                 if payload.metric_type == Vitals.BLOOD_GLUCOSE: context["glucose_context"] = payload.glucose_context
-                if payload.metric_type == Vitals.PEAK_FLOW_RATE and payload.peak_personal_best: context["peak_personal_best"] = payload.peak_personal_best
-                classification = save_assessment(cursor, current_user.user_id, record, load_settings(cursor, current_user.user_id), context)
+                settings = load_settings(cursor, current_user.user_id)
+                if payload.metric_type == Vitals.PEAK_FLOW_RATE:
+                    best = settings["goals"].get("Peak Flow") or payload.peak_personal_best
+                    if best: context["peak_personal_best"] = best
+                classification = save_assessment(cursor, current_user.user_id, record, settings, context)
 
             try:
                 metric_value_text = (

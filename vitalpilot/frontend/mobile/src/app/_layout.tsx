@@ -83,6 +83,7 @@ function Navigation() {
               <Stack.Screen name="signin" />
               <Stack.Screen name="signup" />
               <Stack.Screen name="doctor-signup" />
+              <Stack.Screen name="doctor-signup-success" />
             </Stack.Protected>
             <Stack.Protected guard={user?.role === "patient"}>
               <Stack.Screen name="questionnaire" />
@@ -91,7 +92,13 @@ function Navigation() {
               <Stack.Screen name="sharing" />
               <Stack.Screen name="change-password" />
               <Stack.Screen name="notifications" />
+              <Stack.Screen name="metric-history" />
+              <Stack.Screen name="report-preview" />
+              <Stack.Screen name="goals" />
               <Stack.Screen name="(tabs)" />
+            </Stack.Protected>
+            <Stack.Protected guard={user?.role === "admin"}>
+              <Stack.Screen name="portal" />
             </Stack.Protected>
             <Stack.Protected guard={user?.role === "provider"}>
               <Stack.Screen name="doctor-portal" />

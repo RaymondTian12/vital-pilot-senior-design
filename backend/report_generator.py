@@ -61,6 +61,14 @@ METRIC_DISPLAY = {
     Vitals.BODY_MASS_INDEX: ("Weight / BMI", "lbs / BMI", ["weight_lbs", "bmi_value"]),
 }
 
+# Flat metric_type -> unit lookup (used by the chatbot to describe tracked
+# metrics in its grounding context).
+UNITS = {
+    "BLOOD_PRESSURE": "mmHg", "BLOOD_GLUCOSE": "mg/dL", "BLOOD_OXYGEN": "%",
+    "BODY_MASS_INDEX": "lb", "PEAK_FLOW_RATE": "L/min", "PHYSICAL_ACTIVITY": "steps",
+    "SLEEP": "hours", "WATER_INTAKE": "cups",
+}
+
 
 def gather_period_records(cursor, user_id, start, end):
     """Fetch every logged reading for user_id within [start, end). Same query

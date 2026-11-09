@@ -147,6 +147,51 @@ personal best, and adult BMI categories require age 20+. Missing context or
 configuration is shown explicitly. Habit entries are compared with personal goals,
 not treated as clinical diagnoses. The overall result prioritizes urgent health
 alerts, warnings, then missing context; no-alert status is not a health guarantee. Nearby distance ranking, ZIP search, insurer matching,
-appointment availability, real PDF reports, live AI, and profile editing are not
-implemented. The report animation is a labeled preview. The registered-provider
+appointment availability and general profile editing are not implemented. PDF reports
+and optional Gemini report explanations are connected; see the AI/PDF setup below.
+The registered-provider
 `/care-team` route remains separate from the external NPI search and may be empty.
+
+
+## Doctor distance search
+
+In the native mobile app, tap **Use my location**, then **Search providers**.
+The backend receives the one-time GPS origin and searches the selected city/state
+in the NPI directory. It geocodes practice addresses with the U.S. Census Geocoder
+and orders known straight-line distances first. Search is limited to 20 directory
+results when coordinates are supplied; it is not a complete radius search and can
+miss closer providers in neighboring cities. Unknown distances appear last.
+
+Provider coordinates are cached in server memory for 24 hours. The GPS origin is
+not persisted; the application redacts latitude/longitude in Uvicorn access logs.
+Any separately configured reverse proxy must also redact these query parameters.
+Geocoding has an eight-second lookup budget and can return partial distances.
+Editing city/state clears the mobile GPS origin. Manual city/state search still
+works without permission or geocoding. No new API key or migration is needed.
+
+Device check: approve location, search, verify distance labels and ordering, edit
+the city and confirm old results disappear, then test denied location permission
+and manual search. Verify unknown distances remain usable for contact/map actions.
+
+## Mobile goals and account portals
+
+Review/apply `database/migrations/20261102_mobile_portals.sql` before testing the
+new goals and sharing flows. It adds explicit patient consent and widens goal
+numeric storage. Existing assignments do not imply consent. See
+`docs/mobile_ui_followup.md` for rollout, API behavior and device acceptance checks.
+
+
+## AI/PDF report setup
+
+See `docs/report_generation.md` for backend key configuration, private file storage,
+Expo rebuild steps, download/share behavior and verification. PDF-only reports do
+not require AI credentials. Never place AI keys in mobile environment variables.
+
+## Metric charts and report viewing
+
+See `docs/metric_history_charts.md` for 7/30/90-day History and Reports behavior,
+new native dependency rebuild instructions, and separate View report/Download PDF
+flows. This feature does not need a database migration.
+
+For mobile Gemini chat, optional saved-reading context and device checks, see
+[Mobile Pilot AI](mobile_pilot_ai.md).

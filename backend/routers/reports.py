@@ -1,6 +1,8 @@
 """Generates a clinical-style PDF health report for a 7/30/90-day period."""
 import json
+import time
 from datetime import datetime, timedelta, timezone
+from threading import Lock
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
@@ -40,11 +42,33 @@ COMBINED_INSTRUCTIONS = (
     "before each section."
 )
 
+# Per-user cooldown between report generations -- each one makes an AI call
+# and writes a full PDF, so this keeps a slow double-tap from the client from
+# burning Gemini quota or hammering the database.
+_RATE_LIMIT_SECONDS = 60
+_rate_lock = Lock()
+_last_generated: dict[int, float] = {}
+
+
+def _enforce_rate_limit(user_id: int):
+    now = time.monotonic()
+    with _rate_lock:
+        last = _last_generated.get(user_id, -_RATE_LIMIT_SECONDS)
+        if now - last < _RATE_LIMIT_SECONDS:
+            raise HTTPException(429, "Please wait a minute before generating another report. Check report history before retrying.")
+        _last_generated[user_id] = now
+        # Bound the dict's growth -- drop entries that are well outside any
+        # plausible window instead of tracking every user forever.
+        stale = [uid for uid, ts in _last_generated.items() if now - ts > 3600]
+        for uid in stale:
+            del _last_generated[uid]
+
 
 @router.get("/reports/generate")
 def generate_report(days: int = Query(...), current_user=Depends(get_current_user)):
     if days not in (7, 30, 90):
         raise HTTPException(status_code=422, detail="days must be 7, 30, or 90")
+    _enforce_rate_limit(current_user.user_id)
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days)
     conn = get_db_connection()

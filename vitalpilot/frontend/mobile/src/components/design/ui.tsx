@@ -1,3 +1,5 @@
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useNotificationCount } from "@/context/notification-count";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { useMotionPreference } from "./motion";
 import { useState, type ReactNode } from "react";
@@ -18,6 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useAuth } from "@/context/auth-context";
 import { VitalPilotLogo } from "@/components/vitalpilot/logo";
 import { VitalPilotColors as C, Layout } from "@/constants/vitalpilot";
 import { Icon, type IconName } from "./icon";
@@ -90,6 +93,8 @@ export function Screen({
   scroll?: boolean;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const unreadCount = useNotificationCount();
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: C.background }}
@@ -134,15 +139,11 @@ export function Screen({
                   <Brand />
                 )}
                 {back && brand && <Brand />}
-                {!back && (
-                  <Pressable
-                    accessibilityLabel="Open notifications"
-                    accessibilityRole="button"
+                {!back && user?.role === "patient" && (
+                  <NotificationBell
+                    count={unreadCount}
                     onPress={() => router.push("/notifications")}
-                    style={{ padding: 12 }}
-                  >
-                    <Icon name="bell" color={C.title} />
-                  </Pressable>
+                  />
                 )}
               </View>
             )}
@@ -157,8 +158,11 @@ export function Screen({
   );
 }
 export function Brand() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const destination = user?.role === "admin" ? "/admin-portal" : user?.role === "provider" ? "/doctor-portal" : user ? "/home" : "/welcome";
   return (
-    <View style={[ui.row, { gap: 8 }]}>
+    <Pressable accessibilityRole="link" accessibilityLabel="VitalPilot home" onPress={() => router.replace(destination)} style={[ui.row, { gap: 8, minHeight: 48 }]}>
       <VitalPilotLogo size={34} />
       <Text
         style={{
@@ -170,7 +174,7 @@ export function Brand() {
       >
         VitalPilot
       </Text>
-    </View>
+    </Pressable>
   );
 }
 export function Heading({

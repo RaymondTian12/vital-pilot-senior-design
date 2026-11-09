@@ -1,10 +1,16 @@
 import { ReportFeedback, type ReportPhase } from "@/components/design/report-feedback";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import * as Sharing from "expo-sharing";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { usePreview } from "@/context/preview-context";
 import { api, ApiError, type ReportHistoryItem } from "@/services/api";
+import { historyWindow, type HistoryPeriod } from "@/services/metric-history";
+import {
+  summaryValue,
+  type DailySummaryResponse,
+} from "@/services/daily-summary";
+import { vitals, type Metric } from "@/components/design/vitals-data";
 import {
   Button,
   Card,
@@ -16,8 +22,13 @@ import {
   Screen,
   ui,
 } from "@/components/design/ui";
+import {
+  MetricHistorySection,
+  PeriodControl,
+} from "@/components/design/metric-history-section";
 import { ReportPreviewBody } from "@/components/design/report-preview-body";
 import { buildSampleReportPreview } from "@/constants/sample-report";
+import { VitalPilotColors as C } from "@/constants/vitalpilot";
 
 const PERIODS = { "7 days": 7, "30 days": 30, "90 days": 90 } as const;
 type PeriodLabel = keyof typeof PERIODS;
@@ -120,9 +131,109 @@ export default function Reports() {
     }
   }
 
+  const [overviewDays, setOverviewDays] = useState<HistoryPeriod>(30);
+  const [overviewMetric, setOverviewMetric] = useState<Metric>("Blood Pressure");
+  const [overviewData, setOverviewData] = useState<DailySummaryResponse | null>(null);
+  const [overviewError, setOverviewError] = useState("");
+  const [overviewRetry, setOverviewRetry] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setOverviewData(null);
+      setOverviewError("");
+      api
+        .metricReport(historyWindow(overviewDays))
+        .then((result) => {
+          if (active) setOverviewData(result);
+        })
+        .catch(() => {
+          if (active)
+            setOverviewError(
+              "Couldn’t refresh the overview. Retry to load your report period.",
+            );
+        });
+      return () => {
+        active = false;
+      };
+    }, [overviewDays, overviewRetry]),
+  );
+
   return (
     <Screen>
       <Heading title="Health reports" subtitle="See the bigger picture." />
+
+      <Text style={ui.heading}>Metric overview</Text>
+      <PeriodControl value={overviewDays} onChange={setOverviewDays} />
+      <Text style={ui.small}>
+        Select a metric below. Charts use saved data; missing entries do not
+        imply normal health.
+      </Text>
+      {!!overviewError && (
+        <Card>
+          <Text accessibilityRole="alert" style={ui.body}>
+            {overviewError}
+          </Text>
+          <Button secondary onPress={() => setOverviewRetry((value) => value + 1)}>
+            Retry overview
+          </Button>
+        </Card>
+      )}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        {(Object.keys(vitals) as Metric[]).map((name) => {
+          const latest = overviewData?.records
+            .filter((record) => record.metric_type === vitals[name].type)
+            .sort(
+              (a, b) =>
+                Date.parse(b.recorded_at) - Date.parse(a.recorded_at) ||
+                b.log_id - a.log_id,
+            )[0];
+          return (
+            <Pressable
+              key={name}
+              accessibilityRole="button"
+              accessibilityState={{ selected: name === overviewMetric }}
+              onPress={() => setOverviewMetric(name)}
+              style={{
+                width: "48%",
+                minHeight: 112,
+                padding: 14,
+                borderRadius: 16,
+                borderWidth: name === overviewMetric ? 2 : 1,
+                borderColor: name === overviewMetric ? C.primary : C.border,
+                backgroundColor: name === overviewMetric ? C.mint : C.white,
+                gap: 7,
+              }}
+            >
+              <Text style={[ui.body, { fontWeight: "700" }]}>{name}</Text>
+              <Text style={ui.heading}>
+                {latest ? summaryValue(latest) : "—"}
+              </Text>
+              <Text style={ui.small}>
+                {vitals[name].unit} ·{" "}
+                {overviewData
+                  ? latest
+                    ? "latest saved"
+                    : "no entries"
+                  : "loading overview"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <MetricHistorySection key={overviewMetric} name={overviewMetric} days={overviewDays} />
+      <Button
+        secondary
+        onPress={() =>
+          router.push({
+            pathname: "/metric-history",
+            params: { metric: vitals[overviewMetric].type, days: String(overviewDays) },
+          })
+        }
+      >
+        Open {overviewMetric.toLowerCase()} history
+      </Button>
+
+      <Text style={ui.heading}>Generate a report</Text>
       <View style={[ui.row, { flexWrap: "wrap" }]}>
         {(Object.keys(PERIODS) as PeriodLabel[]).map((value) => (
           <Chip

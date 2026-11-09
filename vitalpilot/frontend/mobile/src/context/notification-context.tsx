@@ -1,3 +1,6 @@
+import { NotificationCountContext } from "./notification-count";
+import { summaryNotifications } from "@/services/summary-notifications";
+import type { DailySummaryResponse } from "@/services/daily-summary";
 import {
   createContext,
   PropsWithChildren,
@@ -15,6 +18,7 @@ import type { VitalNotification } from "@/types/notification";
 
 type NotificationContextValue = {
   notifications: VitalNotification[];
+  syncSummary: (data: DailySummaryResponse) => void;
   unreadCount: number;
   loading: boolean;
   error: string | null;
@@ -36,6 +40,13 @@ export function NotificationProvider({ children }: PropsWithChildren) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const seen = useRef(new Set<string>());
+  const syncSummary = useCallback((data: DailySummaryResponse) => {
+    const incoming = summaryNotifications(data).filter(n => !seen.current.has(n.id));
+    incoming.forEach(n => seen.current.add(n.id));
+    if (incoming.length) setNotifications(current => [...incoming, ...current].sort((a,b) => Date.parse(b.createdAt)-Date.parse(a.createdAt)));
+  }, []);
 
   const [bannerNotification, setBannerNotification] =
     useState<VitalNotification | null>(null);
@@ -156,6 +167,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     <NotificationContext.Provider
       value={{
         notifications,
+        syncSummary,
         unreadCount,
         loading,
         error,
@@ -168,7 +180,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         dismissCriticalAlert,
       }}
     >
-      {children}
+      <NotificationCountContext.Provider value={unreadCount}>
+        {children}
+      </NotificationCountContext.Provider>
 
       <AlertBanner
         visible={bannerNotification !== null}

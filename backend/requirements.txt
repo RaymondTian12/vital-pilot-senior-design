@@ -6,5 +6,5 @@ cryptography
 argon2-cffi
 pyjwt
 httpx
-reportlab<5.1
+reportlab>=4.4,<5.1
 google-genai

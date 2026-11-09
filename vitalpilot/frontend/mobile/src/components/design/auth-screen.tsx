@@ -90,6 +90,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
             : "Sign in to continue your health journey."
         }
       />
+      {register && <Button secondary onPress={() => router.push("/doctor-signup")}>Are you a doctor? Sign up here</Button>}
       {!register && registered === "true" && (
         <Notice>Account created. Sign in to finish your health profile.</Notice>
       )}
@@ -184,7 +185,6 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
           <Text style={ui.link}>{register ? "Sign in" : "Create account"}</Text>
         </Text>
       </Pressable>
-      {register && <Button secondary onPress={() => router.push("/doctor-signup")}>Are you a doctor? Sign up here</Button>}
       {!register && <Button secondary onPress={() => router.push("/doctor-signup")}>Register as a doctor</Button>}
     </Screen>
   );
