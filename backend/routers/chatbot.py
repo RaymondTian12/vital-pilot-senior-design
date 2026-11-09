@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from backend.llm import call_model_with_fallbacks
 from backend.models.User import User
 from backend.security import get_current_user
-
+from backend.db import get_db_connection
 router = APIRouter()
 
 instructions = """
@@ -66,18 +66,55 @@ class ChatRequest(BaseModel):
     message: str
     history: List[ChatMessage] = []
 
+METRICS = [
+    ("Blood glucose", "mg/dL", "BloodGlucose", "glucose_mgdl", "logged_at"),
+    ("Blood pressure", "mmHg", "BloodPressure", "CONCAT(systolic_mmhg, '/', diastolic_mmhg)", "logged_at"),
+    ("Blood oxygen", "%", "BloodOxygenSaturation", "spo2_percentage", "logged_at"),
+    ("Peak flow", "L/min", "PeakFlowRate", "flow_rate_lmin", "logged_at"),
+    ("Steps", "steps", "PhysicalActivity", "steps_taken", "logged_at"),
+    ("Sleep", "hours", "Sleep", "duration_hours", "logged_at"),
+    ("Water intake", "cups", "WaterIntake", "amount_cups", "logged_at"),
+    ("BMI", "", "BodyMassIndex", "bmi_value", "recorded_at"),
+]
+
+def get_user_metrics(user: User) -> str:
+  conn = get_db_connection()
+  if not conn:
+    return ""
+  lines = []
+  try:
+      with conn.cursor() as cursor:
+          for label, unit, table, value, timestamp in METRICS:
+              cursor.execute(
+                  f"SELECT {value}, {timestamp} FROM {table} "
+                  f"WHERE user_id = %s ORDER BY {timestamp} DESC LIMIT 1",
+                  (user.user_id,),
+              )
+              row = cursor.fetchone()
+              if row:
+                  lines.append(f"{label}: {row[0]} {unit} ({row[1].date()})")
+  except Exception as e:
+      print(f"Failed to acquire user metrics. Error: {e}")
+  finally:
+      conn.close()
+
+  return "\n".join(lines)
+
+
 @router.post("/chat")
 def chat(payload: ChatRequest, current_user: User = Depends(get_current_user)):
     conversation = "\n".join(
         f"{m.role.upper()}: {m.content}" for m in payload.history[-10:]
     )
-
+    metrics = get_user_metrics(current_user)
     prompt = f"""{instructions}
-CONVERSATION SO FAR:
-{conversation or "None"}
+    USER'S LATEST HEALTH METRICS:
+    {metrics or "None available"}
+    CONVERSATION SO FAR:
+    {conversation or "None"}
 
-USER: {payload.message}
-"""
+    USER: {payload.message}
+    """
 
     try:
         reply = call_model_with_fallbacks(prompt)
