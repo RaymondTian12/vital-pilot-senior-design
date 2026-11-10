@@ -338,6 +338,11 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
   },
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
   async signUp(
     firstname: string,
     lastname: string,

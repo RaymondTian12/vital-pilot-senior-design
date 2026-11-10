@@ -1,4 +1,6 @@
 import os
+import hashlib
+import hmac
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -17,9 +19,11 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 
-def create_access_token(email: str) -> str:
+def create_access_token(email: str, password_hash: str | None = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {"sub": email, "exp": expire}
+    if password_hash is not None:
+        payload["pwd"] = hashlib.sha256(password_hash.encode("utf-8")).hexdigest()
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -52,5 +56,10 @@ def get_current_user(request: Request) -> User:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended. Contact the VitalPilot team.")
+    fingerprint = payload.get("pwd")
+    if fingerprint is not None and not hmac.compare_digest(
+        str(fingerprint), hashlib.sha256(user.password_hash.encode("utf-8")).hexdigest()
+    ):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password changed. Please sign in again.")
 
     return user
