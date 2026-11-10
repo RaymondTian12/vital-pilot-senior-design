@@ -16,12 +16,16 @@ def call_model_with_fallbacks(
     if not gemini_key:
         raise RuntimeError("Gemini is not configured")
     client = genai.Client(api_key=gemini_key)
+    # gemini-3.8-flash has been observed stalling long enough to burn most of
+    # the shared deadline below, starving the rest of the fallback chain of a
+    # chance to even be tried -- kept last so it's only reached as a final
+    # resort, not the first thing attempted.
     models = [
         os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash"),
-        "gemini-3.8-flash",
         "gemini-3.6-flash",
         "gemini-3.5-flash-lite",
         "gemini-2.5-flash-lite",
+        "gemini-3.8-flash",
     ]
     deadline = monotonic() + max_total_seconds
     for model in models:
