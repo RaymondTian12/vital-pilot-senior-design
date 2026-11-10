@@ -21,7 +21,7 @@ const tools: {
   {
     group: "MONITOR",
     title: "Log vitals",
-    detail: "Measurement entry · saving not available yet",
+    detail: "Measurement entry · blood pressure, glucose, sleep, and more",
     icon: "vitals",
     href: "/metrics",
   },
