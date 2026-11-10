@@ -1,10 +1,13 @@
 """Patient-controlled provider access and read-only provider records."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+import json
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from backend.db import get_db_connection
 from backend.models.User import User, UserRole
 from backend.routers.auth import Vitals
 from backend.routers.metrics import METRIC_TABLES, record_from_row
+from backend.routers.notifications import FIELDS as NOTIFICATION_FIELDS, row_to_dict as notification_row_to_dict
 from backend.security import get_current_user
 
 router = APIRouter(prefix="/portal")
@@ -183,5 +186,101 @@ def patient_metrics(patient_id: int, metric_type: Vitals,
                 (patient_id, limit, offset))
             records = [record_from_row(metric_type, fields, row) for row in cursor.fetchall()]
             return {"metric_type": metric_type.value, "count": len(records), "records": records}
+    finally:
+        conn.close()
+
+
+@router.get("/patients/{patient_id}/alerts")
+def patient_alerts(patient_id: int, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+                   current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            authorized_patient(cursor, provider_id_for(cursor, current_user.user_id), patient_id)
+            # health-alert is the category notify_reading/evaluate_temporal_alerts
+            # use for warning/critical findings -- this deliberately excludes the
+            # routine "metric" category (plain save confirmations).
+            cursor.execute(
+                f"SELECT {NOTIFICATION_FIELDS} FROM Notifications "
+                "WHERE user_id = %s AND category = 'health-alert' "
+                "ORDER BY created_at DESC, notification_id DESC LIMIT %s OFFSET %s",
+                (patient_id, limit, offset))
+            return {"alerts": [notification_row_to_dict(row) for row in cursor.fetchall()]}
+    finally:
+        conn.close()
+
+
+@router.get("/patients/{patient_id}/reports")
+def patient_reports(patient_id: int, current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            authorized_patient(cursor, provider_id_for(cursor, current_user.user_id), patient_id)
+            cursor.execute(
+                "SELECT report_id, report_title, start_date, end_date, file_size_kb, created_at, "
+                "pdf_data IS NOT NULL AS downloadable, report_data IS NOT NULL AS previewable "
+                "FROM ClinicalReports WHERE generated_by_user_id = %s "
+                "ORDER BY created_at DESC", (patient_id,))
+            rows = cursor.fetchall()
+        return {
+            "reports": [
+                {
+                    "report_id": row[0], "report_title": row[1], "start_date": row[2], "end_date": row[3],
+                    "file_size_kb": row[4], "created_at": row[5],
+                    "downloadable": bool(row[6]), "previewable": bool(row[7]),
+                }
+                for row in rows
+            ]
+        }
+    finally:
+        conn.close()
+
+
+@router.get("/patients/{patient_id}/reports/{report_id}/preview")
+def patient_report_preview(patient_id: int, report_id: int, current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            authorized_patient(cursor, provider_id_for(cursor, current_user.user_id), patient_id)
+            cursor.execute(
+                "SELECT generated_by_user_id, report_data FROM ClinicalReports WHERE report_id = %s",
+                (report_id,))
+            row = cursor.fetchone()
+        # 404 (not 403) for both "doesn't exist" and "not this patient's" --
+        # don't reveal that a report_id belonging to someone else exists.
+        if not row or row[0] != patient_id:
+            raise HTTPException(404, "Report not found.")
+        if row[1] is None:
+            raise HTTPException(410, "This report was generated before in-app preview was added and can't be previewed.")
+        return json.loads(row[1])
+    finally:
+        conn.close()
+
+
+@router.get("/patients/{patient_id}/reports/{report_id}/download")
+def patient_report_download(patient_id: int, report_id: int, current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            authorized_patient(cursor, provider_id_for(cursor, current_user.user_id), patient_id)
+            cursor.execute(
+                "SELECT generated_by_user_id, report_title, end_date, pdf_data "
+                "FROM ClinicalReports WHERE report_id = %s", (report_id,))
+            row = cursor.fetchone()
+        if not row or row[0] != patient_id:
+            raise HTTPException(404, "Report not found.")
+        _, title, end_date, pdf_data = row
+        if pdf_data is None:
+            raise HTTPException(410, "This report was generated before PDF storage was added and can't be re-downloaded.")
+        filename = f"vitalpilot-report-{report_id}-{end_date}.pdf"
+        return Response(
+            content=pdf_data,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
     finally:
         conn.close()

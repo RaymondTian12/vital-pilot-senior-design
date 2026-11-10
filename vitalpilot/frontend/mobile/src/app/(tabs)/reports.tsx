@@ -1,10 +1,10 @@
 import { ReportFeedback, type ReportPhase } from "@/components/design/report-feedback";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import * as Sharing from "expo-sharing";
 import { useFocusEffect, useRouter } from "expo-router";
 import { usePreview } from "@/context/preview-context";
 import { api, ApiError, type ReportHistoryItem } from "@/services/api";
+import { sharePdfFile } from "@/services/share-file";
 import { historyWindow, type HistoryPeriod } from "@/services/metric-history";
 import {
   summaryValue,
@@ -32,18 +32,6 @@ import { VitalPilotColors as C } from "@/constants/vitalpilot";
 
 const PERIODS = { "7 days": 7, "30 days": 30, "90 days": 90 } as const;
 type PeriodLabel = keyof typeof PERIODS;
-
-async function shareReportFile(uri: string): Promise<string | null> {
-  try {
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, { mimeType: "application/pdf" });
-      return null;
-    }
-    return "Sharing is not available on this device. The PDF is saved on your device's app storage.";
-  } catch {
-    return "Could not open the share sheet for this report.";
-  }
-}
 
 export default function Reports() {
   const [demoPhase, setDemoPhase] = useState<ReportPhase | null>(null);
@@ -109,7 +97,7 @@ export default function Reports() {
 
   async function handleDownload() {
     if (!reportUri) return;
-    const shareError = await shareReportFile(reportUri);
+    const shareError = await sharePdfFile(reportUri);
     if (shareError) setReportError(shareError);
   }
 
@@ -118,7 +106,7 @@ export default function Reports() {
     setHistoryError(null);
     try {
       const { uri } = await api.downloadReport(item.report_id);
-      const shareError = await shareReportFile(uri);
+      const shareError = await sharePdfFile(uri);
       if (shareError) setHistoryError(shareError);
     } catch (error: unknown) {
       setHistoryError(

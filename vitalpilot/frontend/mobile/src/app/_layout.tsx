@@ -103,6 +103,7 @@ function Navigation() {
             <Stack.Protected guard={user?.role === "provider"}>
               <Stack.Screen name="doctor-portal" />
               <Stack.Screen name="doctor-patient" />
+              <Stack.Screen name="doctor-report-preview" />
             </Stack.Protected>
             <Stack.Protected guard={user?.role === "admin"}>
               <Stack.Screen name="admin-portal" />

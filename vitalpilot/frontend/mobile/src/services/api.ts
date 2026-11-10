@@ -335,6 +335,38 @@ export const api = {
         [key: string]: unknown;
       }[];
     }>(`/portal/patients/${id}/metrics?metric_type=${metric}`),
+  doctorPatientAlerts: (id: number) =>
+    request<{
+      alerts: {
+        notification_id: number;
+        title: string;
+        message: string;
+        severity: "warning" | "critical";
+        category: string;
+        metric_name: string | null;
+        metric_value: string | null;
+        created_at: string;
+      }[];
+    }>(`/portal/patients/${id}/alerts`),
+  doctorPatientReports: (id: number) =>
+    request<{
+      reports: {
+        report_id: number;
+        report_title: string;
+        start_date: string;
+        end_date: string;
+        file_size_kb: number;
+        created_at: string;
+        downloadable: boolean;
+        previewable: boolean;
+      }[];
+    }>(`/portal/patients/${id}/reports`),
+  doctorPatientReportPreview: (id: number, reportId: number) =>
+    request<ReportPreviewData>(`/portal/patients/${id}/reports/${reportId}/preview`),
+  async doctorPatientReportDownload(id: number, reportId: number): Promise<{ uri: string; filename: string; reportId: number | null }> {
+    const filename = `vitalpilot-report-${reportId}-${Date.now()}.pdf`;
+    return downloadReportFile(`/portal/patients/${id}/reports/${reportId}/download`, filename);
+  },
   dailySummary: (window: {
     start_at: string;
     today_start: string;
