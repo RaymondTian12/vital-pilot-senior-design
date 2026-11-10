@@ -94,6 +94,7 @@ export function MetricChart({
         <View style={{ overflow: "hidden", paddingTop: 8 }}>
           {habit ? (
             <Charts.BarChart
+              key={reduced ? "bars-static" : "bars-animated"}
               data={series.map((point, index) => ({
                 value: point.value ?? 0,
                 label: label(index),
