@@ -7,7 +7,7 @@ from fastapi import HTTPException, Request, status
 
 from backend.models.User import User
 
-load_dotenv()
+load_dotenv(override=True)
 
 SECRET_KEY: str = os.getenv("jwt_secret_key") or ""
 if not SECRET_KEY:

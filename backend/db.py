@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 import pymysql
-load_dotenv()
+load_dotenv(override=True)
 
 
 def get_db_connection():
