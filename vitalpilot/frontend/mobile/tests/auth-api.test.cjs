@@ -54,6 +54,20 @@ test("login sends JSON credentials without exposing them in the URL", async () =
   assert.equal(result.access_token, "test-token");
 });
 
+test("change password sends both passwords in an authenticated POST body", async () => {
+  const { api, calls } = client();
+  await api.changePassword("current-secret", "new-secret-8");
+  const [url, options] = calls[0];
+  assert.equal(new URL(url).pathname, "/auth/change-password");
+  assert.equal(new URL(url).search, "");
+  assert.equal(options.method, "POST");
+  assert.equal(options.headers.Authorization, "Bearer stored-token");
+  assert.deepEqual(JSON.parse(options.body), {
+    current_password: "current-secret",
+    new_password: "new-secret-8",
+  });
+});
+
 test("registration includes both names required by the backend", async () => {
   const { api, calls } = client();
   await api.signUp("Test", "Mobile", "test@example.com", "test-password");

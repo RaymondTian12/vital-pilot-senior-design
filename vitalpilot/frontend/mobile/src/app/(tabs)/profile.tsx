@@ -51,7 +51,7 @@ export default function Profile() {
         />
         <Row
           title="Change password"
-          detail="Not available yet"
+          detail="Update your account password"
           icon="lock"
           onPress={() => router.push("/change-password")}
         />
