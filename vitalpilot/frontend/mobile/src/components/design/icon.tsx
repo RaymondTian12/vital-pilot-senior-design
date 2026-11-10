@@ -34,6 +34,11 @@ const paths = {
     "M13 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4 M8 11l3-3 4 3h4 M11 8l-1 7-4 6 M10 15l5 2 2 4",
   scale:
     "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2 M7 8a7 7 0 0 1 10 0l-3 4h-4z M12 9l2-2",
+  "check-circle": "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M8 12l3 3 6-6",
+  "alert-triangle":
+    "M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01",
+  "help-circle":
+    "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3 M12 17h.01",
 } as const;
 export type IconName = keyof typeof paths;
 export function Icon({
