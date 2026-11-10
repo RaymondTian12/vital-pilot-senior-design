@@ -71,14 +71,6 @@ app.include_router(content.router, tags=["content"])
 app.include_router(chatbot.router, tags=["chat"])
 
 
-@app.middleware("http")
-async def no_store_portal_responses(request, call_next):
-    response = await call_next(request)
-    if request.url.path.startswith(("/portal/", "/admin/")):
-        response.headers["Cache-Control"] = "no-store"
-    return response
-
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
