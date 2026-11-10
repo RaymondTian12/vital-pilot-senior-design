@@ -18,10 +18,10 @@ def call_model_with_fallbacks(
     client = genai.Client(api_key=gemini_key)
     models = [
         os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash"),
-        "gemini-3.8-flash",
         "gemini-3.6-flash",
         "gemini-3.5-flash-lite",
         "gemini-2.5-flash-lite",
+        "gemini-3.8-flash",
     ]
     deadline = monotonic() + max_total_seconds
     for model in models:
