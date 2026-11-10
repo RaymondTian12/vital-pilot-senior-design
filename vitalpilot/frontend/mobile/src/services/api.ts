@@ -31,6 +31,18 @@ export interface ReportHistoryItem {
   downloadable: boolean;
   previewable: boolean;
 }
+export interface DoctorProfile {
+  first_name: string;
+  last_name: string;
+  email: string;
+  specialty: string;
+  clinic_name: string | null;
+  clinic_phone: string | null;
+  npi: string;
+  license_state: string;
+  license_number: string;
+  verification_status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED";
+}
 export interface ReportPreviewData {
   period_label: string;
   start_date: string;
@@ -289,6 +301,21 @@ export const api = {
     request<{ status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED" }>(
       "/portal/provider-status",
     ),
+  doctorProfile: () => request<DoctorProfile>("/portal/my-profile"),
+  updateDoctorProfile: (payload: Partial<{
+    first_name: string;
+    last_name: string;
+    specialty: string;
+    clinic_name: string;
+    clinic_phone: string;
+    npi: string;
+    license_state: string;
+    license_number: string;
+  }>) =>
+    request<DoctorProfile>("/portal/my-profile", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
   myProviders: () =>
     request<{
       providers: {

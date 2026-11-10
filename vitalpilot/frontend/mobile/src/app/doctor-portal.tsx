@@ -29,6 +29,7 @@ export default function DoctorPortal() {
   return <Screen brand={false}>
     <SignOutButton />
     <Heading title="Doctor portal" subtitle={`Welcome, Dr. ${user?.lastname ?? ""}`} />
+    <Button secondary onPress={() => router.push("/doctor-profile")}>Edit your profile</Button>
     {status === "APPROVED" && <Notice>Only patients who currently share their records with you appear here.</Notice>}
     {status === "PENDING" && <Notice>Your doctor account is awaiting verification. You can check back here after the VitalPilot team reviews your details.</Notice>}
     {status === "REJECTED" && <Notice error>Your doctor registration was not approved. Contact the VitalPilot team if you need help.</Notice>}

@@ -1,7 +1,10 @@
 """Patient-controlled provider access and read-only provider records."""
 import json
+from typing import Optional
 
+import pymysql
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel, Field, model_validator
 
 from backend.db import get_db_connection
 from backend.models.User import User, UserRole
@@ -120,6 +123,112 @@ def provider_status(current_user: User = Depends(get_current_user)):
             cursor.execute("SELECT verification_status FROM Providers WHERE user_id = %s", (current_user.user_id,))
             row = cursor.fetchone()
             return {"status": row[0] if row else "PENDING"}
+    finally:
+        conn.close()
+
+
+PROFILE_FIELDS = ("first_name", "last_name", "email", "specialty", "clinic_name",
+                   "clinic_phone", "npi", "license_state", "license_number", "verification_status")
+# License identity fields re-trigger admin review on change -- everything
+# else (name, specialty, clinic contact info) is cosmetic and updates freely.
+VERIFICATION_FIELDS = ("npi", "license_state", "license_number")
+
+
+def _profile_row(cursor, user_id):
+    cursor.execute(
+        "SELECT u.first_name, u.last_name, u.email, p.specialty, p.clinic_name, p.clinic_phone, "
+        "p.npi, p.license_state, p.license_number, p.verification_status "
+        "FROM Providers p JOIN Users u ON u.user_id = p.user_id WHERE p.user_id = %s FOR UPDATE",
+        (user_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(403, "Provider account is not configured")
+    return dict(zip(PROFILE_FIELDS, row))
+
+
+class ProviderProfileUpdate(BaseModel):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50)
+    specialty: Optional[str] = Field(None, min_length=1, max_length=100)
+    clinic_name: Optional[str] = Field(None, max_length=255)
+    clinic_phone: Optional[str] = Field(None, max_length=20)
+    npi: Optional[str] = Field(None, pattern=r"^\d{10}$")
+    license_state: Optional[str] = Field(None, pattern=r"^[A-Za-z]{2}$")
+    license_number: Optional[str] = Field(None, min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def nonempty(self):
+        if not any(v is not None for v in self.model_dump().values()):
+            raise ValueError("Provide at least one field to update")
+        return self
+
+
+@router.get("/my-profile")
+def my_profile(current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT u.first_name, u.last_name, u.email, p.specialty, p.clinic_name, p.clinic_phone, "
+                "p.npi, p.license_state, p.license_number, p.verification_status "
+                "FROM Providers p JOIN Users u ON u.user_id = p.user_id WHERE p.user_id = %s",
+                (current_user.user_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(403, "Provider account is not configured")
+            return dict(zip(PROFILE_FIELDS, row))
+    finally:
+        conn.close()
+
+
+@router.patch("/my-profile")
+def update_my_profile(payload: ProviderProfileUpdate, current_user: User = Depends(get_current_user)):
+    require_role(current_user, UserRole.PROVIDER)
+    conn = connection()
+    try:
+        with conn.cursor() as cursor:
+            current = _profile_row(cursor, current_user.user_id)
+            updates = payload.model_dump(exclude_none=True)
+            if "license_state" in updates:
+                updates["license_state"] = updates["license_state"].upper()
+            for key in ("first_name", "last_name", "specialty", "clinic_name", "clinic_phone", "license_number"):
+                if key in updates:
+                    updates[key] = updates[key].strip()
+
+            verification_changed = any(
+                key in updates and updates[key] != current[key] for key in VERIFICATION_FIELDS
+            )
+
+            user_fields = {k: v for k, v in updates.items() if k in ("first_name", "last_name")}
+            if user_fields:
+                assignments = ", ".join(f"{k} = %s" for k in user_fields)
+                cursor.execute(f"UPDATE Users SET {assignments} WHERE user_id = %s",
+                              (*user_fields.values(), current_user.user_id))
+
+            provider_fields = {k: v for k, v in updates.items() if k in
+                               ("specialty", "clinic_name", "clinic_phone", "npi", "license_state", "license_number")}
+            if verification_changed:
+                # Re-submitted identity details need a fresh admin look before
+                # this provider can be trusted with patient data again.
+                provider_fields["verification_status"] = "PENDING"
+            if provider_fields:
+                assignments = ", ".join(f"{k} = %s" for k in provider_fields)
+                cursor.execute(f"UPDATE Providers SET {assignments} WHERE user_id = %s",
+                              (*provider_fields.values(), current_user.user_id))
+
+            result = _profile_row(cursor, current_user.user_id)
+        conn.commit()
+        return result
+    except HTTPException:
+        conn.rollback()
+        raise
+    except pymysql.err.IntegrityError:
+        conn.rollback()
+        raise HTTPException(409, "This NPI is already registered to another provider account.")
+    except Exception:
+        conn.rollback()
+        raise HTTPException(503, "Could not update profile")
     finally:
         conn.close()
 
