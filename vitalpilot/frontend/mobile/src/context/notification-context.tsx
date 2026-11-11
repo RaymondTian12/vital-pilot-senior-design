@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter, type Href } from "expo-router";
 
 import { AlertBanner } from "@/components/notifications/alert-banner";
 import { CriticalAlertModal } from "@/components/notifications/critical-alert-modal";
@@ -36,6 +37,7 @@ const NotificationContext = createContext<NotificationContextValue | undefined>(
 );
 
 export function NotificationProvider({ children }: PropsWithChildren) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<VitalNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -190,6 +192,17 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         message={bannerNotification?.message ?? ""}
         severity={bannerNotification?.severity ?? "info"}
         onDismiss={() => setBannerNotification(null)}
+        onPress={
+          bannerNotification?.action
+            ? () => {
+                const route = bannerNotification.action!.route;
+                const id = bannerNotification.id;
+                setBannerNotification(null);
+                void markAsRead(id);
+                router.push(route as Href);
+              }
+            : undefined
+        }
       />
 
       <CriticalAlertModal
@@ -197,6 +210,15 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         title={activeCriticalNotification?.title ?? ""}
         message={activeCriticalNotification?.message ?? ""}
         onDismiss={dismissCriticalAlert}
+        onReviewMeasurement={
+          activeCriticalNotification?.action
+            ? () => {
+                const route = activeCriticalNotification.action!.route;
+                dismissCriticalAlert();
+                router.push(route as Href);
+              }
+            : undefined
+        }
       />
     </NotificationContext.Provider>
   );
