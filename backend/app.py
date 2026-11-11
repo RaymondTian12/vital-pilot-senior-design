@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,12 +41,14 @@ class CoordinatePrivacyMiddleware:
 
 app = FastAPI(title="Vital Pilot API", version="1.0.0")
 
+# CORS_EXTRA_ORIGINS lets a deployed web frontend (e.g. a Vercel URL) be added
+# without a code change -- comma-separated, e.g. "https://vitalpilot.vercel.app".
 allow_origins = [
     "http://localhost:8081",
     "http://localhost:8082",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-]
+] + [origin.strip() for origin in os.getenv("CORS_EXTRA_ORIGINS", "").split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
@@ -73,4 +77,22 @@ app.include_router(chatbot.router, tags=["chat"])
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    """Also touches the database so a scheduled ping (see
+    .github/workflows/keep-alive.yml) keeps a free-tier Aiven database from
+    auto-pausing due to inactivity, not just the web process itself."""
+    from backend.db import get_db_connection
+
+    db_status = "down"
+    try:
+        connection = get_db_connection()
+        if connection:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                    cursor.fetchone()
+                db_status = "ok"
+            finally:
+                connection.close()
+    except Exception:
+        db_status = "down"
+    return {"status": "ok", "database": db_status}

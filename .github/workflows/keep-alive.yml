@@ -1,0 +1,31 @@
+name: Keep backend/database awake
+
+# Free-tier hosting (Render) and the free Aiven database both auto-pause
+# after a period of inactivity. This pings the deployed backend's /health
+# endpoint often enough that neither one ever goes to sleep, so the app is
+# always ready to demo without anyone manually waking it up first.
+#
+# One-time setup: Settings -> Secrets and variables -> Actions -> Variables
+# -> New repository variable, name BACKEND_HEALTH_URL, value the Render
+# service's public URL plus /health (e.g.
+# https://vitalpilot-backend.onrender.com/health). Until that variable is
+# set, this workflow just no-ops instead of failing.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        env:
+          HEALTH_URL: ${{ vars.BACKEND_HEALTH_URL }}
+        run: |
+          if [ -z "$HEALTH_URL" ]; then
+            echo "BACKEND_HEALTH_URL repo variable is not set yet -- skipping."
+            exit 0
+          fi
+          curl -fsS --max-time 60 "$HEALTH_URL" && echo || (echo "Ping failed" && exit 1)

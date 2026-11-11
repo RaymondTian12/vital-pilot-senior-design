@@ -1,0 +1,42 @@
+# Render Blueprint for the VitalPilot backend.
+#
+# One-time setup: on render.com, "New +" -> "Blueprint", connect this repo and
+# branch, and Render reads this file automatically. It will prompt you to
+# fill in every value marked `sync: false` below (these are secrets, so they
+# are never written into this file or committed to git).
+#
+# After the first deploy, copy the service's public URL (looks like
+# https://vitalpilot-backend.onrender.com) and:
+#   - set it as NEXT_PUBLIC_API_BASE_URL when deploying the web app to Vercel
+#   - set it as EXPO_PUBLIC_API_BASE_URL in the mobile app's .env
+#   - add the Vercel web app's URL to this service's CORS_EXTRA_ORIGINS env var
+#   - set BACKEND_HEALTH_URL as a repo variable (Settings -> Secrets and
+#     variables -> Actions -> Variables) so .github/workflows/keep-alive.yml
+#     can ping it on a schedule.
+services:
+  - type: web
+    name: vitalpilot-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: environment
+        value: production
+      - key: dbname
+        sync: false
+      - key: dbhost
+        sync: false
+      - key: dbport
+        sync: false
+      - key: dbuser
+        sync: false
+      - key: dbpassword
+        sync: false
+      - key: jwt_secret_key
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_EXTRA_ORIGINS
+        sync: false
