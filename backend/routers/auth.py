@@ -94,6 +94,41 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+@router.post("/change-password")
+def change_password(payload: ChangePasswordRequest, current_user: User = Depends(get_current_user)):
+    hasher = PasswordHasher()
+    try:
+        hasher.verify(current_user.password_hash, payload.current_password)
+    except VerifyMismatchError:
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="Choose a different password")
+
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE Users SET password_hash = %s WHERE user_id = %s AND password_hash = %s AND is_active = 1",
+                (hasher.hash(payload.new_password), current_user.user_id, current_user.password_hash),
+            )
+            if cursor.rowcount != 1:
+                raise HTTPException(status_code=409, detail="Account changed. Please sign in again")
+        conn.commit()
+        return {"message": "Password updated. Sign in with your new password."}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 class GoogleLoginRequest(BaseModel):
     id_token: str = Field(min_length=1, max_length=16384)
 
@@ -102,7 +137,7 @@ def google_login(payload: GoogleLoginRequest, response: Response):
     user, is_new_user = google_user(verify_google_token(payload.id_token))
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended. Contact the VitalPilot team.")
-    token = create_access_token(user.email)
+    token = create_access_token(user.email, user.password_hash)
     response.set_cookie(
         key="access_token", value=token, httponly=True, secure=COOKIE_SECURE,
         samesite="lax", max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -149,7 +184,7 @@ def register_user(payload: RegisterRequest, response: Response):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to register user")
 
     # log the new user in immediately, same as /login
-    token = create_access_token(new_user.email)
+    token = create_access_token(new_user.email, new_user.password_hash)
     response.set_cookie(
         key="access_token",
         value=token,
@@ -181,7 +216,7 @@ def login_user(payload: LoginRequest, response: Response):
 
     # create a jwt token, http only for web clients. return it in the body for mobile clients to store and send back
     # as an "Authorization: Bearer <token>" header.
-    token = create_access_token(user.email)
+    token = create_access_token(user.email, user.password_hash)
     response.set_cookie(
         key="access_token",
         value=token,

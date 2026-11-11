@@ -135,10 +135,6 @@ async function request<T>(
       },
     });
     // Keep the abort timeout active while receiving/parsing the response body.
-    if (endpoint.startsWith("/chat")) {
-      const raw = await response.clone().text();
-      console.log("CHAT DEBUG raw response:", JSON.stringify(raw));
-    }
     const body = await response.json().catch(() => null);
     if (version !== session.version?.())
       throw new ApiError("Account changed. Please try again.", null, post);
@@ -449,6 +445,11 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
   },
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
   async signUp(
     firstname: string,
     lastname: string,

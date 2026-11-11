@@ -11,7 +11,7 @@ import { Brand, Button, Field, Heading, Notice, Orbit, Screen, ui } from "./ui";
 export function AuthScreen({ register = false }: { register?: boolean }) {
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
-  const { registered, portal } = useLocalSearchParams<{ registered?: string; portal?: string }>();
+  const { registered, portal, passwordChanged } = useLocalSearchParams<{ registered?: string; portal?: string; passwordChanged?: string }>();
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const [email, setEmail] = useState("");
@@ -93,6 +93,9 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
       {register && <Button secondary onPress={() => router.push("/doctor-signup")}>Are you a doctor? Sign up here</Button>}
       {!register && registered === "true" && (
         <Notice>Account created. Sign in to finish your health profile.</Notice>
+      )}
+      {!register && passwordChanged === "true" && (
+        <Notice>Password updated. Sign in with your new password.</Notice>
       )}
       {!register && registered === "doctor" && (
         <Notice>Doctor registration submitted. Sign in to check your verification status.</Notice>
