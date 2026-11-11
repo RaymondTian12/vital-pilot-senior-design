@@ -39,16 +39,36 @@ const samples = [
   },
 ];
 export default function Notifications() {
-  const { syncSummary, notifications, markAsRead, markAllAsRead, clearAllNotifications } =
-    useNotifications();
+  const {
+    syncSummary,
+    notifications,
+    markAsRead,
+    markAllAsRead,
+    clearAllNotifications,
+  } = useNotifications();
   const [syncError, setSyncError] = useState("");
   const [retry, setRetry] = useState(0);
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    setSyncError("");
-    api.dailySummary(summaryWindow()).then(data => { if (active) syncSummary(data); }).catch(() => { if (active) setSyncError("Couldn’t refresh saved alerts. Previously loaded alerts remain available."); });
-    return () => { active = false; };
-  }, [syncSummary, retry]));
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      markAllAsRead();
+      setSyncError("");
+      api
+        .dailySummary(summaryWindow())
+        .then((data) => {
+          if (active) syncSummary(data, { markAsRead: true });
+        })
+        .catch(() => {
+          if (active)
+            setSyncError(
+              "Couldn’t refresh saved alerts. Previously loaded alerts remain available.",
+            );
+        });
+      return () => {
+        active = false;
+      };
+    }, [syncSummary, markAllAsRead, retry]),
+  );
   const { preview, setPreview } = usePreview();
   const [unread, setUnread] = useState(false);
   const [sampleRead, setSampleRead] = useState<string[]>([]);
@@ -60,8 +80,21 @@ export default function Notifications() {
         title="Notifications"
         subtitle="Important updates, clearly organized."
       />
-      <Text style={ui.small}>Saved reading alerts for this session. Read status is reset when you sign out or restart the app.</Text>
-      {!!syncError && <><Text accessibilityRole="alert" style={ui.body}>{syncError}</Text><Button secondary onPress={() => setRetry(v => v+1)}>Retry alerts</Button></>}
+      <Text style={ui.small}>
+        Opening notifications clears the unread badge. Your updates stay
+        available under All for this session. Read status resets when you sign
+        out or restart the app.
+      </Text>
+      {!!syncError && (
+        <>
+          <Text accessibilityRole="alert" style={ui.body}>
+            {syncError}
+          </Text>
+          <Button secondary onPress={() => setRetry((v) => v + 1)}>
+            Retry alerts
+          </Button>
+        </>
+      )}
       <View style={ui.row}>
         <Chip selected={!unread} onPress={() => setUnread(false)}>
           All
@@ -148,7 +181,11 @@ export default function Notifications() {
         <>
           <Empty
             title="You’re all caught up"
-            message="There are no notifications in this session. Saved notification history is not connected yet."
+            message={
+              unread
+                ? "You have no unread notifications. Choose All to review previous updates."
+                : "There are no notifications in this session yet."
+            }
             icon="bell"
           />
           <Button secondary onPress={() => setPreview(true)}>

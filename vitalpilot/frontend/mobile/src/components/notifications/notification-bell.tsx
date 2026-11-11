@@ -18,7 +18,7 @@ export function NotificationBell({ count, onPress }: NotificationBellProps) {
           ? `Notifications, ${unread} unread`
           : "Notifications, no unread updates"
       }
-      accessibilityHint="Opens your saved alerts and updates"
+      accessibilityHint="Opens your alerts and updates and clears the unread badge"
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
       <Icon name="bell" size={25} color={C.primaryDark} />

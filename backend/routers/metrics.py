@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from backend.db import get_db_connection
+from backend.suggested_follow_up import attach_follow_up, suggested_follow_up
 from backend.engine.clinical_evaluator import classify_blood_pressure
 from backend.models.User import User
 from backend.metric_assessments import load_settings, save_assessment, attach_assessments
@@ -149,6 +150,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
         "metric_type": payload.metric_type.value,
         "recorded_at": utc_timestamp(payload.recorded_at),
         "classification": classification,
+        "suggested_follow_up": suggested_follow_up(payload.metric_type.value, classification),
         **{field: float(value) if isinstance(value, Decimal) else value for field, value in zip(fields, values)},
     }
 
@@ -194,4 +196,4 @@ def get_metrics(
     finally:
         conn.close()
 
-    return {"metric_type": metric_type.value, "count": len(records), "records": records}
+    return {"metric_type": metric_type.value, "count": len(records), "records": attach_follow_up(records)}

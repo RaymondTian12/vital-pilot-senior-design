@@ -263,3 +263,15 @@ test("chat timeout stays bounded and returns an actionable retry message", async
   );
   assert.equal(timeoutMs, 40000);
 });
+
+test("supported provider search sends a group without the legacy unrestricted specialty", async () => {
+  const { api, calls } = client();
+  await api.searchDoctors({
+    city: "Arlington",
+    state: "TX",
+    specialty_group: "all",
+  });
+  const url = new URL(calls[0][0]);
+  assert.equal(url.searchParams.get("specialty_group"), "all");
+  assert.equal(url.searchParams.has("specialty"), false);
+});

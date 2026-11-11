@@ -59,6 +59,26 @@ class ReportTests(unittest.TestCase):
         self.assertIn('no-store',response.headers['cache-control'])
         self.conn.commit.assert_called_once()
 
+    def test_missing_profile_does_not_start_cooldown(self):
+        self.cursor.fetchone.return_value=None
+        first=self.client.post('/reports',json=self.payload)
+        second=self.client.post('/reports',json=self.payload)
+        self.assertEqual(first.status_code,409)
+        self.assertEqual(second.status_code,409)
+        self.assertNotIn(7,reports._recent)
+        self.cursor.fetchone.return_value=(12,)
+        with patch.object(reports,'build_summary',return_value=sample()):
+            self.assertEqual(self.client.post('/reports',json=self.payload).status_code,201)
+
+    def test_render_failure_releases_cooldown_but_commit_uncertainty_does_not(self):
+        with patch.object(reports,'build_summary',return_value=sample()),patch.object(reports,'render_pdf',side_effect=RuntimeError('test failure')):
+            self.assertEqual(self.client.post('/reports',json=self.payload).status_code,503)
+            self.assertNotIn(7,reports._recent)
+        self.conn.commit.side_effect=RuntimeError('unknown outcome')
+        with patch.object(reports,'build_summary',return_value=sample()):
+            self.assertEqual(self.client.post('/reports',json=self.payload).status_code,503)
+            self.assertEqual(self.client.post('/reports',json=self.payload).status_code,429)
+
     def test_ai_failure_still_generates_pdf(self):
         with patch.object(reports,'build_summary',return_value=sample()),patch.object(reports,'ai_explanation',return_value=(None,'unavailable')):
             response=self.client.post('/reports',json={**self.payload,'include_ai':True,'ai_consent':True})

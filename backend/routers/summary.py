@@ -1,9 +1,11 @@
 """Read-only summary for a client-defined local calendar window."""
+
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from backend.engine.temporal_engine import calculate_logging_streak
 from fastapi import APIRouter, Depends, HTTPException
 from backend.db import get_db_connection
+from backend.suggested_follow_up import attach_follow_up
 from backend.metric_assessments import attach_assessments, overall_result
 from backend.security import get_current_user
 from backend.routers.metrics import METRIC_TABLES, record_from_row
@@ -66,6 +68,7 @@ def build_summary(start_at, today_start, end_at, current_user, timezone_name="UT
             for name, value in cursor.fetchall():
                 if name in goal_types and goal_types[name] not in goals and value is not None and float(value) > 0:
                     goals[goal_types[name]] = float(value)
+        attach_follow_up(records)
         return {"overall_result": overall_result(records, today, end, truncated), "records": records, "goals": goals, "truncated_metrics": truncated,
                 "start_at": start, "today_start": today, "end_at": end,
                 "temporal": {**calculate_logging_streak({r["recorded_at"].astimezone(zone).date() for r in records if r["recorded_at"] <= datetime.now(timezone.utc)}, today=today.astimezone(zone).date()), "window_start": start, "limited_window": True}}

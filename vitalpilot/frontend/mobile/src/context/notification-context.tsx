@@ -40,7 +40,10 @@ type AddNotificationInput = {
 
 type NotificationContextValue = {
   notifications: VitalNotification[];
-  syncSummary: (data: DailySummaryResponse) => void;
+  syncSummary: (
+    data: DailySummaryResponse,
+    options?: { markAsRead?: boolean },
+  ) => void;
 
   unreadCount: number;
 
@@ -76,11 +79,26 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     useState<VitalNotification[]>(initialNotifications);
 
   const seen = useRef(new Set<string>());
-  const syncSummary = useCallback((data: DailySummaryResponse) => {
-    const incoming = summaryNotifications(data).filter(n => !seen.current.has(n.id));
-    incoming.forEach(n => seen.current.add(n.id));
-    if (incoming.length) setNotifications(current => [...incoming, ...current].sort((a,b) => Date.parse(b.createdAt)-Date.parse(a.createdAt)));
-  }, []);
+  const syncSummary = useCallback(
+    (data: DailySummaryResponse, options?: { markAsRead?: boolean }) => {
+      const incoming = summaryNotifications(data)
+        .filter((notification) => !seen.current.has(notification.id))
+        .map((notification) => ({
+          ...notification,
+          read: options?.markAsRead ?? false,
+        }));
+      incoming.forEach((notification) => seen.current.add(notification.id));
+      // Alerts fetched while opening the inbox have been seen there. Other sources
+      // keep producing unread alerts, including arrivals after the inbox opens.
+      if (incoming.length)
+        setNotifications((current) =>
+          [...incoming, ...current].sort(
+            (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+          ),
+        );
+    },
+    [],
+  );
 
   const [bannerNotification, setBannerNotification] =
     useState<VitalNotification | null>(null);
@@ -252,14 +270,15 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     );
   }
 
-  function markAllAsRead() {
+  const markAllAsRead = useCallback(() => {
     setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        read: true,
-      })),
+      current.some((notification) => !notification.read)
+        ? current.map((notification) =>
+            notification.read ? notification : { ...notification, read: true },
+          )
+        : current,
     );
-  }
+  }, []);
 
   function removeNotification(notificationId: string) {
     setNotifications((current) =>
