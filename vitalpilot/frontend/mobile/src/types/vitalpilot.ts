@@ -85,6 +85,7 @@ export type BPClassification = {
   unclassified_components: string[];
 };
 export type BloodPressureReading = {
+  suggested_follow_up?: SuggestedFollowUp | null;
   log_id: number;
   metric_type: "BLOOD_PRESSURE";
   systolic_mmhg: number;
@@ -137,6 +138,11 @@ export type Doctor = {
   last_updated?: string | null;
   taxonomies?: string[];
   registry_url?: string;
+  matched_specialty?: string | null;
+  matched_specialty_is_primary?: boolean;
+  portrait_url?: string | null;
+  portrait_source_url?: string | null;
+  portrait_attribution?: string | null;
   photo_url?: string | null;
   website?: string | null;
   clinic_photo_url?: string | null;
@@ -158,6 +164,7 @@ export type ClinicPhoto = {
 export type OtherVitalType = Exclude<VitalType, "BLOOD_PRESSURE">;
 export type OtherMetricReading = {
   classification?: MetricAssessment | null;
+  suggested_follow_up?: SuggestedFollowUp | null;
   log_id: number;
   metric_type: OtherVitalType;
   recorded_at: string;
@@ -186,4 +193,16 @@ export type MetricAssessment = {
   basis: string;
   source_url: string | null;
   context: Record<string, string | number>;
+};
+
+export type FollowUpSpecialty =
+  | "primary_care"
+  | "cardiology"
+  | "pulmonology"
+  | "endocrinology";
+export type SuggestedFollowUp = {
+  status: "review" | "urgent" | "needs_context";
+  explanation: string;
+  primary_specialty_group: FollowUpSpecialty | null;
+  alternative_specialty_groups: FollowUpSpecialty[];
 };

@@ -1,7 +1,6 @@
 import { vitalInput } from "@/services/vital-readings";
 import { pressureNumbers } from "@/services/blood-pressure";
 import { VitalReadingResult } from "./vital-history-panel";
-import { useRouter } from "expo-router";
 import { SaveConfirmation } from "./save-confirmation";
 import { ReadingResult } from "./blood-pressure-panel";
 import type { SavedMetricReading } from "@/types/vitalpilot";
@@ -81,14 +80,17 @@ export function VitalsEntrySheet({
   onSave?: () => Promise<void>;
   onReviewHistory?: () => void;
 }) {
-  const router = useRouter();
   const config = metricConfig(metric);
   let validationError = "";
   if (draft.primary.trim() && (!config.secondary || draft.secondary.trim())) {
     try {
-      if (config.type === "BLOOD_PRESSURE") pressureNumbers(draft.primary, draft.secondary);
+      if (config.type === "BLOOD_PRESSURE")
+        pressureNumbers(draft.primary, draft.secondary);
       else vitalInput(config.type, draft.primary);
-    } catch (error) { validationError = error instanceof Error ? error.message : "Check this value."; }
+    } catch (error) {
+      validationError =
+        error instanceof Error ? error.message : "Check this value.";
+    }
   }
   const { signOut } = useAuth();
   const freshResult = saved?.metric_type === config.type ? saved : null;
@@ -99,15 +101,27 @@ export function VitalsEntrySheet({
         onClose();
         router.push({ pathname: "/doctors", params: { specialty, reason: "blood-pressure" } });
       }} />
-    : <VitalReadingResult reading={result} unit={config.unit} onFindCare={() => {
-        onClose(); router.push({ pathname: "/doctors", params: { specialty: "Primary care", reason: "metric-review" } });
-      }} />);
+    : <VitalReadingResult
+        reading={result}
+        unit={config.unit}
+        onFindCare={() => {
+          onClose();
+          router.push({ pathname: "/doctors", params: { specialty: "Primary care", reason: "metric-review" } });
+        }}
+        onCompleteContext={() =>
+          scrollView.current?.scrollTo({
+            y: contextPosition.current,
+            animated: !reducedMotion,
+          })
+        }
+      />);
 
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const stackFields = width < 360 || fontScale >= 1.3;
   const title = useRef<Text>(null);
   const scrollView = useRef<ScrollView>(null);
+  const contextPosition = useRef(0);
   const closing = useRef(false);
   const progress = useSharedValue(0);
   const drag = useSharedValue(0);
@@ -116,13 +130,27 @@ export function VitalsEntrySheet({
   }));
   const reveal = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ translateY: reducedMotion ? 0 : (1 - progress.value) * height + drag.value }],
+    transform: [
+      {
+        translateY: reducedMotion
+          ? 0
+          : (1 - progress.value) * height + drag.value,
+      },
+    ],
   }));
   useEffect(() => {
     progress.value = reducedMotion
       ? withTiming(1, { duration: 120 })
-      : withSpring(1, { damping: 28, stiffness: 260, mass: 0.9, overshootClamping: true });
-    return () => { cancelAnimation(progress); cancelAnimation(drag); };
+      : withSpring(1, {
+          damping: 28,
+          stiffness: 260,
+          mass: 0.9,
+          overshootClamping: true,
+        });
+    return () => {
+      cancelAnimation(progress);
+      cancelAnimation(drag);
+    };
   }, [progress, drag, reducedMotion]);
   function close() {
     if (closing.current || saving) return;
@@ -138,18 +166,32 @@ export function VitalsEntrySheet({
   }
   const headerPan = PanResponder.create({
     onMoveShouldSetPanResponder: (_, gesture) =>
-      !(saving || closing.current) && gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.3,
-    onPanResponderGrant: () => { cancelAnimation(drag); Keyboard.dismiss(); },
-    onPanResponderMove: (_, gesture) => { drag.value = Math.max(0, gesture.dy); },
+      !(saving || closing.current) &&
+      gesture.dy > 8 &&
+      Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.3,
+    onPanResponderGrant: () => {
+      cancelAnimation(drag);
+      Keyboard.dismiss();
+    },
+    onPanResponderMove: (_, gesture) => {
+      drag.value = Math.max(0, gesture.dy);
+    },
     onPanResponderRelease: (_, gesture) => {
-      if (gesture.dy > Math.min(140, height * 0.18) || (gesture.vy > 0.8 && gesture.dy > 32)) {
+      if (
+        gesture.dy > Math.min(140, height * 0.18) ||
+        (gesture.vy > 0.8 && gesture.dy > 32)
+      ) {
         close();
       } else {
-        drag.value = reducedMotion ? 0 : withSpring(0, { damping: 24, stiffness: 260 });
+        drag.value = reducedMotion
+          ? 0
+          : withSpring(0, { damping: 24, stiffness: 260 });
       }
     },
     onPanResponderTerminate: () => {
-      drag.value = reducedMotion ? 0 : withSpring(0, { damping: 24, stiffness: 260 });
+      drag.value = reducedMotion
+        ? 0
+        : withSpring(0, { damping: 24, stiffness: 260 });
     },
   });
   function clear() {
@@ -230,7 +272,13 @@ export function VitalsEntrySheet({
                   testID="saved-metric-result"
                   style={styles.resultCard}
                   onLayout={() => {
-                    if (freshResult) requestAnimationFrame(() => scrollView.current?.scrollTo({ y: 0, animated: !reducedMotion }));
+                    if (freshResult)
+                      requestAnimationFrame(() =>
+                        scrollView.current?.scrollTo({
+                          y: 0,
+                          animated: !reducedMotion,
+                        }),
+                      );
                   }}
                 >
                   {freshResult ? (
@@ -239,7 +287,9 @@ export function VitalsEntrySheet({
                     </SaveConfirmation>
                   ) : (
                     <View style={{ gap: 12 }}>
-                      <Text accessibilityRole="header" style={ui.heading}>Latest saved reading</Text>
+                      <Text accessibilityRole="header" style={ui.heading}>
+                        Latest saved reading
+                      </Text>
                       {resultDetails}
                     </View>
                   )}
@@ -274,19 +324,53 @@ export function VitalsEntrySheet({
                   <Text style={ui.link}>Hide keyboard</Text>
                 </Pressable>
               </View>
-              <Text style={ui.body}>{["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(config.type) ? "Enter today’s total. Saving again replaces today’s latest entry instead of adding a new reading." : config.hint}</Text>
-              {metric === "Blood Glucose" && <View style={{ gap: 10 }}>
-                <Text style={ui.body}>Was this a fasting reading?</Text>
-                <Text style={ui.small}>Fasting means at least 8 hours without food or drinks other than water.</Text>
-                <View style={[ui.row, { flexWrap: "wrap" }]}>
-                  {[["unknown", "Not sure"], ["fasting", "Fasting (8+ hours)"], ["nonfasting", "Not fasting"]].map(([value, label]) => (
-                    <Chip key={value} selected={(draft.glucoseContext || "unknown") === value} onPress={() => { if (!saving) onChange("glucoseContext", value); }}>{label}</Chip>
-                  ))}
+              <Text style={ui.body}>
+                {["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(
+                  config.type,
+                )
+                  ? "Enter today’s total. Saving again replaces today’s latest entry instead of adding a new reading."
+                  : config.hint}
+              </Text>
+              {metric === "Blood Glucose" && (
+                <View
+                  style={{ gap: 10 }}
+                  onLayout={(event) => {
+                    contextPosition.current = event.nativeEvent.layout.y;
+                  }}
+                >
+                  <Text style={ui.body}>Was this a fasting reading?</Text>
+                  <Text style={ui.small}>
+                    Fasting means at least 8 hours without food or drinks other
+                    than water.
+                  </Text>
+                  <View style={[ui.row, { flexWrap: "wrap" }]}>
+                    {[
+                      ["unknown", "Not sure"],
+                      ["fasting", "Fasting (8+ hours)"],
+                      ["nonfasting", "Not fasting"],
+                    ].map(([value, label]) => (
+                      <Chip
+                        key={value}
+                        selected={(draft.glucoseContext || "unknown") === value}
+                        onPress={() => {
+                          if (!saving) onChange("glucoseContext", value);
+                        }}
+                      >
+                        {label}
+                      </Chip>
+                    ))}
+                  </View>
                 </View>
-              </View>}
-              {metric === "Peak Flow" && <View style={{ gap: 8 }}>
-                <Text style={ui.small}>Your saved personal best is used for this reading. Set or change it in Profile → Goals & personal best. If missing, the reading is saved without a zone assessment.</Text>
-              </View>}
+              )}
+              {metric === "Peak Flow" && (
+                <View style={{ gap: 8 }}>
+                  <Text style={ui.small}>
+                    Your saved personal best is used for this reading. Set or
+                    change it in Profile → Goals & personal best. If missing,
+                    the reading is saved without a zone assessment.
+                  </Text>
+                </View>
+              )}
               <View
                 testID="vitals-inputs"
                 style={{
@@ -333,20 +417,43 @@ export function VitalsEntrySheet({
                   </View>
                 )}
               </View>
-              {!!validationError && <Text accessibilityRole="alert" style={{ color: C.danger }}>{validationError}</Text>}
-              {metric === "Water Intake" && <View style={{ gap: 8 }}>
-                <Text style={ui.small}>Adjust today’s total in cups. Saving replaces today’s latest total.</Text>
-                <View style={[ui.row, { flexWrap: "wrap" }]}>
-                  {[0.25, 0.5, 1].map(amount => <Button key={amount} secondary disabled={saving || !!validationError} onPress={() => {
-                    const next = Math.round(((Number(draft.primary) || 0) + amount) * 100) / 100;
-                    if (next <= 99.99) onChange("primary", String(next));
-                  }}>+{amount} cup</Button>)}
+              {!!validationError && (
+                <Text accessibilityRole="alert" style={{ color: C.danger }}>
+                  {validationError}
+                </Text>
+              )}
+              {metric === "Water Intake" && (
+                <View style={{ gap: 8 }}>
+                  <Text style={ui.small}>
+                    Adjust today’s total in cups. Saving replaces today’s latest
+                    total.
+                  </Text>
+                  <View style={[ui.row, { flexWrap: "wrap" }]}>
+                    {[0.25, 0.5, 1].map((amount) => (
+                      <Button
+                        key={amount}
+                        secondary
+                        disabled={saving || !!validationError}
+                        onPress={() => {
+                          const next =
+                            Math.round(
+                              ((Number(draft.primary) || 0) + amount) * 100,
+                            ) / 100;
+                          if (next <= 99.99) onChange("primary", String(next));
+                        }}
+                      >
+                        +{amount} cup
+                      </Button>
+                    ))}
+                  </View>
                 </View>
-              </View>}
+              )}
               <View style={styles.status}>
                 <Icon name="info" size={20} />
                 <Text style={[ui.small, { flex: 1, color: C.title }]}>
-                  {preview ? "Sample preview is on. Turn it off to save a real reading." : "Readings use the server’s current time. After saving, your result appears at the top of this sheet."}
+                  {preview
+                    ? "Sample preview is on. Turn it off to save a real reading."
+                    : "Readings use the server’s current time. After saving, your result appears at the top of this sheet."}
                 </Text>
               </View>
               {!!saveError && (
@@ -371,16 +478,26 @@ export function VitalsEntrySheet({
                   disabled={
                     preview ||
                     saving ||
-                    !!validationError || !draft.primary.trim() ||
+                    !!validationError ||
+                    !draft.primary.trim() ||
                     (!!config.secondary && !draft.secondary.trim())
                   }
                   onPress={() => {
                     Keyboard.dismiss();
-                    if (Platform.OS === "web") (globalThis.document?.activeElement as HTMLElement | null)?.blur();
+                    if (Platform.OS === "web")
+                      (
+                        globalThis.document?.activeElement as HTMLElement | null
+                      )?.blur();
                     void onSave?.();
                   }}
                 >
-                  {saving ? "Saving…" : ["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(config.type) ? "Save today’s total" : "Save reading"}
+                  {saving
+                    ? "Saving…"
+                    : ["SLEEP", "WATER_INTAKE", "PHYSICAL_ACTIVITY"].includes(
+                          config.type,
+                        )
+                      ? "Save today’s total"
+                      : "Save reading"}
                 </Button>
               )}
               <View
@@ -399,7 +516,11 @@ export function VitalsEntrySheet({
                   <Text style={ui.link}>Clear draft</Text>
                 </Pressable>
                 <Text style={[ui.small, { flexShrink: 1 }]}>
-                  {draft.primary || draft.secondary ? "Closing keeps this draft for this session." : saved ? "Your saved reading stays in your account." : "Nothing has been saved yet."}
+                  {draft.primary || draft.secondary
+                    ? "Closing keeps this draft for this session."
+                    : saved
+                      ? "Your saved reading stays in your account."
+                      : "Nothing has been saved yet."}
                 </Text>
               </View>
               <Button disabled={saving} onPress={close}>

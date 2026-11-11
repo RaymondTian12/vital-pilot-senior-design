@@ -1,3 +1,4 @@
+import { SuggestedFollowUpCard } from "./suggested-follow-up";
 import { AssessmentStatus } from "./assessment-status";
 import { HistoryReading } from "./history-reading";
 import { BloodPressureCare } from "./blood-pressure-care";
@@ -11,12 +12,15 @@ import type { BloodPressureReading } from "@/types/vitalpilot";
 import { Button, Card, ui } from "./ui";
 import { Sparkline } from "./charts";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
-export function ReadingResult({ reading, showCare = false, onFindCare }: {
+export function ReadingResult({
+  reading,
+  showCare = false,
+  onFindCare,
+}: {
   reading: BloodPressureReading;
   showCare?: boolean;
-  onFindCare?: (specialty: "Primary care" | "Cardiology") => void;
+  onFindCare?: () => void;
 }) {
-  const router = useRouter();
   const view = classificationView(reading);
   const color =
     view.critical || view.tone === "critical"
@@ -33,7 +37,18 @@ export function ReadingResult({ reading, showCare = false, onFindCare }: {
       <Text style={ui.small}>
         {new Date(reading.recorded_at).toLocaleString()}
       </Text>
-      <AssessmentStatus title={view.title} tone={view.critical ? "critical" : view.tone === "normal" ? "normal" : view.tone === "warning" ? "warning" : "unknown"} />
+      <AssessmentStatus
+        title={view.title}
+        tone={
+          view.critical
+            ? "critical"
+            : view.tone === "normal"
+              ? "normal"
+              : view.tone === "warning"
+                ? "warning"
+                : "unknown"
+        }
+      />
       {view.tone === "unknown" && (
         <Text style={ui.small}>
           One or both values could not be classified. This is not a normal/clear
@@ -45,8 +60,24 @@ export function ReadingResult({ reading, showCare = false, onFindCare }: {
           {message}
         </Text>
       ))}
-      {showCare && (view.critical || view.tone === "warning" || reading.systolic_mmhg > 180 || reading.diastolic_mmhg > 120) && (
-        <BloodPressureCare critical={view.critical || reading.systolic_mmhg > 180 || reading.diastolic_mmhg > 120} onFindCare={onFindCare ?? ((specialty) => router.push({ pathname: "/doctors", params: { specialty, reason: "blood-pressure" } }))} />
+      {showCare &&
+        (view.critical ||
+          view.tone === "warning" ||
+          reading.systolic_mmhg > 180 ||
+          reading.diastolic_mmhg > 120) && (
+          <BloodPressureCare
+            critical={
+              view.critical ||
+              reading.systolic_mmhg > 180 ||
+              reading.diastolic_mmhg > 120
+            }
+          />
+        )}
+      {showCare && (
+        <SuggestedFollowUpCard
+          followUp={reading.suggested_follow_up}
+          beforeNavigate={onFindCare}
+        />
       )}
     </View>
   );
@@ -109,12 +140,20 @@ export function BloodPressurePanel({ compact = false }: { compact?: boolean }) {
           history.
         </Text>
       )}
-      {(compact ? bp.records.slice(0, 1) : bp.records).map((reading) => (
-        compact ? <View key={reading.log_id}><ReadingResult reading={reading} showCare /></View> :
-        <HistoryReading key={reading.log_id} reading={reading} unit="mmHg">
-          <ReadingResult reading={reading} showCare={reading.log_id === latest?.log_id} />
-        </HistoryReading>
-      ))}
+      {(compact ? bp.records.slice(0, 1) : bp.records).map((reading) =>
+        compact ? (
+          <View key={reading.log_id}>
+            <ReadingResult reading={reading} showCare />
+          </View>
+        ) : (
+          <HistoryReading key={reading.log_id} reading={reading} unit="mmHg">
+            <ReadingResult
+              reading={reading}
+              showCare={reading.log_id === latest?.log_id}
+            />
+          </HistoryReading>
+        ),
+      )}
       {chronological.length >= 2 && (
         <View style={{ gap: 12 }}>
           <Text style={ui.small}>Recent readings, oldest to newest · mmHg</Text>
