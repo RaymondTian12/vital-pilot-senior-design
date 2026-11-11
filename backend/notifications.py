@@ -67,7 +67,7 @@ def severity_from_alert_state(alert_state):
     return "info"
 
 
-def notify_reading(cursor, user_id, metric_type_value, classification, metric_value_text=None):
+def notify_reading(cursor, user_id, metric_type_value, classification, metric_value_text=None, log_id=None):
     """Creates the per-reading notification for a just-submitted metric,
     mirroring the severity mapping the mobile NotificationProvider used to
     apply client-side (addMetricEvaluation): normal -> success, warning/
@@ -99,12 +99,15 @@ def notify_reading(cursor, user_id, metric_type_value, classification, metric_va
         title = class_label or "Health Update"
         message = guidance or "New health information is available."
 
+    route = f"/metric-history?metric={metric_type_value}"
+    if log_id is not None:
+        route += f"&log_id={log_id}"
     create_notification(
         cursor, user_id, title=title, message=message, severity=severity,
         category="health-alert" if severity in ("warning", "critical") else "metric",
         metric_name=metric_type_value, metric_value=metric_value_text,
         action_label="Review Measurement" if severity in ("warning", "critical") else "View Measurement",
-        action_route="/metrics",
+        action_route=route,
     )
     return severity
 
@@ -193,7 +196,7 @@ def evaluate_temporal_alerts(cursor, user_id, metric_type):
                 ),
                 severity=severity, category="health-alert",
                 metric_name=metric_type_value,
-                action_label="Review Measurement", action_route="/metrics",
+                action_label="Review Measurement", action_route=f"/metric-history?metric={metric_type_value}&days=7",
                 alert_key=alert_key,
             )
 
@@ -214,6 +217,6 @@ def evaluate_temporal_alerts(cursor, user_id, metric_type):
                 ),
                 severity="warning", category="health-alert",
                 metric_name=metric_type_value,
-                action_label="Review Measurement", action_route="/metrics",
+                action_label="Review Measurement", action_route=f"/metric-history?metric={metric_type_value}&days=30",
                 alert_key=alert_key,
             )

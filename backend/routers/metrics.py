@@ -194,7 +194,7 @@ def create_metric(payload: MetricCreateRequest, current_user: User = Depends(get
                     f"{payload.systolic_mmhg}/{payload.diastolic_mmhg}" if payload.metric_type == Vitals.BLOOD_PRESSURE
                     else str(getattr(payload, input_fields[0]))
                 )
-                notify_reading(cursor, current_user.user_id, payload.metric_type.value, classification, metric_value_text)
+                notify_reading(cursor, current_user.user_id, payload.metric_type.value, classification, metric_value_text, log_id)
                 evaluate_temporal_alerts(cursor, current_user.user_id, payload.metric_type)
             except Exception as notify_exc:
                 # Never let a notification bug block saving the reading itself.
