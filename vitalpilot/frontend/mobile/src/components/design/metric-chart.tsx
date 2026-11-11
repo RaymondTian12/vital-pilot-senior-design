@@ -94,6 +94,11 @@ export function MetricChart({
         <View style={{ overflow: "hidden", paddingTop: 8 }}>
           {habit ? (
             <Charts.BarChart
+              // useMotionPreference() defaults to `true` then flips to the real
+              // value shortly after mount, changing isAnimated in place -- which
+              // makes gifted-charts reset already-drawn bars instead of smoothly
+              // transitioning. Remount cleanly instead of reacting to that flip.
+              key={`bar-${reduced}`}
               data={series.map((point, index) => ({
                 value: point.value ?? 0,
                 label: label(index),
@@ -118,6 +123,7 @@ export function MetricChart({
             />
           ) : (
             <Charts.LineChart
+              key={`line-${reduced}`}
               data={points}
               data2={second?.map((point, index) => ({
                 value: point.value,
