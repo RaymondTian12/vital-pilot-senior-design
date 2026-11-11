@@ -9,7 +9,7 @@ from pathlib import Path
 from threading import Lock
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, model_validator
 from backend.db import get_db_connection
 from backend.security import get_current_user
@@ -36,6 +36,17 @@ class ReportRequest(BaseModel):
                 "Explicit consent is required to send summary data to Google Gemini"
             )
         return self
+
+
+def database_storage():
+    """Production PDFs must survive a restart or replacement of the web service."""
+    mode = os.getenv(
+        "VITALPILOT_REPORT_STORAGE",
+        "database" if os.getenv("environment") == "production" else "filesystem",
+    )
+    if mode not in ("database", "filesystem"):
+        raise HTTPException(503, "Report storage is not configured correctly")
+    return mode == "database"
 
 
 def storage():
@@ -76,9 +87,12 @@ def capabilities(current_user=Depends(get_current_user)):
     return {
         "ai_available": bool(os.getenv("GEMINI_API_KEY")),
         "ai_provider": "Google Gemini",
+        "report_contract": "mobile-v1",
+        "storage": "database" if database_storage() else "filesystem",
     }
 
 
+@router.get("/history")
 @router.get("")
 def history(offset: int = Query(0, ge=0), current_user=Depends(get_current_user)):
     conn = connect()
@@ -141,30 +155,39 @@ def generate(payload: ReportRequest, current_user=Depends(get_current_user)):
             else (None, "not_requested")
         )
         pdf = render_pdf(data, narrative, ai_status)
-        directory = storage()
-        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        name = uuid4().hex + ".pdf"
-        target = directory / name
-        with target.open("xb") as file:
-            os.chmod(target, 0o600)
-            file.write(pdf)
+        in_database = database_storage()
+        name = "database"
+        if not in_database:
+            directory = storage()
+            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            name = uuid4().hex + ".pdf"
+            target = directory / name
+            with target.open("xb") as file:
+                os.chmod(target, 0o600)
+                file.write(pdf)
         title = "VitalPilot health report"
         with conn.cursor() as c:
-            c.execute(
-                "INSERT INTO ClinicalReports (patient_profile_id, generated_by_user_id, report_title, start_date, end_date, summary_text, file_url, file_size_kb) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            columns = "patient_profile_id, generated_by_user_id, report_title, start_date, end_date, summary_text, file_url, file_size_kb"
+            values = (
+                profile_id,
+                current_user.user_id,
+                title,
+                payload.start_at.astimezone(ZoneInfo(payload.timezone_name)).date(),
                 (
-                    profile_id,
-                    current_user.user_id,
-                    title,
-                    payload.start_at.astimezone(ZoneInfo(payload.timezone_name)).date(),
-                    (
-                        payload.end_at.astimezone(ZoneInfo(payload.timezone_name))
-                        - timedelta(microseconds=1)
-                    ).date(),
-                    json.dumps({"ai_status": ai_status, "narrative": narrative}),
-                    name,
-                    max(1, (len(pdf) + 1023) // 1024),
-                ),
+                    payload.end_at.astimezone(ZoneInfo(payload.timezone_name))
+                    - timedelta(microseconds=1)
+                ).date(),
+                json.dumps({"ai_status": ai_status, "narrative": narrative}),
+                name,
+                max(1, (len(pdf) + 1023) // 1024),
+            )
+            if in_database:
+                columns += ", pdf_data"
+                values += (pdf,)
+            placeholders = ",".join(["%s"] * len(values))
+            c.execute(
+                f"INSERT INTO ClinicalReports ({columns}) VALUES ({placeholders})",
+                values,
             )
             report_id = c.lastrowid
         commit_attempted = True
@@ -202,18 +225,29 @@ def generate(payload: ReportRequest, current_user=Depends(get_current_user)):
                     _recent.pop(current_user.user_id, None)
 
 
+@router.get("/{report_id}/download")
 @router.get("/{report_id}/pdf")
 def download(report_id: int, current_user=Depends(get_current_user)):
     conn = connect()
     try:
         with conn.cursor() as c:
+            columns = "r.file_url, r.pdf_data" if database_storage() else "r.file_url"
             c.execute(
-                "SELECT r.file_url FROM ClinicalReports r JOIN UserHealthProfiles p ON p.profile_id = r.patient_profile_id WHERE r.report_id = %s AND p.user_id = %s",
+                f"SELECT {columns} FROM ClinicalReports r JOIN UserHealthProfiles p ON p.profile_id = r.patient_profile_id WHERE r.report_id = %s AND p.user_id = %s",
                 (report_id, current_user.user_id),
             )
             row = c.fetchone()
         if not row:
             raise HTTPException(404, "Report not found")
+        if database_storage() and row[1] is not None:
+            return Response(
+                content=bytes(row[1]),
+                media_type="application/pdf",
+                headers={
+                    "Cache-Control": "no-store",
+                    "Content-Disposition": f'attachment; filename="VitalPilot-report-{report_id}.pdf"',
+                },
+            )
         # Database filename is never treated as an arbitrary path or remote URL.
         import re
 

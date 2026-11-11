@@ -236,6 +236,7 @@ CREATE TABLE IF NOT EXISTS ClinicalReports (
     summary_text TEXT NULL,
     file_url VARCHAR(500) NOT NULL,
     file_size_kb INT NOT NULL,
+    pdf_data LONGBLOB NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_profile_id) REFERENCES UserHealthProfiles(profile_id) ON DELETE CASCADE,
     FOREIGN KEY (generated_by_user_id) REFERENCES Users(user_id) ON DELETE CASCADE
