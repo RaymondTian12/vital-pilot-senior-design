@@ -81,7 +81,10 @@ export function MetricChart({
         · {unit}
       </Text>
       {second && (
-        <Text style={ui.small}>● Systolic (teal) ● Diastolic (blue)</Text>
+        <Text style={ui.small}>
+          <Text style={{ color: C.primary }}>●</Text> Systolic{" "}
+          <Text style={{ color: "#477FA8" }}>●</Text> Diastolic
+        </Text>
       )}
       {!shown.length ? (
         <Text style={ui.body}>No readings for this selection.</Text>
