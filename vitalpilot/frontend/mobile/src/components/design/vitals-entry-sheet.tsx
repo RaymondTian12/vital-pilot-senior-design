@@ -94,27 +94,30 @@ export function VitalsEntrySheet({
   }
   const { signOut } = useAuth();
   const freshResult = saved?.metric_type === config.type ? saved : null;
-  const justUpdated = Boolean(freshResult && "updated" in freshResult && freshResult.updated);
-  const result = preview ? null : freshResult ?? (latestReading?.metric_type === config.type ? latestReading : null);
-  const resultDetails = result && (result.metric_type === "BLOOD_PRESSURE"
-    ? <ReadingResult reading={result} showCare onFindCare={(specialty) => {
-        onClose();
-        router.push({ pathname: "/doctors", params: { specialty, reason: "blood-pressure" } });
-      }} />
-    : <VitalReadingResult
+  const justUpdated = Boolean(
+    freshResult && "updated" in freshResult && freshResult.updated,
+  );
+  const result = preview
+    ? null
+    : (freshResult ??
+      (latestReading?.metric_type === config.type ? latestReading : null));
+  const resultDetails =
+    result &&
+    (result.metric_type === "BLOOD_PRESSURE" ? (
+      <ReadingResult reading={result} showCare onFindCare={onClose} />
+    ) : (
+      <VitalReadingResult
         reading={result}
         unit={config.unit}
-        onFindCare={() => {
-          onClose();
-          router.push({ pathname: "/doctors", params: { specialty: "Primary care", reason: "metric-review" } });
-        }}
+        onFindCare={onClose}
         onCompleteContext={() =>
           scrollView.current?.scrollTo({
             y: contextPosition.current,
             animated: !reducedMotion,
           })
         }
-      />);
+      />
+    ));
 
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -282,7 +285,12 @@ export function VitalsEntrySheet({
                   }}
                 >
                   {freshResult ? (
-                    <SaveConfirmation key={`${result.metric_type}-${result.log_id}`} animate reducedMotion={reducedMotion} updated={justUpdated}>
+                    <SaveConfirmation
+                      key={`${result.metric_type}-${result.log_id}`}
+                      animate
+                      reducedMotion={reducedMotion}
+                      updated={justUpdated}
+                    >
                       {resultDetails}
                     </SaveConfirmation>
                   ) : (

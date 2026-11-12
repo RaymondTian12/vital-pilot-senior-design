@@ -173,8 +173,8 @@ def generate_narrative(system_instruction, context):
         from backend.llm import call_model_with_fallbacks
 
         return (call_model_with_fallbacks(prompt) or "").strip()
-    except Exception as exc:
-        return f"[AI-generated narrative unavailable: {exc}]"
+    except Exception:
+        return "[AI-generated narrative unavailable. The saved readings remain available below.]"
 
 
 def parse_combined_narrative(text):
@@ -211,6 +211,7 @@ def build_report_data(header, period_label, start, end, overall, stats, previous
             "height_in": header["height_in"],
             "latest_weight_lbs": header["latest_weight_lbs"],
         },
+        "ai_status": narrative.get("ai_status", "included"),
         "narrative": {"hpi": narrative.get("hpi", ""), "summary": narrative.get("summary", "")},
         "previous_report": previous,
         "metrics": [
@@ -370,7 +371,8 @@ def build_report_pdf(header, period_label, start, end, overall, stats, previous,
     elements.append(Paragraph(narrative.get("summary", ""), body))
 
     elements.append(Spacer(1, 12))
-    elements.append(Paragraph(f"<i>{AI_DISCLAIMER}</i>", small))
+    disclaimer = AI_DISCLAIMER if narrative.get("ai_status", "included") == "included" else "No AI explanation is included. Review the saved readings and assessments with your healthcare professional."
+    elements.append(Paragraph(f"<i>{disclaimer}</i>", small))
 
     elements.append(Spacer(1, 16))
     elements.append(Paragraph(
