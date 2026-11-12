@@ -1,8 +1,13 @@
 """Generates a clinical-style PDF health report for a 7/30/90-day period."""
+
+from __future__ import annotations
+
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from threading import Lock
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
@@ -55,7 +60,10 @@ def _enforce_rate_limit(user_id: int):
     with _rate_lock:
         last = _last_generated.get(user_id, -_RATE_LIMIT_SECONDS)
         if now - last < _RATE_LIMIT_SECONDS:
-            raise HTTPException(429, "Please wait a minute before generating another report. Check report history before retrying.")
+            raise HTTPException(
+                429,
+                "Please wait a minute before generating another report. Check report history before retrying.",
+            )
         _last_generated[user_id] = now
         # Bound the dict's growth -- drop entries that are well outside any
         # plausible window instead of tracking every user forever.
@@ -64,22 +72,45 @@ def _enforce_rate_limit(user_id: int):
             del _last_generated[uid]
 
 
+@router.get("/reports/capabilities")
+def report_capabilities(current_user=Depends(get_current_user)):
+    return {
+        "optional_ai": True,
+        "ai_available": bool(os.getenv("GEMINI_API_KEY")),
+        "ai_provider": "Google Gemini",
+    }
+
+
 @router.get("/reports/generate")
-def generate_report(days: int = Query(...), current_user=Depends(get_current_user)):
+def generate_report(
+    days: int = Query(...),
+    include_ai: Optional[bool] = Query(None),
+    ai_consent: bool = Query(False),
+    current_user=Depends(get_current_user),
+):
     if days not in (7, 30, 90):
         raise HTTPException(status_code=422, detail="days must be 7, 30, or 90")
+    # Omission retains the existing callers' behavior. New mobile clients send
+    # both flags explicitly and discover support before requesting generation.
+    if include_ai is True and not ai_consent:
+        raise HTTPException(422, "Explicit consent is required for an AI explanation")
+    use_ai = include_ai is not False
     _enforce_rate_limit(current_user.user_id)
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days)
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(503, "Report generation is temporarily unavailable.")
+    conn = None
+    commit_attempted = False
     try:
+        conn = get_db_connection()
+        if not conn:
+            raise HTTPException(503, "Report generation is temporarily unavailable.")
         with conn.cursor() as cursor:
             cursor.execute("SET time_zone = %s", ("+00:00",))
             header = fetch_patient_header(cursor, current_user.user_id)
             if not header:
-                raise HTTPException(400, "Complete your health profile before generating a report.")
+                raise HTTPException(
+                    400, "Complete your health profile before generating a report."
+                )
 
             records = gather_period_records(cursor, current_user.user_id, start, end)
             attach_assessments(cursor, current_user.user_id, records)
@@ -88,7 +119,7 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
             previous = fetch_previous_report(cursor, header["profile_id"], start)
 
             narrative_context = {
-                "patient": {"first_name": header["first_name"], "age": header["age"], "sex": header["sex"]},
+                "patient": {"age": header["age"], "sex": header["sex"]},
                 "period_days": days,
                 "start": start.date().isoformat(),
                 "end": end.date().isoformat(),
@@ -97,29 +128,68 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
                 "urgent_readings": overall["urgent_readings"],
                 "warning_readings": overall["warning_readings"],
             }
-            combined_text = generate_narrative(COMBINED_INSTRUCTIONS, narrative_context)
-            narrative = parse_combined_narrative(combined_text)
+            if use_ai:
+                combined_text = generate_narrative(
+                    COMBINED_INSTRUCTIONS, narrative_context
+                )
+                narrative = parse_combined_narrative(combined_text)
+                narrative["ai_status"] = (
+                    "unavailable"
+                    if not combined_text
+                    or combined_text.startswith("[AI-generated narrative unavailable")
+                    else "included"
+                )
+            else:
+                narrative = {
+                    "hpi": "AI explanation was not requested. Review the saved readings below.",
+                    "summary": "This report contains your saved readings and assessments without an AI explanation.",
+                    "ai_status": "not_requested",
+                }
 
             pdf_bytes = build_report_pdf(
-                header, f"{days}-day", start, end, overall, stats, previous, narrative,
+                header,
+                f"{days}-day",
+                start,
+                end,
+                overall,
+                stats,
+                previous,
+                narrative,
             )
             report_data = build_report_data(
-                header, f"{days}-day", start, end, overall, stats, previous, narrative,
+                header,
+                f"{days}-day",
+                start,
+                end,
+                overall,
+                stats,
+                previous,
+                narrative,
             )
 
-            report_summary = json.dumps({
-                "metrics_tracked": {k: v["count"] for k, v in stats.items()},
-                "urgent_count": len(overall["urgent_readings"]),
-                "warning_count": len(overall["warning_readings"]),
-            })
+            report_summary = json.dumps(
+                {
+                    "ai_status": narrative["ai_status"],
+                    "metrics_tracked": {k: v["count"] for k, v in stats.items()},
+                    "urgent_count": len(overall["urgent_readings"]),
+                    "warning_count": len(overall["warning_readings"]),
+                }
+            )
             cursor.execute(
                 "INSERT INTO ClinicalReports (patient_profile_id, generated_by_user_id, report_title, "
                 "start_date, end_date, summary_text, file_url, file_size_kb, pdf_data, report_data) "
                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
-                    header["profile_id"], current_user.user_id, f"{days}-Day Health Report",
-                    start.date(), end.date(), report_summary,
-                    "pending", max(1, len(pdf_bytes) // 1024), pdf_bytes, json.dumps(report_data),
+                    header["profile_id"],
+                    current_user.user_id,
+                    f"{days}-Day Health Report",
+                    start.date(),
+                    end.date(),
+                    report_summary,
+                    "pending",
+                    max(1, len(pdf_bytes) // 1024),
+                    pdf_bytes,
+                    json.dumps(report_data),
                 ),
             )
             report_id = cursor.lastrowid
@@ -127,16 +197,25 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
                 "UPDATE ClinicalReports SET file_url = %s WHERE report_id = %s",
                 (f"/reports/{report_id}/download", report_id),
             )
+        commit_attempted = True
         conn.commit()
     except HTTPException:
-        conn.rollback()
+        if conn:
+            conn.rollback()
         raise
-    except Exception as exc:
-        conn.rollback()
-        print(f"Error occurred while generating report. Error: {exc}")
-        raise HTTPException(status_code=500, detail="Failed to generate report")
+    except Exception:
+        if conn:
+            conn.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Report could not be created. Check report history before retrying.",
+        )
     finally:
-        conn.close()
+        if conn:
+            conn.close()
+        if not commit_attempted:
+            with _rate_lock:
+                _last_generated.pop(current_user.user_id, None)
 
     filename = f"vitalpilot-report-{days}day-{end.date()}.pdf"
     return Response(
@@ -145,6 +224,7 @@ def generate_report(days: int = Query(...), current_user=Depends(get_current_use
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
             "X-Report-Id": str(report_id),
+            "Cache-Control": "no-store",
         },
     )
 
@@ -210,7 +290,10 @@ def preview_report(report_id: int, current_user=Depends(get_current_user)):
         raise HTTPException(404, "Report not found.")
     _, report_data = row
     if report_data is None:
-        raise HTTPException(410, "This report was generated before in-app preview was added and can't be previewed. Generate a new one.")
+        raise HTTPException(
+            410,
+            "This report was generated before in-app preview was added and can't be previewed. Generate a new one.",
+        )
     return json.loads(report_data)
 
 
@@ -238,7 +321,10 @@ def download_report(report_id: int, current_user=Depends(get_current_user)):
         raise HTTPException(404, "Report not found.")
     _, title, end_date, pdf_data = row
     if pdf_data is None:
-        raise HTTPException(410, "This report was generated before PDF storage was added and can't be re-downloaded. Generate a new one.")
+        raise HTTPException(
+            410,
+            "This report was generated before PDF storage was added and can't be re-downloaded. Generate a new one.",
+        )
     filename = f"vitalpilot-report-{report_id}-{end_date}.pdf"
     return Response(
         content=pdf_data,

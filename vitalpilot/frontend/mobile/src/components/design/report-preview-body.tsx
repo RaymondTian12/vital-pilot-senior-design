@@ -27,7 +27,13 @@ function sentenceFragments(text: string): string[] {
   return matches && matches.length > 0 ? matches : [text];
 }
 
-function Paragraph({ text, style }: { text: string; style?: StyleProp<TextStyle> }) {
+function Paragraph({
+  text,
+  style,
+}: {
+  text: string;
+  style?: StyleProp<TextStyle>;
+}) {
   return (
     <Text style={style}>
       {sentenceFragments(text).map((sentence, index) => (
@@ -51,7 +57,9 @@ export function ReportPreviewBody({ data }: { data: ReportPreviewData }) {
           {data.patient.age} years old · {data.patient.sex}
         </Text>
         <Text style={ui.small}>Date of birth: {data.patient.dob}</Text>
-        <Text style={ui.small}>Height: {data.patient.height_in.toFixed(1)} in</Text>
+        <Text style={ui.small}>
+          Height: {data.patient.height_in.toFixed(1)} in
+        </Text>
         <Text style={ui.small}>
           Most recent weight:{" "}
           {data.patient.latest_weight_lbs != null
@@ -85,17 +93,24 @@ export function ReportPreviewBody({ data }: { data: ReportPreviewData }) {
                 borderBottomColor: C.border,
               }}
             >
-              <Text style={[ui.body, { fontWeight: "600" }]}>{metric.label}</Text>
+              <Text style={[ui.body, { fontWeight: "600" }]}>
+                {metric.label}
+              </Text>
               {metric.count === 0 ? (
                 <Text style={ui.small}>No readings logged</Text>
               ) : (
                 <Text style={ui.small}>
                   {metric.count} reading{metric.count === 1 ? "" : "s"} · range{" "}
                   {fieldEntries
-                    .map(([, stat]) => `${formatNumber(stat.min)}-${formatNumber(stat.max)}`)
+                    .map(
+                      ([, stat]) =>
+                        `${formatNumber(stat.min)}-${formatNumber(stat.max)}`,
+                    )
                     .join(", ")}{" "}
                   {metric.unit} · avg{" "}
-                  {fieldEntries.map(([, stat]) => formatNumber(stat.avg)).join(", ")}
+                  {fieldEntries
+                    .map(([, stat]) => formatNumber(stat.avg))
+                    .join(", ")}
                 </Text>
               )}
             </View>
@@ -135,6 +150,16 @@ export function ReportPreviewBody({ data }: { data: ReportPreviewData }) {
       </Card>
 
       <Card>
+        {data.ai_status === "not_requested" && (
+          <Text style={ui.small}>
+            Saved-data report · no AI explanation requested
+          </Text>
+        )}
+        {data.ai_status === "unavailable" && (
+          <Text style={ui.small}>
+            AI explanation unavailable · saved readings remain available
+          </Text>
+        )}
         <Text style={ui.heading}>Summary</Text>
         <Paragraph text={data.narrative.summary} style={ui.body} />
       </Card>

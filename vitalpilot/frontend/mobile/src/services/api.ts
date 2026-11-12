@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system/legacy";
+import { downloadReportFile } from "./report-download";
 import { chatHistory } from "./chat-session";
 import { session } from "./session";
 import type {
@@ -21,6 +21,11 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(
   /\/$/,
   "",
 );
+export interface ReportCapabilities {
+  optional_ai: boolean;
+  ai_available: boolean;
+  ai_provider: string;
+}
 export interface ReportHistoryItem {
   report_id: number;
   report_title: string;
@@ -44,6 +49,7 @@ export interface DoctorProfile {
   verification_status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED";
 }
 export interface ReportPreviewData {
+  ai_status?: "included" | "not_requested" | "unavailable";
   period_label: string;
   start_date: string;
   end_date: string;
@@ -95,9 +101,10 @@ function toVitalNotification(record: NotificationRecord): VitalNotification {
     createdAt: record.created_at,
     metricName: record.metric_name ?? undefined,
     metricValue: record.metric_value ?? undefined,
-    action: record.action_label && record.action_route
-      ? { label: record.action_label, route: record.action_route }
-      : undefined,
+    action:
+      record.action_label && record.action_route
+        ? { label: record.action_label, route: record.action_route }
+        : undefined,
   };
 }
 export class ApiError extends Error {
@@ -302,16 +309,18 @@ export const api = {
       "/portal/provider-status",
     ),
   doctorProfile: () => request<DoctorProfile>("/portal/my-profile"),
-  updateDoctorProfile: (payload: Partial<{
-    first_name: string;
-    last_name: string;
-    specialty: string;
-    clinic_name: string;
-    clinic_phone: string;
-    npi: string;
-    license_state: string;
-    license_number: string;
-  }>) =>
+  updateDoctorProfile: (
+    payload: Partial<{
+      first_name: string;
+      last_name: string;
+      specialty: string;
+      clinic_name: string;
+      clinic_phone: string;
+      npi: string;
+      license_state: string;
+      license_number: string;
+    }>,
+  ) =>
     request<DoctorProfile>("/portal/my-profile", {
       method: "PATCH",
       body: JSON.stringify(payload),
@@ -389,10 +398,18 @@ export const api = {
       }[];
     }>(`/portal/patients/${id}/reports`),
   doctorPatientReportPreview: (id: number, reportId: number) =>
-    request<ReportPreviewData>(`/portal/patients/${id}/reports/${reportId}/preview`),
-  async doctorPatientReportDownload(id: number, reportId: number): Promise<{ uri: string; filename: string; reportId: number | null }> {
+    request<ReportPreviewData>(
+      `/portal/patients/${id}/reports/${reportId}/preview`,
+    ),
+  async doctorPatientReportDownload(
+    id: number,
+    reportId: number,
+  ): Promise<{ uri: string; filename: string; reportId: number | null }> {
     const filename = `vitalpilot-report-${reportId}-${Date.now()}.pdf`;
-    return downloadReportFile(`/portal/patients/${id}/reports/${reportId}/download`, filename);
+    return downloadReportFile(
+      `/portal/patients/${id}/reports/${reportId}/download`,
+      filename,
+    );
   },
   dailySummary: (window: {
     start_at: string;
@@ -448,7 +465,10 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ message: string }>("/auth/change-password", {
       method: "POST",
-      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
     }),
   async signUp(
     firstname: string,
@@ -550,67 +570,68 @@ export const api = {
     request<BloodPressurePage>(
       `/metrics?metric_type=BLOOD_PRESSURE&limit=20&offset=${offset}`,
     ),
-  async generateReport(days: 7 | 30 | 90): Promise<{ uri: string; filename: string; reportId: number | null }> {
+  reportCapabilities: () =>
+    request<ReportCapabilities>("/reports/capabilities"),
+  async generateReport(
+    days: 7 | 30 | 90,
+    includeAi = false,
+  ): Promise<{ uri: string; filename: string; reportId: number | null }> {
+    // Older servers ignore unknown query flags and always invoke Gemini.
+    // Require explicit capability support before relying on the user's choice.
+    const version = session.version();
+    const capabilities = await api.reportCapabilities();
+    if (version !== session.version())
+      throw new ApiError("Account changed. Please try again.");
+    if (!capabilities.optional_ai)
+      throw new ApiError(
+        "The backend needs the report consent update. Existing reports can still be viewed and downloaded.",
+      );
+    if (includeAi && !capabilities.ai_available)
+      throw new ApiError(
+        "AI explanations are unavailable. Turn off the AI option to generate a saved-data report.",
+      );
     const filename = `vitalpilot-report-${days}day-${Date.now()}.pdf`;
-    return downloadReportFile(`/reports/generate?days=${days}`, filename);
+    return downloadReportFile(
+      `/reports/generate?days=${days}&include_ai=${includeAi}&ai_consent=${includeAi}`,
+      filename,
+    );
   },
   getReportHistory: () =>
     request<{ reports: ReportHistoryItem[] }>("/reports/history"),
-  async downloadReport(reportId: number): Promise<{ uri: string; filename: string; reportId: number | null }> {
+  async downloadReport(
+    reportId: number,
+  ): Promise<{ uri: string; filename: string; reportId: number | null }> {
     const filename = `vitalpilot-report-${reportId}-${Date.now()}.pdf`;
     return downloadReportFile(`/reports/${reportId}/download`, filename);
   },
   getReportPreview: (reportId: number) =>
     request<ReportPreviewData>(`/reports/${reportId}/preview`),
-  async getNotifications(): Promise<{ notifications: VitalNotification[]; unreadCount: number }> {
+  async getNotifications(): Promise<{
+    notifications: VitalNotification[];
+    unreadCount: number;
+  }> {
     const { notifications, unread_count } = await request<{
       notifications: NotificationRecord[];
       unread_count: number;
     }>("/notifications");
-    return { notifications: notifications.map(toVitalNotification), unreadCount: unread_count };
+    return {
+      notifications: notifications.map(toVitalNotification),
+      unreadCount: unread_count,
+    };
   },
   markNotificationRead: (id: string) =>
-    request<{ notification_id: number; is_read: boolean }>(`/notifications/${id}/read`, {
-      method: "POST",
-    }),
+    request<{ notification_id: number; is_read: boolean }>(
+      `/notifications/${id}/read`,
+      {
+        method: "POST",
+      },
+    ),
   markAllNotificationsRead: () =>
     request<{ updated: number }>("/notifications/read-all", { method: "POST" }),
   deleteNotification: (id: string) =>
-    request<{ notification_id: number }>(`/notifications/${id}`, { method: "DELETE" }),
+    request<{ notification_id: number }>(`/notifications/${id}`, {
+      method: "DELETE",
+    }),
   clearNotifications: () =>
     request<{ cleared: number }>("/notifications", { method: "DELETE" }),
 };
-
-function headerValue(
-  headers: Record<string, string> | undefined,
-  name: string,
-): string | null {
-  if (!headers) return null;
-  const key = Object.keys(headers).find(
-    (candidate) => candidate.toLowerCase() === name.toLowerCase(),
-  );
-  return key ? headers[key] : null;
-}
-
-async function downloadReportFile(
-  endpoint: string,
-  filename: string,
-): Promise<{ uri: string; filename: string; reportId: number | null }> {
-  if (!API_BASE_URL)
-    throw new Error("EXPO_PUBLIC_API_BASE_URL is not configured.");
-  const token = await session.get();
-  const destination = `${FileSystem.documentDirectory}${filename}`;
-  const result = await FileSystem.downloadAsync(
-    `${API_BASE_URL}${endpoint}`,
-    destination,
-    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-  );
-  if (result.status !== 200)
-    throw new ApiError(
-      `Failed to download report (status ${result.status}).`,
-      result.status,
-    );
-  const reportIdHeader = headerValue(result.headers, "X-Report-Id");
-  const parsedReportId = reportIdHeader ? Number(reportIdHeader) : NaN;
-  return { uri: result.uri, filename, reportId: Number.isFinite(parsedReportId) ? parsedReportId : null };
-}

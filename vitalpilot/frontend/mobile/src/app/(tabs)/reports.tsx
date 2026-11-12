@@ -1,9 +1,17 @@
-import { ReportFeedback, type ReportPhase } from "@/components/design/report-feedback";
+import {
+  ReportFeedback,
+  type ReportPhase,
+} from "@/components/design/report-feedback";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Switch, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { usePreview } from "@/context/preview-context";
-import { api, ApiError, type ReportHistoryItem } from "@/services/api";
+import {
+  api,
+  ApiError,
+  type ReportCapabilities,
+  type ReportHistoryItem,
+} from "@/services/api";
 import { sharePdfFile } from "@/services/share-file";
 import { historyWindow, type HistoryPeriod } from "@/services/metric-history";
 import {
@@ -36,7 +44,12 @@ type PeriodLabel = keyof typeof PERIODS;
 export default function Reports() {
   const [demoPhase, setDemoPhase] = useState<ReportPhase | null>(null);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (demoTimer.current) clearTimeout(demoTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (demoTimer.current) clearTimeout(demoTimer.current);
+    },
+    [],
+  );
   function previewCompletion() {
     if (demoTimer.current) clearTimeout(demoTimer.current);
     setDemoPhase("generating");
@@ -46,6 +59,44 @@ export default function Reports() {
   const [period, setPeriod] = useState<PeriodLabel>("30 days");
   const { preview, setPreview } = usePreview();
   const router = useRouter();
+
+  const [capabilities, setCapabilities] = useState<ReportCapabilities | null>(
+    null,
+  );
+  const [capabilityError, setCapabilityError] = useState("");
+  const [includeAi, setIncludeAi] = useState(false);
+  const sending = useRef(false);
+  const active = useRef(true);
+  const generation = useRef(0);
+  useFocusEffect(
+    useCallback(() => {
+      let focused = true;
+      active.current = true;
+      if (!sending.current)
+        setReportPhase((phase) => (phase === "generating" ? null : phase));
+      api
+        .reportCapabilities()
+        .then((value) => {
+          if (focused) {
+            setCapabilities(value);
+            setCapabilityError("");
+          }
+        })
+        .catch(() => {
+          if (focused) {
+            setCapabilities(null);
+            setCapabilityError(
+              "The backend needs the report consent update before new reports can be generated. You can still view or download existing reports.",
+            );
+          }
+        });
+      return () => {
+        focused = false;
+        active.current = false;
+        generation.current++;
+      };
+    }, []),
+  );
 
   const [reportPhase, setReportPhase] = useState<ReportPhase | null>(null);
   const [reportUri, setReportUri] = useState<string | null>(null);
@@ -75,23 +126,33 @@ export default function Reports() {
   }, [loadHistory]);
 
   async function handleGenerate() {
+    if (sending.current || !capabilities?.optional_ai) return;
+    sending.current = true;
+    const attempt = generation.current;
     setReportPhase("generating");
     setReportError(null);
     setReportUri(null);
     setReportId(null);
     try {
-      const { uri, reportId: newReportId } = await api.generateReport(PERIODS[period]);
+      const { uri, reportId: newReportId } = await api.generateReport(
+        PERIODS[period],
+        includeAi,
+      );
+      if (!active.current || attempt !== generation.current) return;
       setReportUri(uri);
       setReportId(newReportId);
       setReportPhase("ready");
       loadHistory();
     } catch (error: unknown) {
+      if (!active.current || attempt !== generation.current) return;
       setReportError(
         error instanceof ApiError || error instanceof Error
           ? error.message
           : "Failed to generate report.",
       );
       setReportPhase("error");
+    } finally {
+      sending.current = false;
     }
   }
 
@@ -120,8 +181,11 @@ export default function Reports() {
   }
 
   const [overviewDays, setOverviewDays] = useState<HistoryPeriod>(30);
-  const [overviewMetric, setOverviewMetric] = useState<Metric>("Blood Pressure");
-  const [overviewData, setOverviewData] = useState<DailySummaryResponse | null>(null);
+  const [overviewMetric, setOverviewMetric] =
+    useState<Metric>("Blood Pressure");
+  const [overviewData, setOverviewData] = useState<DailySummaryResponse | null>(
+    null,
+  );
   const [overviewError, setOverviewError] = useState("");
   const [overviewRetry, setOverviewRetry] = useState(0);
   useFocusEffect(
@@ -161,7 +225,10 @@ export default function Reports() {
           <Text accessibilityRole="alert" style={ui.body}>
             {overviewError}
           </Text>
-          <Button secondary onPress={() => setOverviewRetry((value) => value + 1)}>
+          <Button
+            secondary
+            onPress={() => setOverviewRetry((value) => value + 1)}
+          >
             Retry overview
           </Button>
         </Card>
@@ -208,13 +275,20 @@ export default function Reports() {
           );
         })}
       </View>
-      <MetricHistorySection key={overviewMetric} name={overviewMetric} days={overviewDays} />
+      <MetricHistorySection
+        key={overviewMetric}
+        name={overviewMetric}
+        days={overviewDays}
+      />
       <Button
         secondary
         onPress={() =>
           router.push({
             pathname: "/metric-history",
-            params: { metric: vitals[overviewMetric].type, days: String(overviewDays) },
+            params: {
+              metric: vitals[overviewMetric].type,
+              days: String(overviewDays),
+            },
           })
         }
       >
@@ -239,8 +313,8 @@ export default function Reports() {
             <PreviewBadge />
             <Text style={ui.heading}>Sample {period} report</Text>
             <Text style={ui.subtitle}>
-              Made-up data, shown in the exact layout a real report uses · this is not a
-              generated {period} report.
+              Made-up data, shown in the exact layout a real report uses · this
+              is not a generated {period} report.
             </Text>
           </Card>
           <ReportPreviewBody data={buildSampleReportPreview(PERIODS[period])} />
@@ -258,14 +332,50 @@ export default function Reports() {
       )}
       <Card>
         <Text style={ui.heading}>A preview of the finishing touch</Text>
-        <Text style={ui.small}>Try the report completion animation. This preview does not generate a PDF or access your readings.</Text>
-        <Button secondary disabled={demoPhase === "generating"} onPress={previewCompletion}>
-          {demoPhase === "generating" ? "Previewing…" : demoPhase === "ready" ? "Replay animation" : "Preview completion animation"}
+        <Text style={ui.small}>
+          Try the report completion animation. This preview does not generate a
+          PDF or access your readings.
+        </Text>
+        <Button
+          secondary
+          disabled={demoPhase === "generating"}
+          onPress={previewCompletion}
+        >
+          {demoPhase === "generating"
+            ? "Previewing…"
+            : demoPhase === "ready"
+              ? "Replay animation"
+              : "Preview completion animation"}
         </Button>
         {demoPhase && <ReportFeedback phase={demoPhase} preview />}
       </Card>
+      <Card>
+        <Text style={ui.heading}>Optional AI explanation</Text>
+        <Text style={ui.small}>
+          Reports cover the last {PERIODS[period]} days from generation time.
+          Charts use local calendar days, so their boundaries may differ.
+        </Text>
+        <View style={[ui.row, { justifyContent: "space-between" }]}>
+          <Text style={[ui.body, { flex: 1 }]}>Include AI explanation</Text>
+          <Switch
+            accessibilityLabel="Include AI explanation and share report summary with Google Gemini"
+            value={includeAi}
+            onValueChange={setIncludeAi}
+            disabled={
+              !capabilities?.ai_available || reportPhase === "generating"
+            }
+          />
+        </View>
+        <Text style={ui.small}>
+          Turning this on and tapping Generate sends age, sex, measurement
+          statistics, assessments, and dates to Google Gemini. Your name and
+          email are excluded. The explanation is saved with your report and may
+          contain mistakes.
+        </Text>
+        {!!capabilityError && <Notice>{capabilityError}</Notice>}
+      </Card>
       <Button
-        disabled={reportPhase === "generating"}
+        disabled={reportPhase === "generating" || !capabilities?.optional_ai}
         onPress={handleGenerate}
       >
         {reportPhase === "generating" ? "Generating…" : "Generate report"}
@@ -278,7 +388,10 @@ export default function Reports() {
         disabled={!reportId}
         onPress={() =>
           reportId &&
-          router.push({ pathname: "/report-preview", params: { id: String(reportId) } })
+          router.push({
+            pathname: "/report-preview",
+            params: { id: String(reportId) },
+          })
         }
       >
         View in app
