@@ -48,6 +48,7 @@ export default function Profile() {
           title="Account details"
           detail="View only · editing is not available yet"
           icon="person"
+          onPress={() => router.push("/account-details")}
         />
         <Row
           title="Change password"
