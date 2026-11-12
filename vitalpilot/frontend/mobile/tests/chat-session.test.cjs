@@ -76,9 +76,10 @@ test("history stays ordered and selection is attached on every turn", async () =
   store.draft("First");
   await store.send(async () => ({ reply: "Answer" }));
   store.draft("Second");
-  await store.send(async (text, history, context) => {
+  await store.send(async (text, history, conversationId, context) => {
     assert.equal(text, "Second");
     assert.equal(history.map((m) => m.role).join(","), "user,assistant");
+    assert.equal(conversationId, null);
     assert.equal(context, selection);
     return { reply: "Follow-up" };
   });

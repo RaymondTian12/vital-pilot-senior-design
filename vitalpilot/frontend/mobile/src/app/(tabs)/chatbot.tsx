@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { api } from "@/services/api";
 import { chatSession } from "@/services/chat-session";
 import { useAuth } from "@/context/auth-context";
@@ -55,6 +56,7 @@ function confirmReset(action: () => void) {
 }
 export default function Chatbot() {
   const { user } = useAuth();
+  const router = useRouter();
   const state = useSyncExternalStore(
     chatSession.subscribe,
     chatSession.getSnapshot,
@@ -104,6 +106,14 @@ export default function Chatbot() {
         </View>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="View past conversations"
+          onPress={() => router.push("/chat-history")}
+          style={styles.control}
+        >
+          <Text style={styles.action}>History</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Start a new chat"
           onPress={startOver}
           style={styles.control}
@@ -151,8 +161,8 @@ export default function Chatbot() {
             ))}
             <Text style={ui.small}>
               Messages are sent to Google Gemini. Saved readings are shared only
-              when you choose to attach them. Chat stays in this session and
-              clears when you sign out or restart the app.
+              when you choose to attach them. Conversations are saved for 30
+              days and can be reopened from History above.
             </Text>
           </View>
         )}

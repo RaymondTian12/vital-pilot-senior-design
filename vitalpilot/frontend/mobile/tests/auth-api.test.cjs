@@ -221,7 +221,7 @@ test("context preview is separate from generation and chat includes explicit con
   await api.chatContext(context);
   assert.equal(calls[0][0], "http://localhost:8000/chat/context");
   assert.deepEqual(JSON.parse(calls[0][1].body), context);
-  await api.chat("Explain", [], context);
+  await api.chat("Explain", [], null, context);
   assert.equal(JSON.parse(calls[1][1].body).context_consent, true);
 });
 

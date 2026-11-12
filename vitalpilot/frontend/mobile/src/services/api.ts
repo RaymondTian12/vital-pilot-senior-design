@@ -11,6 +11,8 @@ import type {
   ChatContextSelection,
   ChatContext,
   ChatResponse,
+  ChatConversationSummary,
+  ChatConversationMessages,
   BloodPressureReading,
   BloodPressurePage,
   SignInResponse,
@@ -539,6 +541,7 @@ export const api = {
   async chat(
     message: string,
     history: ChatMessage[],
+    conversationId: number | null,
     context?: ChatContextSelection,
   ): Promise<ChatResponse> {
     return request<ChatResponse>(
@@ -547,16 +550,29 @@ export const api = {
         method: "POST",
         body: JSON.stringify({
           message,
-          history: chatHistory(history).map(({ role, text }) => ({
-            role,
-            content: text,
-          })),
+          // Omitted once a conversation is underway: the backend already has
+          // its saved history, and re-sending it would double the context.
+          history: conversationId
+            ? []
+            : chatHistory(history).map(({ role, text }) => ({
+                role,
+                content: text,
+              })),
+          // Always present (even as null) -- its mere presence in the request
+          // is what opts a chat into being saved server-side at all.
+          conversation_id: conversationId,
           ...(context ? { context, context_consent: true } : {}),
         }),
       },
       40000,
     );
   },
+  chatConversations: () =>
+    request<{ conversations: ChatConversationSummary[] }>("/chat/conversations"),
+  chatConversationMessages: (conversationId: number) =>
+    request<ChatConversationMessages>(
+      `/chat/conversations/${conversationId}/messages`,
+    ),
   submitBloodPressure: (systolic: number, diastolic: number) =>
     request<BloodPressureReading>("/metrics", {
       method: "POST",

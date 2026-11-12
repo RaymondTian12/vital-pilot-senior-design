@@ -71,7 +71,20 @@ export type ChatContext = {
     };
   }[];
 };
-export type ChatResponse = { reply: string; context?: ChatContext | null };
+export type ChatResponse = {
+  reply: string;
+  context?: ChatContext | null;
+  conversation_id?: number;
+};
+export type ChatConversationSummary = {
+  conversation_id: number;
+  summary: string | null;
+  last_message_at: string;
+};
+export type ChatConversationMessages = {
+  conversation_id: number;
+  messages: { role: ChatRole; content: string; sent_at: string }[];
+};
 export type BPComponent = {
   classification: string;
   alert_state: string;
