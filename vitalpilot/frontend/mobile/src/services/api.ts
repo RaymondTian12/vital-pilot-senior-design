@@ -528,6 +528,11 @@ export const api = {
     }>(`/doctors/search?${query}`, undefined, 45000);
   },
   me: () => request<AuthUser>("/auth/me"),
+  updateProfile: (firstname: string, lastname: string) =>
+    request<AuthUser>("/auth/me", {
+      method: "PUT",
+      body: JSON.stringify({ firstname, lastname }),
+    }),
   logout: () =>
     request<{
       message: string;

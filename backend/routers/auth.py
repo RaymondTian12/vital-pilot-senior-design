@@ -239,6 +239,37 @@ def logout_user(response: Response):
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user.to_dict()
 
+
+class UpdateProfileRequest(BaseModel):
+    firstname: str = Field(min_length=1, max_length=50)
+    lastname: str = Field(min_length=1, max_length=50)
+
+
+@router.put("/me")
+def update_me(payload: UpdateProfileRequest, current_user: User = Depends(get_current_user)):
+    # Email is intentionally not editable here: it's the JWT subject claim
+    # (see security.py), so changing it would invalidate the caller's own
+    # session mid-request without a token-reissue step this endpoint doesn't do.
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Could not update your profile.")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE Users SET first_name = %s, last_name = %s WHERE user_id = %s",
+                (payload.firstname.strip(), payload.lastname.strip(), current_user.user_id),
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error occurred while updating profile. Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update your profile")
+    finally:
+        conn.close()
+    current_user.firstname = payload.firstname.strip()
+    current_user.lastname = payload.lastname.strip()
+    return current_user.to_dict()
+
 @router.post("/questionnare")
 def fill_questionnare(payload: QuestionnaireRequest, current_user: User = Depends(get_current_user)):
     # UserHealthProfiles.sex only supports Male/Female -- reject "other" rather

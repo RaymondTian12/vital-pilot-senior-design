@@ -9,6 +9,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<AuthUser>;
   signInWithGoogle: (idToken: string) => Promise<boolean>;
   signOut: () => Promise<void>;
+  updateUser: (user: AuthUser) => void;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result.is_new_user;
   }
 
-  return <AuthContext.Provider value={{ user, loading, signIn, signInWithGoogle, signOut }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, signIn, signInWithGoogle, signOut, updateUser: setUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
