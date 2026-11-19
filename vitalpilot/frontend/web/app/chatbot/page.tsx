@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { FaArrowUp } from "react-icons/fa6";
 import { IoChatboxEllipsesOutline } from "react-icons/io5";
@@ -12,9 +12,35 @@ import { VscLayoutSidebarLeftDock } from "react-icons/vsc";
 // import { IoMdAdd } from "react-icons/io";
 import Image from "next/image";
 
+import { api } from "../services/api";
+
 type Message = {
   role: "user" | "assistant";
   content: string;
+};
+
+// The backend requires local midnights and treats end_at as exclusive,
+// so this covers today and the previous six days.
+const readingsSelection = () => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+  return {
+    metric_types: [
+      "BLOOD_PRESSURE",
+      "BLOOD_GLUCOSE",
+      "BLOOD_OXYGEN",
+      "BODY_MASS_INDEX",
+      "PEAK_FLOW_RATE",
+      "WATER_INTAKE",
+      "PHYSICAL_ACTIVITY",
+      "SLEEP",
+    ],
+    start_at: start.toISOString(),
+    end_at: end.toISOString(),
+    timezone_name: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
 };
 
 // Turns a plain-text reply into spaced paragraphs and bullet lists
@@ -50,6 +76,12 @@ const Chatbot = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isPatient, setIsPatient] = useState(false);
+  const [shareReadings, setShareReadings] = useState(false);
+
+  useEffect(() => {
+    api.getMe().then((user) => setIsPatient(user?.role === "patient"));
+  }, []);
 
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
@@ -87,6 +119,11 @@ const Chatbot = () => {
      body: JSON.stringify({
        message: userMessage,
        history: messages,
+       ...(isPatient &&
+         shareReadings && {
+           context: readingsSelection(),
+           context_consent: true,
+         }),
      }),
    });
 
@@ -305,6 +342,19 @@ const Chatbot = () => {
             >
               <IoMdAdd />
             </button> */}
+
+              {isPatient && (
+                <label className="flex shrink-0 items-center gap-2 px-2 text-[14px] text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareReadings}
+                    onChange={(e) => setShareReadings(e.target.checked)}
+                    className="accent-main"
+                  />
+                  Share my last 7 days of readings with Pilot AI (sent to Google
+                  Gemini)
+                </label>
+              )}
 
               {/* RIGHT */}
               <div className="flex items-center gap-2 w-full justify-end">

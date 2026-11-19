@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Switch, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { api } from "@/services/api";
+import { api, ApiError } from "@/services/api";
 import { shareReport } from "@/services/report-files";
 import type { DailySummaryResponse } from "@/services/daily-summary";
 import { Button, Card, ui } from "./ui";
@@ -83,7 +83,9 @@ export function ReportExports({ data }: { data: DailySummaryResponse | null }) {
       setRetry((v) => v + 1);
     } catch (cause) {
       if (id === generation.current) {
-        setPhase("error");
+        setPhase(
+          cause instanceof ApiError && cause.status === 429 ? null : "error",
+        );
         setError(
           cause instanceof Error
             ? cause.message

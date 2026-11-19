@@ -338,6 +338,11 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
   },
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
   async signUp(
     firstname: string,
     lastname: string,
@@ -377,6 +382,7 @@ export const api = {
     latitude?: number;
     longitude?: number;
     specialty?: string;
+    specialty_group?: string;
     city?: string;
     state?: string;
     gender?: string;
@@ -389,6 +395,7 @@ export const api = {
       count: number;
       doctors: Doctor[];
       distance_incomplete?: boolean;
+      search_incomplete?: boolean;
     }>(`/doctors/search?${query}`, undefined, 45000);
   },
   me: () => request<AuthUser>("/auth/me"),

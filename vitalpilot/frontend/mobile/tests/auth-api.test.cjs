@@ -54,6 +54,20 @@ test("login sends JSON credentials without exposing them in the URL", async () =
   assert.equal(result.access_token, "test-token");
 });
 
+test("change password sends both passwords in an authenticated POST body", async () => {
+  const { api, calls } = client();
+  await api.changePassword("current-secret", "new-secret-8");
+  const [url, options] = calls[0];
+  assert.equal(new URL(url).pathname, "/auth/change-password");
+  assert.equal(new URL(url).search, "");
+  assert.equal(options.method, "POST");
+  assert.equal(options.headers.Authorization, "Bearer stored-token");
+  assert.deepEqual(JSON.parse(options.body), {
+    current_password: "current-secret",
+    new_password: "new-secret-8",
+  });
+});
+
 test("registration includes both names required by the backend", async () => {
   const { api, calls } = client();
   await api.signUp("Test", "Mobile", "test@example.com", "test-password");
@@ -248,4 +262,16 @@ test("chat timeout stays bounded and returns an actionable retry message", async
     /took too long.*retry/,
   );
   assert.equal(timeoutMs, 40000);
+});
+
+test("supported provider search sends a group without the legacy unrestricted specialty", async () => {
+  const { api, calls } = client();
+  await api.searchDoctors({
+    city: "Arlington",
+    state: "TX",
+    specialty_group: "all",
+  });
+  const url = new URL(calls[0][0]);
+  assert.equal(url.searchParams.get("specialty_group"), "all");
+  assert.equal(url.searchParams.has("specialty"), false);
 });

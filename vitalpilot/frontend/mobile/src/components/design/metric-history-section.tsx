@@ -199,6 +199,7 @@ export function MetricHistorySection({
                 key={reading.log_id}
                 reading={reading}
                 unit={config.unit}
+                showActions={reading.log_id === data.latest?.log_id}
               />
             ))}
             {data.more && (
@@ -219,9 +220,11 @@ export function MetricHistorySection({
 function ReadingRow({
   reading,
   unit,
+  showActions,
 }: {
   reading: SavedMetricReading;
   unit: string;
+  showActions: boolean;
 }) {
   const { log_id } = useLocalSearchParams<{ log_id?: string }>();
   const [open, setOpen] = useState(String(reading.log_id) === log_id);
@@ -277,9 +280,9 @@ function ReadingRow({
       </Pressable>
       {open &&
         (reading.metric_type === "BLOOD_PRESSURE" ? (
-          <ReadingResult reading={reading} showCare />
+          <ReadingResult reading={reading} showCare={showActions} />
         ) : (
-          <VitalReadingResult reading={reading} unit={unit} />
+          <VitalReadingResult reading={reading} unit={unit} showActions={showActions} />
         ))}
     </View>
   );

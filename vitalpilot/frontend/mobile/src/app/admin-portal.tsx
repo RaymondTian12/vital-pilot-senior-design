@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { Linking, Pressable, Text, View } from "react-native";
 import { useAuth } from "@/context/auth-context";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -160,6 +161,7 @@ function ProviderCard({ provider, onReviewed }: { provider: AdminProvider; onRev
 
 export default function AdminPortal() {
   const { user } = useAuth();
+  const router = useRouter();
   const [section, setSection] = useState<"doctors" | "accounts" | "content" | "team">("doctors");
   const [status, setStatus] = useState<ReviewStatus>("PENDING");
   const [offset, setOffset] = useState(0);
@@ -182,6 +184,7 @@ export default function AdminPortal() {
   return <Screen brand={false}>
     <SignOutButton />
     <Heading title="Admin portal" subtitle={`Welcome, ${user?.firstname ?? ""}`} />
+    <Button secondary onPress={() => router.push("/change-password")}>Change password</Button>
     <View style={[ui.row, { gap: 12, flexWrap: "wrap" }]}>
       <Button secondary onPress={() => setSection("doctors")}>Doctor reviews</Button>
       <Button secondary onPress={() => setSection("accounts")}>Accounts</Button>

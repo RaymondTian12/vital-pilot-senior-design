@@ -1,3 +1,4 @@
+import { ProviderPortrait } from "@/components/design/provider-portrait";
 import { locateDoctorSearchArea } from "@/services/doctor-location";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -27,11 +28,11 @@ import { Icon } from "@/components/design/icon";
 import { ClinicVisual } from "@/components/design/clinic-visual";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
 const specialties: Record<string, string> = {
-  All: "",
-  Cardiology: "Cardiovascular Disease",
-  "Primary care": "Family Medicine",
-  Pulmonology: "Pulmonary Disease",
-  Endocrinology: "Endocrinology, Diabetes & Metabolism",
+  "All supported specialties": "all",
+  Cardiology: "cardiology",
+  "Primary care": "primary_care",
+  Pulmonology: "pulmonology",
+  Endocrinology: "endocrinology",
 };
 type LocalClinic = {
   source: number;
@@ -565,40 +566,80 @@ function getLocalClinic(doctor: Doctor): LocalClinic | null {
   return null;
 }
 export default function Doctors() {
-  const params = useLocalSearchParams<{ specialty?: string; reason?: string }>();
-  const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const params = useLocalSearchParams<{
+    specialty?: string;
+    specialty_group?: string;
+    follow_up_explanation?: string;
+    reason?: string;
+  }>();
+  const [origin, setOrigin] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [distanceIncomplete, setDistanceIncomplete] = useState(false);
+  const [searchIncomplete, setSearchIncomplete] = useState(false);
   function invalidate(clearOrigin = false) {
     requestId.current++;
     locationRequest.current++;
-    setLocating(false); setBusy(false); setDoctors([]); setQueried(false);
-    setDetails(null); setAction(null); setError(""); setLocationMessage("");
+    setLocating(false);
+    setBusy(false);
+    setDoctors([]);
+    setQueried(false);
+    setDetails(null);
+    setAction(null);
+    setError("");
+    setLocationMessage("");
     setDistanceIncomplete(false);
     if (clearOrigin) setOrigin(null);
   }
   const [locating, setLocating] = useState(false);
   const locationRequest = useRef(0);
   const [locationMessage, setLocationMessage] = useState("");
-  useEffect(() => () => { locationRequest.current++; }, []);
+  useEffect(
+    () => () => {
+      locationRequest.current++;
+    },
+    [],
+  );
   async function useLocation() {
     if (locating || busy) return;
     invalidate();
     const id = ++locationRequest.current;
-    setLocating(true); setLocationMessage("");
+    setLocating(true);
+    setLocationMessage("");
     try {
       const area = await locateDoctorSearchArea();
       if (id !== locationRequest.current) return;
-      setCity(area.city); setState(area.state);
+      setCity(area.city);
+      setState(area.state);
       setOrigin({ latitude: area.latitude, longitude: area.longitude });
-      setDoctors([]); setQueried(false); setError("");
-      setLocationMessage(`Search area set to ${area.city}, ${area.state}. Tap Search providers to continue.`);
+      setDoctors([]);
+      setQueried(false);
+      setError("");
+      setLocationMessage(
+        `Search area set to ${area.city}, ${area.state}. Tap Search providers to continue.`,
+      );
     } catch (error) {
-      if (id === locationRequest.current) setLocationMessage(error instanceof Error ? error.message : "Couldn’t get your location. Enter your city and state manually.");
-    } finally { if (id === locationRequest.current) setLocating(false); }
+      if (id === locationRequest.current)
+        setLocationMessage(
+          error instanceof Error
+            ? error.message
+            : "Couldn’t get your location. Enter your city and state manually.",
+        );
+    } finally {
+      if (id === locationRequest.current) setLocating(false);
+    }
   }
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
-  const [specialty, setSpecialty] = useState(params.specialty && Object.hasOwn(specialties, params.specialty) ? params.specialty : "All");
+  const [specialty, setSpecialty] = useState(
+    Object.entries(specialties).find(
+      ([, group]) => group === params.specialty_group,
+    )?.[0] ??
+      (params.specialty && Object.hasOwn(specialties, params.specialty)
+        ? params.specialty
+        : "All supported specialties"),
+  );
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -647,8 +688,18 @@ export default function Doctors() {
     [],
   );
   useEffect(() => {
-    if (params.specialty && Object.hasOwn(specialties, params.specialty)) { invalidate(); setSpecialty(params.specialty); }
-  }, [params.specialty]);
+    const selected =
+      Object.entries(specialties).find(
+        ([, group]) => group === params.specialty_group,
+      )?.[0] ??
+      (params.specialty && Object.hasOwn(specialties, params.specialty)
+        ? params.specialty
+        : null);
+    if (selected) {
+      invalidate();
+      setSpecialty(selected);
+    }
+  }, [params.specialty, params.specialty_group]);
   async function search() {
     if (busy || locating) return;
     Keyboard.dismiss();
@@ -674,11 +725,12 @@ export default function Doctors() {
         city,
         state,
         ...(origin ?? {}),
-        specialty: specialties[specialty],
+        specialty_group: specialties[specialty],
       });
       if (id === requestId.current) {
         setDoctors(result.doctors);
         setDistanceIncomplete(!!result.distance_incomplete);
+        setSearchIncomplete(!!result.search_incomplete);
         setQueried(true);
       }
     } catch (e) {
@@ -715,9 +767,26 @@ export default function Doctors() {
           <Text style={ui.eyebrow}>YOUR NEXT STEP IN CARE</Text>
           <Icon name="doctor" size={36} />
         </View>
-        {params.reason === "metric-review" && <Notice>Follow-up for a saved health reading: confirm your location and contact a provider to discuss the result. For severe symptoms, seek emergency care instead of waiting for an appointment.</Notice>}
-        {params.reason === "blood-pressure" && <Notice>Blood pressure follow-up: confirm your city and state, then search for providers. Listings do not establish clinical suitability, insurance coverage, or availability. For emergency symptoms, call emergency services instead of waiting for an appointment.</Notice>}
-      <Heading
+        {params.reason === "suggested-follow-up" &&
+          params.follow_up_explanation && (
+            <Notice>{params.follow_up_explanation}</Notice>
+          )}
+        {params.reason === "metric-review" && (
+          <Notice>
+            Follow-up for a saved health reading: confirm your location and
+            contact a provider to discuss the result. For severe symptoms, seek
+            emergency care instead of waiting for an appointment.
+          </Notice>
+        )}
+        {params.reason === "blood-pressure" && (
+          <Notice>
+            Blood pressure follow-up: confirm your city and state, then search
+            for providers. Listings do not establish clinical suitability,
+            insurance coverage, or availability. For emergency symptoms, call
+            emergency services instead of waiting for an appointment.
+          </Notice>
+        )}
+        <Heading
           title="Find your care team"
           subtitle="A clearer path to the right provider. Explore specialties, locations, and contact details."
         />
@@ -735,7 +804,10 @@ export default function Doctors() {
             label="City"
             value={city}
             editable={!locating}
-            onChangeText={(v) => { invalidate(true); setCity(v); }}
+            onChangeText={(v) => {
+              invalidate(true);
+              setCity(v);
+            }}
             placeholder="City"
             returnKeyType="search"
             onSubmitEditing={search}
@@ -760,9 +832,25 @@ export default function Doctors() {
             />
           </View>
         </View>
-        <Button secondary loading={locating} disabled={busy || Platform.OS === "web"} onPress={() => void useLocation()}>Use my location</Button>
-        <Text style={ui.small}>With your permission, we use your location once to fill your city and state and send coordinates to our backend to estimate distances. Coordinates are kept only in memory. Results cover the selected city/state, so closer providers in neighboring cities may be absent.</Text>
-        {!!locationMessage && <Text accessibilityLiveRegion="polite" style={ui.small}>{locationMessage}</Text>}
+        <Button
+          secondary
+          loading={locating}
+          disabled={busy || Platform.OS === "web"}
+          onPress={() => void useLocation()}
+        >
+          Use my location
+        </Button>
+        <Text style={ui.small}>
+          With your permission, we use your location once to fill your city and
+          state and send coordinates to our backend to estimate distances.
+          Coordinates are kept only in memory. Results cover the selected
+          city/state, so closer providers in neighboring cities may be absent.
+        </Text>
+        {!!locationMessage && (
+          <Text accessibilityLiveRegion="polite" style={ui.small}>
+            {locationMessage}
+          </Text>
+        )}
         <Text style={ui.body}>Specialty</Text>
         <View style={[ui.row, { flexWrap: "wrap", gap: 8 }]}>
           {Object.keys(specialties).map((v) => (
@@ -779,11 +867,35 @@ export default function Doctors() {
             </Chip>
           ))}
         </View>
-        <Button icon="search" loading={busy} disabled={locating} onPress={search}>
+        <Button
+          icon="search"
+          loading={busy}
+          disabled={locating}
+          onPress={search}
+        >
           Search providers
         </Button>
       </Card>
-      {queried && origin && <Notice>Nearest among these results · approximate straight-line distances, not driving distances.{distanceIncomplete ? " Some distances are unavailable; those providers appear last." : ""}</Notice>}
+      {queried && searchIncomplete && (
+        <Notice>
+          Some specialty lookups were unavailable. These are partial results;
+          retry to search all selected specialties.
+        </Notice>
+      )}
+      <Text style={ui.small}>
+        Supported specialties: primary care, cardiology, pulmonology, and
+        endocrinology. Directory taxonomy listings are self-reported and do not
+        confirm suitability or credentials.
+      </Text>
+      {queried && origin && (
+        <Notice>
+          Nearest among these results · approximate straight-line distances, not
+          driving distances.
+          {distanceIncomplete
+            ? " Some distances are unavailable; those providers appear last."
+            : ""}
+        </Notice>
+      )}
       {error ? (
         <>
           <Notice error>{error}</Notice>
@@ -833,9 +945,6 @@ export default function Doctors() {
         ]
           .filter(Boolean)
           .join(", ");
-        const initials =
-          [d.first_name?.[0], d.last_name?.[0]].filter(Boolean).join("") ||
-          "HC";
         const localClinic = getLocalClinic(d);
         const expanded = details === key;
         const phoneAction = action === `${key}:call`;
@@ -877,7 +986,11 @@ export default function Doctors() {
               </View>
             )}
 
-            {d.distance_miles != null && <Text style={ui.small}>About {d.distance_miles.toFixed(1)} miles away</Text>}
+            {d.distance_miles != null && (
+              <Text style={ui.small}>
+                About {d.distance_miles.toFixed(1)} miles away
+              </Text>
+            )}
             {!localClinic &&
               !d.photo_url?.startsWith("https://") &&
               !photos[key]?.photo_url && (
@@ -949,44 +1062,7 @@ export default function Doctors() {
                 May show nearby buildings rather than the exact entrance.
               </Text>
             )}
-            <View style={[ui.row, { alignItems: "flex-start" }]}>
-              {d.photo_url?.startsWith("https://") ? (
-                <Image
-                  source={{ uri: d.photo_url }}
-                  style={{ height: 72, width: 72, borderRadius: 20 }}
-                  accessibilityLabel={`Photo of ${name}`}
-                />
-              ) : (
-                <View
-                  style={{
-                    height: 72,
-                    width: 72,
-                    borderRadius: 20,
-                    backgroundColor: C.mint,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 4,
-                  }}
-                  accessibilityLabel="Provider avatar, photo unavailable"
-                >
-                  <Text style={[ui.heading, { color: C.primaryDark }]}>
-                    {initials}
-                  </Text>
-                  <Icon name="doctor" size={20} />
-                </View>
-              )}
-              <View style={{ flex: 1, gap: 5 }}>
-                <Text style={ui.heading}>{name}</Text>
-                {d.credential && (
-                  <Text style={[ui.small, { color: C.primaryDark }]}>
-                    {d.credential}
-                  </Text>
-                )}
-                <Text style={ui.small}>
-                  {d.specialty || "Specialty not listed"}
-                </Text>
-              </View>
-            </View>
+            <ProviderPortrait doctor={d} />
             <View style={{ height: 1, backgroundColor: C.border }} />
             <Pressable
               accessibilityRole="button"
@@ -1001,7 +1077,9 @@ export default function Doctors() {
               <Icon name="pin" />
               <View style={{ flex: 1, gap: 3 }}>
                 <Text style={ui.body}>
-                  {d.distance_miles != null ? `About ${d.distance_miles.toFixed(1)} miles away · ` : ""}
+                  {d.distance_miles != null
+                    ? `About ${d.distance_miles.toFixed(1)} miles away · `
+                    : ""}
                   {[d.city, d.state].filter(Boolean).join(", ") ||
                     "Location not listed"}
                 </Text>
@@ -1156,7 +1234,8 @@ export default function Doctors() {
                   <>
                     <Text style={ui.small}>
                       An official website is not supplied by this directory.
-                      Search results may include unrelated providers.
+                      Search results are limited to the selected supported
+                      specialty group.
                     </Text>
                     <Button
                       secondary

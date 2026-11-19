@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.db import get_db_connection
+from backend.suggested_follow_up import attach_follow_up
 from backend.security import get_current_user
 from backend.routers.auth import Vitals
 from backend.routers.metrics import METRIC_TABLES, record_from_row
@@ -96,6 +97,7 @@ def load_history(
                         alert = value.get("alert_state", "UNKNOWN")
                         key = (label, alert)
                         assessment_counts[key] = assessment_counts.get(key, 0) + 1
+                    attach_follow_up([record])
                     aggregate.add(record)
                     if offset <= position < offset + limit:
                         page.append(record)

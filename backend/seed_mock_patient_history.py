@@ -19,7 +19,10 @@ from datetime import datetime, timedelta
 
 from argon2 import PasswordHasher
 
-from db import get_db_connection
+if __package__:
+    from .db import get_db_connection
+else:
+    from db import get_db_connection
 
 MOCK_EMAIL = "mockpatient@vitalpilot.test"
 MOCK_PASSWORD = "MockPatient123!"
@@ -40,6 +43,21 @@ def get_or_create_mock_user(connection) -> int:
         )
         connection.commit()
         return cursor.lastrowid
+
+
+def ensure_mock_profile(connection, user_id: int):
+    """Add fictional demo demographics only when the mock profile is missing."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT profile_id FROM UserHealthProfiles WHERE user_id = %s", (user_id,)
+        )
+        if cursor.fetchone():
+            return
+        cursor.execute(
+            "INSERT INTO UserHealthProfiles (user_id, baseline_height_in, sex, date_of_birth) VALUES (%s, %s, %s, %s)",
+            (user_id, 70, "Male", "1990-01-01"),
+        )
+    connection.commit()
 
 
 def seed_blood_pressure(connection, user_id: int, today: datetime):
@@ -98,6 +116,7 @@ def main():
     try:
         user_id = get_or_create_mock_user(connection)
         print(f"Mock patient user_id={user_id} ({MOCK_EMAIL})")
+        ensure_mock_profile(connection, user_id)
         seed_blood_pressure(connection, user_id, today)
         seed_sleep(connection, user_id, today)
     finally:

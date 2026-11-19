@@ -204,13 +204,26 @@ CREATE TABLE IF NOT EXISTS WaterIntake (
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
+-- Chat history. Conversations must exist before the messages that reference them.
+CREATE TABLE IF NOT EXISTS ChatConversations (
+    conversation_id SERIAL PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    summary TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_message_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_chat_conversations_user_recent (user_id, last_message_at),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS ChatMessages (
     message_id SERIAL PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
+    conversation_id BIGINT UNSIGNED NOT NULL,
     sender_role ENUM('user', 'AI') NOT NULL,
     message_content TEXT NOT NULL,
     sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (conversation_id) REFERENCES ChatConversations(conversation_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS ClinicalReports (
@@ -223,6 +236,7 @@ CREATE TABLE IF NOT EXISTS ClinicalReports (
     summary_text TEXT NULL,
     file_url VARCHAR(500) NOT NULL,
     file_size_kb INT NOT NULL,
+    pdf_data LONGBLOB NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_profile_id) REFERENCES UserHealthProfiles(profile_id) ON DELETE CASCADE,
     FOREIGN KEY (generated_by_user_id) REFERENCES Users(user_id) ON DELETE CASCADE

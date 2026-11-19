@@ -105,3 +105,8 @@ succeeded; no real patient records were sent during those tests.
 Incoming admin/content/provider migrations require review before running the new
 management features against an older database. Do not rerun consent-revocation
 migrations blindly. No migrations were applied during this Git merge.
+
+## Chart and provider follow-up
+
+See [Chart visibility and supported provider search](mobile_chart_provider_fixes.md)
+for the feature-branch fixes, verified portrait sources, and validation results.
