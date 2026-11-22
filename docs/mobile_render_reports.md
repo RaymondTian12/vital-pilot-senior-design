@@ -1,27 +1,43 @@
-# Mobile reports on Render
+# Reports: use the deployed implementation
 
-The live service inspected on November 11, 2026 advertises the older report API (`GET /reports/generate?days=...`). The mobile app expects `POST /reports` with explicit dates, timezone and optional Gemini consent. Do not fall back to the old generation endpoint: it automatically sends data to Gemini and does not honor the mobile consent toggle.
+## Correction to PR #21
 
-The reconciled mobile backend provides:
+The deployed branch `claude/dreamy-bell-v6ntot` already contains database PDF storage, structured previews, and a matching mobile Reports screen. The previous local checkout used a different mobile/backend contract. Adding a replacement storage implementation was the wrong integration approach. PR #21 has been merged into `main`, but must not be merged wholesale into the deployed branch as a report fix.
 
-- `GET /reports/capabilities`
-- `GET /reports?offset=0` (also available as `/reports/history`)
-- `POST /reports` returning report metadata
-- `GET /reports/{report_id}/pdf` (also available as `/reports/{report_id}/download`)
+This correction is on `fix/mobile-render-report-integration`, based on deployed commit `83acda3`. It retains the team's renderer, `ClinicalReports.pdf_data` / `report_data`, existing report history, native preview, PDF download, and notification implementation. No database migration or storage environment variable is required by this correction.
 
-## Deploy
+## Actual API contract
 
-1. Reconcile this report fix with the branch configured in the existing Render service. Review that branch's other changes before merging; do not simply switch branches and discard the team's notification, report-preview or deployment work.
-2. Confirm `ClinicalReports.pdf_data` exists with `SHOW COLUMNS FROM ClinicalReports LIKE 'pdf_data';`. If absent, apply the existing team migration `database/migrations/20261104_report_pdf_storage.sql` once, through your normal database administration process. Do not rerun it when the column already exists. No migration has been applied by this fix.
-3. Set `VITALPILOT_REPORT_STORAGE=database` and `environment=production` in Render. Production defaults to database storage; explicit configuration makes the choice visible. Database mode fails rather than silently saving PDFs to an ephemeral filesystem. Ensure the database account can insert/read the blob column.
-4. Deploy the reconciled commit to the existing service. Start command: `uvicorn backend.app:app --host 0.0.0.0 --port $PORT`. Build command: `pip install -r backend/requirements.txt`.
-5. Run `python3 scripts/check_mobile_backend.py https://vital-pilot-senior-design.onrender.com`. This only checks the public route contract; it does not certify database migrations.
-6. Set mobile `EXPO_PUBLIC_API_BASE_URL` to that HTTPS origin, restart Metro with its cache cleared, and rebuild the release app when changing a URL embedded in an installed release.
+- `GET /reports/generate?days=7|30|90` returns PDF bytes, with `X-Report-Id` identifying the saved report.
+- `GET /reports/history` returns `report_title`, `downloadable` and `previewable` fields.
+- `GET /reports/{report_id}/preview` returns the structured report snapshot.
+- `GET /reports/{report_id}/download` returns the saved database PDF.
 
-## Authenticated acceptance checks
+The old script's requirement for `/reports`, `/reports/{id}/pdf` was for the other implementation and is superseded. Run this read-only check against Render:
 
-Use a test account with saved readings. Generate a report with AI **off**, then view and download it. Verify report history and reopen it after a backend redeploy/restart; bytes must still come from the database. Verify a second test account cannot download the first account's report. With explicit consent, repeat generation with AI on after the cooldown. A missing database column must produce a sanitized error without saving a local PDF or calling an older generation route.
+```sh
+python3 scripts/check_mobile_backend.py https://vital-pilot-senior-design.onrender.com
+```
 
-Existing database PDFs from the team's implementation remain readable. Old rows without PDF bytes and without an available legacy local file remain unavailable; regenerate them. The structured `/preview` endpoint and the legacy `GET /reports/generate` implementation on the other branch must be reconciled separately if callers still use them; these changes do not replace that branch wholesale.
+## Small consent update, not a renderer replacement
 
-For chat history, separately verify `ChatConversations` and the `ChatMessages.conversation_id` column and foreign key against `20261110_chat_conversations.sql`. A successful `/health` or public OpenAPI request cannot confirm those migrations. Do not run that migration blindly against existing populated tables.
+New mobile generation explicitly sends `include_ai=false&ai_consent=false` by default. The backend adds authenticated `/reports/capabilities` and optional generation flags. New mobile checks capabilities before generation because an old server would ignore unknown flags and still invoke Gemini. Until this small backend update is deployed, existing history/preview/download work, and new generation displays an update-needed message rather than ignoring the user's AI choice.
+
+With explicit AI opt-in, new prompts omit name/email and include age, sex, saved measurement summaries, assessment context and dates. The explanation remains part of the saved report. Existing callers omitting the new flags retain the original behavior; this patch does not migrate those callers to an explicit-consent flow. No live model request has been made during automated validation.
+
+Deploy this branch's focused diff into the existing deployed branch. Keep its existing build/start commands and database settings. Do not switch Render to the older main implementation or apply PR #21's replacement routes. After deployment:
+
+```sh
+python3 scripts/check_mobile_backend.py https://vital-pilot-senior-design.onrender.com --require-consent
+```
+
+## Test on iPhone
+
+1. Set `EXPO_PUBLIC_API_BASE_URL=https://vital-pilot-senior-design.onrender.com`, then restart Metro with `npx expo start --dev-client --clear`. Release builds need a rebuild for an embedded API URL change.
+2. Sign in with a test account. Existing reports should show their titles and enable **View in app** / **Download** based on the server flags. Open one of each without generating a new report.
+3. After the consent update deploys, generate a 7-day report with AI off. View it in-app and download its PDF; both should show no AI explanation. Verify the saved report still opens after a backend restart.
+4. If explicitly consenting to share test data, enable AI and generate after the cooldown. Repeat 30/90-day selection. Reports use rolling UTC windows; charts use local calendar-day windows, so boundaries can differ.
+5. Double-tap generation: only one request should start. A timeout should advise checking history, and changing accounts during download must discard its result.
+6. Verify another account cannot preview/download the first account's report. Missing stored bytes or structured previews should keep the existing explanatory 410 errors.
+
+Do not assume `/health` confirms every database migration. Chat-history schema validation and TestFlight release testing remain separate tasks.

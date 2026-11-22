@@ -1,267 +1,333 @@
-"""Authenticated report history/download; files never receive public URLs."""
+"""Generates a clinical-style PDF health report for a 7/30/90-day period."""
+
+from __future__ import annotations
 
 import json
 import os
 import time
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from threading import Lock
-from uuid import uuid4
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel, model_validator
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+
 from backend.db import get_db_connection
+from backend.metric_assessments import attach_assessments, overall_result
+from backend.report_generator import (
+    build_report_data,
+    build_report_pdf,
+    fetch_patient_header,
+    fetch_previous_report,
+    gather_period_records,
+    generate_narrative,
+    parse_combined_narrative,
+    summarize_metric_stats,
+)
 from backend.security import get_current_user
-from backend.routers.summary import build_summary
-from backend.report_generator import report_facts, ai_explanation, render_pdf
 
-router = APIRouter(prefix="/reports", tags=["reports"])
-_lock = Lock()
-_recent = {}
+router = APIRouter()
 
+# One combined call (not two) to stay within Gemini's free-tier daily request
+# quota -- this doubles how many reports a day the quota actually covers.
+COMBINED_INSTRUCTIONS = (
+    "You are drafting two sections of a patient's self-monitoring health report, in a clear, "
+    "professional clinical tone. You are given structured JSON data about the patient, the "
+    "metrics they tracked over a period, and any urgent/warning alerts from that period.\n\n"
+    "Write exactly two sections, each starting on its own line with the exact marker shown:\n\n"
+    "===HPI===\n"
+    "1-2 short paragraphs: state the patient's age and sex, the length of the tracked period, "
+    "and which metrics they tracked. If prior-period data is included, briefly note how this "
+    "period compares.\n\n"
+    "===SUMMARY===\n"
+    "One short paragraph synthesizing the overall picture: what stands out, what's reassuring, "
+    "and what's worth discussing with a healthcare professional. End with a brief reminder that "
+    "this is not a medical diagnosis.\n\n"
+    "Do not invent any number not present in the provided data. Do not diagnose or prescribe. "
+    "Use the exact markers '===HPI===' and '===SUMMARY===' verbatim, each on its own line, "
+    "before each section."
+)
 
-class ReportRequest(BaseModel):
-    start_at: datetime
-    today_start: datetime
-    end_at: datetime
-    timezone_name: str = "UTC"
-    include_ai: bool = False
-    ai_consent: bool = False
-
-    @model_validator(mode="after")
-    def consent_required(self):
-        if self.include_ai and not self.ai_consent:
-            raise ValueError(
-                "Explicit consent is required to send summary data to Google Gemini"
-            )
-        return self
-
-
-def database_storage():
-    """Production PDFs must survive a restart or replacement of the web service."""
-    mode = os.getenv(
-        "VITALPILOT_REPORT_STORAGE",
-        "database" if os.getenv("environment") == "production" else "filesystem",
-    )
-    if mode not in ("database", "filesystem"):
-        raise HTTPException(503, "Report storage is not configured correctly")
-    return mode == "database"
+# Per-user cooldown between report generations -- each one makes an AI call
+# and writes a full PDF, so this keeps a slow double-tap from the client from
+# burning Gemini quota or hammering the database.
+_RATE_LIMIT_SECONDS = 60
+_rate_lock = Lock()
+_last_generated: dict[int, float] = {}
 
 
-def storage():
-    return Path(
-        os.getenv(
-            "VITALPILOT_REPORT_DIR",
-            str(Path(__file__).resolve().parents[2] / ".reports"),
-        )
-    ).resolve()
-
-
-def connect():
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(503, "Report storage unavailable")
-    return conn
-
-
-def metadata(row):
-    report_id, title, start, end, size, created, summary = row
-    try:
-        status = json.loads(summary or "{}").get("ai_status", "not_requested")
-    except (ValueError, TypeError):
-        status = "not_requested"
-    return {
-        "report_id": report_id,
-        "title": title,
-        "start_date": str(start),
-        "end_date": str(end),
-        "file_size_kb": size,
-        "created_at": str(created),
-        "ai_status": status,
-    }
-
-
-@router.get("/capabilities")
-def capabilities(current_user=Depends(get_current_user)):
-    return {
-        "ai_available": bool(os.getenv("GEMINI_API_KEY")),
-        "ai_provider": "Google Gemini",
-        "report_contract": "mobile-v1",
-        "storage": "database" if database_storage() else "filesystem",
-    }
-
-
-@router.get("/history")
-@router.get("")
-def history(offset: int = Query(0, ge=0), current_user=Depends(get_current_user)):
-    conn = connect()
-    try:
-        with conn.cursor() as c:
-            c.execute(
-                "SELECT r.report_id, r.report_title, r.start_date, r.end_date, r.file_size_kb, r.created_at, r.summary_text FROM ClinicalReports r JOIN UserHealthProfiles p ON p.profile_id = r.patient_profile_id WHERE p.user_id = %s ORDER BY r.created_at DESC, r.report_id DESC LIMIT 20 OFFSET %s",
-                (current_user.user_id, offset),
-            )
-            return {"reports": [metadata(row) for row in c.fetchall()]}
-    except Exception:
-        raise HTTPException(503, "Could not load report history")
-    finally:
-        conn.close()
-
-
-@router.post("", status_code=201)
-def generate(payload: ReportRequest, current_user=Depends(get_current_user)):
+def _enforce_rate_limit(user_id: int):
     now = time.monotonic()
-    with _lock:
-        if now - _recent.get(current_user.user_id, -1000) < 60:
+    with _rate_lock:
+        last = _last_generated.get(user_id, -_RATE_LIMIT_SECONDS)
+        if now - last < _RATE_LIMIT_SECONDS:
             raise HTTPException(
                 429,
                 "Please wait a minute before generating another report. Check report history before retrying.",
             )
-        _recent[current_user.user_id] = now
-        for uid in list(_recent):
-            if now - _recent[uid] > 3600:
-                del _recent[uid]
+        _last_generated[user_id] = now
+        # Bound the dict's growth -- drop entries that are well outside any
+        # plausible window instead of tracking every user forever.
+        stale = [uid for uid, ts in _last_generated.items() if now - ts > 3600]
+        for uid in stale:
+            del _last_generated[uid]
+
+
+@router.get("/reports/capabilities")
+def report_capabilities(current_user=Depends(get_current_user)):
+    return {
+        "optional_ai": True,
+        "ai_available": bool(os.getenv("GEMINI_API_KEY")),
+        "ai_provider": "Google Gemini",
+    }
+
+
+@router.get("/reports/generate")
+def generate_report(
+    days: int = Query(...),
+    include_ai: Optional[bool] = Query(None),
+    ai_consent: bool = Query(False),
+    current_user=Depends(get_current_user),
+):
+    if days not in (7, 30, 90):
+        raise HTTPException(status_code=422, detail="days must be 7, 30, or 90")
+    # Omission retains the existing callers' behavior. New mobile clients send
+    # both flags explicitly and discover support before requesting generation.
+    if include_ai is True and not ai_consent:
+        raise HTTPException(422, "Explicit consent is required for an AI explanation")
+    use_ai = include_ai is not False
+    _enforce_rate_limit(current_user.user_id)
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=days)
     conn = None
-    target = None
     commit_attempted = False
     try:
-        conn = connect()
-        with conn.cursor() as c:
-            c.execute(
-                "SELECT profile_id FROM UserHealthProfiles WHERE user_id = %s",
-                (current_user.user_id,),
-            )
-            row = c.fetchone()
-            if not row:
+        conn = get_db_connection()
+        if not conn:
+            raise HTTPException(503, "Report generation is temporarily unavailable.")
+        with conn.cursor() as cursor:
+            cursor.execute("SET time_zone = %s", ("+00:00",))
+            header = fetch_patient_header(cursor, current_user.user_id)
+            if not header:
                 raise HTTPException(
-                    409, "Complete your health profile before generating a report"
+                    400, "Complete your health profile before generating a report."
                 )
-            profile_id = row[0]
-        data = build_summary(
-            payload.start_at,
-            payload.today_start,
-            payload.end_at,
-            current_user,
-            payload.timezone_name,
-            92,
-        )
-        if not data["records"]:
-            raise HTTPException(400, "No saved readings in this period")
-        data["timezone_name"] = payload.timezone_name
-        narrative, ai_status = (
-            ai_explanation(report_facts(data))
-            if payload.include_ai
-            else (None, "not_requested")
-        )
-        pdf = render_pdf(data, narrative, ai_status)
-        in_database = database_storage()
-        name = "database"
-        if not in_database:
-            directory = storage()
-            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-            name = uuid4().hex + ".pdf"
-            target = directory / name
-            with target.open("xb") as file:
-                os.chmod(target, 0o600)
-                file.write(pdf)
-        title = "VitalPilot health report"
-        with conn.cursor() as c:
-            columns = "patient_profile_id, generated_by_user_id, report_title, start_date, end_date, summary_text, file_url, file_size_kb"
-            values = (
-                profile_id,
-                current_user.user_id,
-                title,
-                payload.start_at.astimezone(ZoneInfo(payload.timezone_name)).date(),
+
+            records = gather_period_records(cursor, current_user.user_id, start, end)
+            attach_assessments(cursor, current_user.user_id, records)
+            overall = overall_result(records, start, end)
+            stats = summarize_metric_stats(records)
+            previous = fetch_previous_report(cursor, header["profile_id"], start)
+
+            narrative_context = {
+                "patient": {"age": header["age"], "sex": header["sex"]},
+                "period_days": days,
+                "start": start.date().isoformat(),
+                "end": end.date().isoformat(),
+                "metrics_tracked": {k: v for k, v in stats.items() if v["count"] > 0},
+                "previous_period": previous,
+                "urgent_readings": overall["urgent_readings"],
+                "warning_readings": overall["warning_readings"],
+            }
+            if use_ai:
+                combined_text = generate_narrative(
+                    COMBINED_INSTRUCTIONS, narrative_context
+                )
+                narrative = parse_combined_narrative(combined_text)
+                narrative["ai_status"] = (
+                    "unavailable"
+                    if not combined_text
+                    or combined_text.startswith("[AI-generated narrative unavailable")
+                    else "included"
+                )
+            else:
+                narrative = {
+                    "hpi": "AI explanation was not requested. Review the saved readings below.",
+                    "summary": "This report contains your saved readings and assessments without an AI explanation.",
+                    "ai_status": "not_requested",
+                }
+
+            pdf_bytes = build_report_pdf(
+                header,
+                f"{days}-day",
+                start,
+                end,
+                overall,
+                stats,
+                previous,
+                narrative,
+            )
+            report_data = build_report_data(
+                header,
+                f"{days}-day",
+                start,
+                end,
+                overall,
+                stats,
+                previous,
+                narrative,
+            )
+
+            report_summary = json.dumps(
+                {
+                    "ai_status": narrative["ai_status"],
+                    "metrics_tracked": {k: v["count"] for k, v in stats.items()},
+                    "urgent_count": len(overall["urgent_readings"]),
+                    "warning_count": len(overall["warning_readings"]),
+                }
+            )
+            cursor.execute(
+                "INSERT INTO ClinicalReports (patient_profile_id, generated_by_user_id, report_title, "
+                "start_date, end_date, summary_text, file_url, file_size_kb, pdf_data, report_data) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
-                    payload.end_at.astimezone(ZoneInfo(payload.timezone_name))
-                    - timedelta(microseconds=1)
-                ).date(),
-                json.dumps({"ai_status": ai_status, "narrative": narrative}),
-                name,
-                max(1, (len(pdf) + 1023) // 1024),
+                    header["profile_id"],
+                    current_user.user_id,
+                    f"{days}-Day Health Report",
+                    start.date(),
+                    end.date(),
+                    report_summary,
+                    "pending",
+                    max(1, len(pdf_bytes) // 1024),
+                    pdf_bytes,
+                    json.dumps(report_data),
+                ),
             )
-            if in_database:
-                columns += ", pdf_data"
-                values += (pdf,)
-            placeholders = ",".join(["%s"] * len(values))
-            c.execute(
-                f"INSERT INTO ClinicalReports ({columns}) VALUES ({placeholders})",
-                values,
+            report_id = cursor.lastrowid
+            cursor.execute(
+                "UPDATE ClinicalReports SET file_url = %s WHERE report_id = %s",
+                (f"/reports/{report_id}/download", report_id),
             )
-            report_id = c.lastrowid
         commit_attempted = True
         conn.commit()
-        return {
-            "report_id": report_id,
-            "title": title,
-            "ai_status": ai_status,
-            "file_size_kb": max(1, (len(pdf) + 1023) // 1024),
-        }
     except HTTPException:
         if conn:
             conn.rollback()
-        if target:
-            target.unlink(missing_ok=True)
         raise
     except Exception:
         if conn:
             conn.rollback()
-        if target:
-            target.unlink(missing_ok=True)
         raise HTTPException(
-            503,
-            "Report could not be created. Check history before retrying; your readings are unchanged.",
+            status_code=503,
+            detail="Report could not be created. Check report history before retrying.",
         )
     finally:
         if conn:
             conn.close()
-        # A missing profile, validation failure or render failure did not create
-        # a report. Release the reservation so the user can correct and retry.
-        # Keep it after a commit attempt, whose outcome may be uncertain.
         if not commit_attempted:
-            with _lock:
-                if _recent.get(current_user.user_id) == now:
-                    _recent.pop(current_user.user_id, None)
+            with _rate_lock:
+                _last_generated.pop(current_user.user_id, None)
+
+    filename = f"vitalpilot-report-{days}day-{end.date()}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Report-Id": str(report_id),
+            "Cache-Control": "no-store",
+        },
+    )
 
 
-@router.get("/{report_id}/download")
-@router.get("/{report_id}/pdf")
-def download(report_id: int, current_user=Depends(get_current_user)):
-    conn = connect()
+@router.get("/reports/history")
+def report_history(current_user=Depends(get_current_user)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Report history is temporarily unavailable.")
     try:
-        with conn.cursor() as c:
-            columns = "r.file_url, r.pdf_data" if database_storage() else "r.file_url"
-            c.execute(
-                f"SELECT {columns} FROM ClinicalReports r JOIN UserHealthProfiles p ON p.profile_id = r.patient_profile_id WHERE r.report_id = %s AND p.user_id = %s",
-                (report_id, current_user.user_id),
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT report_id, report_title, start_date, end_date, file_size_kb, created_at, "
+                "pdf_data IS NOT NULL AS downloadable, report_data IS NOT NULL AS previewable "
+                "FROM ClinicalReports WHERE generated_by_user_id = %s "
+                "ORDER BY created_at DESC",
+                (current_user.user_id,),
             )
-            row = c.fetchone()
-        if not row:
-            raise HTTPException(404, "Report not found")
-        if database_storage() and row[1] is not None:
-            return Response(
-                content=bytes(row[1]),
-                media_type="application/pdf",
-                headers={
-                    "Cache-Control": "no-store",
-                    "Content-Disposition": f'attachment; filename="VitalPilot-report-{report_id}.pdf"',
-                },
-            )
-        # Database filename is never treated as an arbitrary path or remote URL.
-        import re
-
-        name = row[0]
-        if not re.fullmatch(r"[a-f0-9]{32}\.pdf", name):
-            raise HTTPException(404, "Report file unavailable")
-        path = storage() / name
-        if not path.is_file():
-            raise HTTPException(404, "Report file unavailable")
-        return FileResponse(
-            path,
-            media_type="application/pdf",
-            filename=f"VitalPilot-report-{report_id}.pdf",
-            headers={"Cache-Control": "no-store"},
-        )
+            rows = cursor.fetchall()
+    except Exception as exc:
+        print(f"Error occurred while loading report history. Error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to load report history")
     finally:
         conn.close()
+    return {
+        "reports": [
+            {
+                "report_id": row[0],
+                "report_title": row[1],
+                "start_date": row[2],
+                "end_date": row[3],
+                "file_size_kb": row[4],
+                "created_at": row[5],
+                "downloadable": bool(row[6]),
+                "previewable": bool(row[7]),
+            }
+            for row in rows
+        ]
+    }
+
+
+@router.get("/reports/{report_id}/preview")
+def preview_report(report_id: int, current_user=Depends(get_current_user)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Report preview is temporarily unavailable.")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT generated_by_user_id, report_data "
+                "FROM ClinicalReports WHERE report_id = %s",
+                (report_id,),
+            )
+            row = cursor.fetchone()
+    except Exception as exc:
+        print(f"Error occurred while loading report preview. Error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to load report preview")
+    finally:
+        conn.close()
+    # 404 (not 403) for both "doesn't exist" and "not yours" -- don't reveal
+    # that a report_id belonging to someone else exists.
+    if not row or row[0] != current_user.user_id:
+        raise HTTPException(404, "Report not found.")
+    _, report_data = row
+    if report_data is None:
+        raise HTTPException(
+            410,
+            "This report was generated before in-app preview was added and can't be previewed. Generate a new one.",
+        )
+    return json.loads(report_data)
+
+
+@router.get("/reports/{report_id}/download")
+def download_report(report_id: int, current_user=Depends(get_current_user)):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(503, "Report download is temporarily unavailable.")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT generated_by_user_id, report_title, end_date, pdf_data "
+                "FROM ClinicalReports WHERE report_id = %s",
+                (report_id,),
+            )
+            row = cursor.fetchone()
+    except Exception as exc:
+        print(f"Error occurred while downloading report. Error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to download report")
+    finally:
+        conn.close()
+    # 404 (not 403) for both "doesn't exist" and "not yours" -- don't reveal
+    # that a report_id belonging to someone else exists.
+    if not row or row[0] != current_user.user_id:
+        raise HTTPException(404, "Report not found.")
+    _, title, end_date, pdf_data = row
+    if pdf_data is None:
+        raise HTTPException(
+            410,
+            "This report was generated before PDF storage was added and can't be re-downloaded. Generate a new one.",
+        )
+    filename = f"vitalpilot-report-{report_id}-{end_date}.pdf"
+    return Response(
+        content=pdf_data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -71,7 +71,20 @@ export type ChatContext = {
     };
   }[];
 };
-export type ChatResponse = { reply: string; context?: ChatContext | null };
+export type ChatResponse = {
+  reply: string;
+  context?: ChatContext | null;
+  conversation_id?: number;
+};
+export type ChatConversationSummary = {
+  conversation_id: number;
+  summary: string | null;
+  last_message_at: string;
+};
+export type ChatConversationMessages = {
+  conversation_id: number;
+  messages: { role: ChatRole; content: string; sent_at: string }[];
+};
 export type BPComponent = {
   classification: string;
   alert_state: string;
@@ -168,6 +181,10 @@ export type OtherMetricReading = {
   log_id: number;
   metric_type: OtherVitalType;
   recorded_at: string;
+  // True when this save replaced an existing entry for today (goal
+  // metrics only -- sleep, steps, water intake) rather than adding a new
+  // one; see ONE_PER_DAY_METRICS in backend/routers/metrics.py.
+  updated?: boolean;
   glucose_mgdl?: number;
   spo2_percentage?: number;
   flow_rate_lmin?: number;

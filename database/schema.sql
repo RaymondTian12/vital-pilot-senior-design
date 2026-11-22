@@ -237,6 +237,7 @@ CREATE TABLE IF NOT EXISTS ClinicalReports (
     file_url VARCHAR(500) NOT NULL,
     file_size_kb INT NOT NULL,
     pdf_data LONGBLOB NULL,
+    report_data LONGTEXT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_profile_id) REFERENCES UserHealthProfiles(profile_id) ON DELETE CASCADE,
     FOREIGN KEY (generated_by_user_id) REFERENCES Users(user_id) ON DELETE CASCADE
@@ -273,6 +274,31 @@ CREATE TABLE IF NOT EXISTS MetricAssessments (
     assessment_json JSON NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, metric_type, log_id),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
+-- Persisted in-app notifications: per-reading alerts (from a single metric
+-- submission) and temporal alerts (from the sustained/chronic-elevation
+-- rules in backend/engine/temporal_engine.py). alert_key identifies a
+-- specific recurring temporal condition (e.g. "SUSTAINED:BLOOD_PRESSURE")
+-- so repeat evaluations of a still-active condition don't spam a new row
+-- every time -- see backend/notifications.py's cooldown check.
+CREATE TABLE IF NOT EXISTS Notifications (
+    notification_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    message VARCHAR(1000) NOT NULL,
+    severity ENUM('info', 'success', 'warning', 'critical') NOT NULL,
+    category ENUM('metric', 'report', 'reminder', 'system', 'health-alert') NOT NULL,
+    metric_name VARCHAR(50) NULL,
+    metric_value VARCHAR(50) NULL,
+    action_label VARCHAR(80) NULL,
+    action_route VARCHAR(200) NULL,
+    alert_key VARCHAR(100) NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX user_notification_history (user_id, created_at),
+    INDEX user_alert_key_history (user_id, alert_key, created_at),
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 

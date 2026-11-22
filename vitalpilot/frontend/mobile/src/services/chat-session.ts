@@ -10,6 +10,7 @@ type State = {
   draft: string;
   busy: boolean;
   error: string;
+  conversationId: number | null;
   selection?: ChatContextSelection;
   context?: ChatContext;
 };
@@ -18,6 +19,7 @@ const empty = (): State => ({
   draft: "",
   busy: false,
   error: "",
+  conversationId: null,
 });
 
 // Match the backend's bounded conversation contract without truncating a turn.
@@ -32,8 +34,11 @@ export function chatHistory(messages: ChatMessage[]) {
   return recent;
 }
 
-// In-memory only. Version guards prevent late responses crossing a new chat or
-// account boundary; retries reuse the unanswered user message rather than append.
+// The active conversation's messages live only in this in-memory session --
+// closing the app loses the view of it, though it's saved server-side (see
+// conversationId/loadConversation) and can be reopened from chat history.
+// Version guards prevent late responses crossing a new chat or account
+// boundary; retries reuse the unanswered user message rather than append.
 export function createChatSession() {
   let state = empty();
   let revision = 0;
@@ -57,10 +62,19 @@ export function createChatSession() {
       state = { ...empty(), selection, context };
       listeners.forEach((listener) => listener());
     },
+    // Reopens a saved conversation loaded from history so the user can keep
+    // chatting in it. Invalidates any in-flight request from whatever was
+    // showing before, same as reset().
+    loadConversation(conversationId: number, messages: ChatMessage[]) {
+      revision++;
+      state = { ...empty(), conversationId, messages };
+      listeners.forEach((listener) => listener());
+    },
     async send(
       request: (
         message: string,
         history: ChatMessage[],
+        conversationId: number | null,
         context?: ChatContextSelection,
       ) => Promise<ChatResponse>,
       retry = false,
@@ -85,6 +99,7 @@ export function createChatSession() {
         const result = await request(
           text,
           chatHistory(history),
+          state.conversationId,
           state.selection,
         );
         if (id !== revision) return;
@@ -93,6 +108,7 @@ export function createChatSession() {
         update({
           busy: false,
           context: result.context ?? state.context,
+          conversationId: result.conversation_id ?? state.conversationId,
           messages: [
             ...state.messages,
             { id: String(++sequence), role: "assistant", text: result.reply },

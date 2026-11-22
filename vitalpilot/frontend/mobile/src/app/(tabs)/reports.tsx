@@ -1,72 +1,241 @@
-import { useCallback, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import {
+  ReportFeedback,
+  type ReportPhase,
+} from "@/components/design/report-feedback";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pressable, Switch, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { api } from "@/services/api";
+import { usePreview } from "@/context/preview-context";
+import {
+  api,
+  ApiError,
+  type ReportCapabilities,
+  type ReportHistoryItem,
+} from "@/services/api";
+import { sharePdfFile } from "@/services/share-file";
 import { historyWindow, type HistoryPeriod } from "@/services/metric-history";
 import {
   summaryValue,
   type DailySummaryResponse,
 } from "@/services/daily-summary";
 import { vitals, type Metric } from "@/components/design/vitals-data";
-import { Button, Card, Heading, Screen, ui } from "@/components/design/ui";
+import {
+  Button,
+  Card,
+  Chip,
+  Empty,
+  Heading,
+  Notice,
+  PreviewBadge,
+  Screen,
+  ui,
+} from "@/components/design/ui";
 import {
   MetricHistorySection,
   PeriodControl,
 } from "@/components/design/metric-history-section";
-import { ReportExports } from "@/components/design/report-exports";
+import { ReportPreviewBody } from "@/components/design/report-preview-body";
+import { buildSampleReportPreview } from "@/constants/sample-report";
 import { VitalPilotColors as C } from "@/constants/vitalpilot";
+
+const PERIODS = { "7 days": 7, "30 days": 30, "90 days": 90 } as const;
+type PeriodLabel = keyof typeof PERIODS;
+
 export default function Reports() {
-  const [days, setDays] = useState<HistoryPeriod>(30),
-    [metric, setMetric] = useState<Metric>("Blood Pressure");
-  const [data, setData] = useState<DailySummaryResponse | null>(null),
-    [error, setError] = useState(""),
-    [retry, setRetry] = useState(0);
+  const [demoPhase, setDemoPhase] = useState<ReportPhase | null>(null);
+  const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (demoTimer.current) clearTimeout(demoTimer.current);
+    },
+    [],
+  );
+  function previewCompletion() {
+    if (demoTimer.current) clearTimeout(demoTimer.current);
+    setDemoPhase("generating");
+    demoTimer.current = setTimeout(() => setDemoPhase("ready"), 1500);
+  }
+
+  const [period, setPeriod] = useState<PeriodLabel>("30 days");
+  const { preview, setPreview } = usePreview();
   const router = useRouter();
+
+  const [capabilities, setCapabilities] = useState<ReportCapabilities | null>(
+    null,
+  );
+  const [capabilityError, setCapabilityError] = useState("");
+  const [includeAi, setIncludeAi] = useState(false);
+  const sending = useRef(false);
+  const active = useRef(true);
+  const generation = useRef(0);
+  useFocusEffect(
+    useCallback(() => {
+      let focused = true;
+      active.current = true;
+      if (!sending.current)
+        setReportPhase((phase) => (phase === "generating" ? null : phase));
+      api
+        .reportCapabilities()
+        .then((value) => {
+          if (focused) {
+            setCapabilities(value);
+            setCapabilityError("");
+          }
+        })
+        .catch(() => {
+          if (focused) {
+            setCapabilities(null);
+            setCapabilityError(
+              "The backend needs the report consent update before new reports can be generated. You can still view or download existing reports.",
+            );
+          }
+        });
+      return () => {
+        focused = false;
+        active.current = false;
+        generation.current++;
+      };
+    }, []),
+  );
+
+  const [reportPhase, setReportPhase] = useState<ReportPhase | null>(null);
+  const [reportUri, setReportUri] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<number | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  const [history, setHistory] = useState<ReportHistoryItem[] | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const { reports } = await api.getReportHistory();
+      setHistory(reports);
+      setHistoryError(null);
+    } catch (error: unknown) {
+      setHistoryError(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : "Failed to load report history.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  async function handleGenerate() {
+    if (sending.current || !capabilities?.optional_ai) return;
+    sending.current = true;
+    const attempt = generation.current;
+    setReportPhase("generating");
+    setReportError(null);
+    setReportUri(null);
+    setReportId(null);
+    try {
+      const { uri, reportId: newReportId } = await api.generateReport(
+        PERIODS[period],
+        includeAi,
+      );
+      if (!active.current || attempt !== generation.current) return;
+      setReportUri(uri);
+      setReportId(newReportId);
+      setReportPhase("ready");
+      loadHistory();
+    } catch (error: unknown) {
+      if (!active.current || attempt !== generation.current) return;
+      setReportError(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : "Failed to generate report.",
+      );
+      setReportPhase("error");
+    } finally {
+      sending.current = false;
+    }
+  }
+
+  async function handleDownload() {
+    if (!reportUri) return;
+    const shareError = await sharePdfFile(reportUri);
+    if (shareError) setReportError(shareError);
+  }
+
+  async function handleHistoryDownload(item: ReportHistoryItem) {
+    setDownloadingId(item.report_id);
+    setHistoryError(null);
+    try {
+      const { uri } = await api.downloadReport(item.report_id);
+      const shareError = await sharePdfFile(uri);
+      if (shareError) setHistoryError(shareError);
+    } catch (error: unknown) {
+      setHistoryError(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : "Failed to download report.",
+      );
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
+  const [overviewDays, setOverviewDays] = useState<HistoryPeriod>(30);
+  const [overviewMetric, setOverviewMetric] =
+    useState<Metric>("Blood Pressure");
+  const [overviewData, setOverviewData] = useState<DailySummaryResponse | null>(
+    null,
+  );
+  const [overviewError, setOverviewError] = useState("");
+  const [overviewRetry, setOverviewRetry] = useState(0);
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      setData(null);
-      setError("");
+      setOverviewData(null);
+      setOverviewError("");
       api
-        .metricReport(historyWindow(days))
+        .metricReport(historyWindow(overviewDays))
         .then((result) => {
-          if (active) setData(result);
+          if (active) setOverviewData(result);
         })
         .catch(() => {
           if (active)
-            setError(
+            setOverviewError(
               "Couldn’t refresh the overview. Retry to load your report period.",
             );
         });
       return () => {
         active = false;
       };
-    }, [days, retry]),
+    }, [overviewDays, overviewRetry]),
   );
+
   return (
     <Screen>
-      <Heading
-        title="Health reports"
-        subtitle="Explore your progress, one metric at a time."
-      />
-      <PeriodControl value={days} onChange={setDays} />
+      <Heading title="Health reports" subtitle="See the bigger picture." />
+
+      <Text style={ui.heading}>Metric overview</Text>
+      <PeriodControl value={overviewDays} onChange={setOverviewDays} />
       <Text style={ui.small}>
         Select a metric below. Charts use saved data; missing entries do not
         imply normal health.
       </Text>
-      {!!error && (
+      {!!overviewError && (
         <Card>
           <Text accessibilityRole="alert" style={ui.body}>
-            {error}
+            {overviewError}
           </Text>
-          <Button secondary onPress={() => setRetry((value) => value + 1)}>
+          <Button
+            secondary
+            onPress={() => setOverviewRetry((value) => value + 1)}
+          >
             Retry overview
           </Button>
         </Card>
       )}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {(Object.keys(vitals) as Metric[]).map((name) => {
-          const latest = data?.records
+          const latest = overviewData?.records
             .filter((record) => record.metric_type === vitals[name].type)
             .sort(
               (a, b) =>
@@ -77,16 +246,16 @@ export default function Reports() {
             <Pressable
               key={name}
               accessibilityRole="button"
-              accessibilityState={{ selected: name === metric }}
-              onPress={() => setMetric(name)}
+              accessibilityState={{ selected: name === overviewMetric }}
+              onPress={() => setOverviewMetric(name)}
               style={{
                 width: "48%",
                 minHeight: 112,
                 padding: 14,
                 borderRadius: 16,
-                borderWidth: name === metric ? 2 : 1,
-                borderColor: name === metric ? C.primary : C.border,
-                backgroundColor: name === metric ? C.mint : C.white,
+                borderWidth: name === overviewMetric ? 2 : 1,
+                borderColor: name === overviewMetric ? C.primary : C.border,
+                backgroundColor: name === overviewMetric ? C.mint : C.white,
                 gap: 7,
               }}
             >
@@ -96,7 +265,7 @@ export default function Reports() {
               </Text>
               <Text style={ui.small}>
                 {vitals[name].unit} ·{" "}
-                {data
+                {overviewData
                   ? latest
                     ? "latest saved"
                     : "no entries"
@@ -106,19 +275,172 @@ export default function Reports() {
           );
         })}
       </View>
-      <MetricHistorySection key={metric} name={metric} days={days} />
+      <MetricHistorySection
+        key={overviewMetric}
+        name={overviewMetric}
+        days={overviewDays}
+      />
       <Button
         secondary
         onPress={() =>
           router.push({
             pathname: "/metric-history",
-            params: { metric: vitals[metric].type, days: String(days) },
+            params: {
+              metric: vitals[overviewMetric].type,
+              days: String(overviewDays),
+            },
           })
         }
       >
-        Open {metric.toLowerCase()} history
+        Open {overviewMetric.toLowerCase()} history
       </Button>
-      <ReportExports data={data} />
+
+      <Text style={ui.heading}>Generate a report</Text>
+      <View style={[ui.row, { flexWrap: "wrap" }]}>
+        {(Object.keys(PERIODS) as PeriodLabel[]).map((value) => (
+          <Chip
+            key={value}
+            selected={period === value}
+            onPress={() => setPeriod(value)}
+          >
+            {value}
+          </Chip>
+        ))}
+      </View>
+      {preview ? (
+        <>
+          <Card>
+            <PreviewBadge />
+            <Text style={ui.heading}>Sample {period} report</Text>
+            <Text style={ui.subtitle}>
+              Made-up data, shown in the exact layout a real report uses · this
+              is not a generated {period} report.
+            </Text>
+          </Card>
+          <ReportPreviewBody data={buildSampleReportPreview(PERIODS[period])} />
+        </>
+      ) : (
+        <>
+          <Empty
+            title="Your story, over time"
+            message="Generate a report below to summarize your saved readings for this period."
+          />
+          <Button secondary onPress={() => setPreview(true)}>
+            Preview a sample summary
+          </Button>
+        </>
+      )}
+      <Card>
+        <Text style={ui.heading}>A preview of the finishing touch</Text>
+        <Text style={ui.small}>
+          Try the report completion animation. This preview does not generate a
+          PDF or access your readings.
+        </Text>
+        <Button
+          secondary
+          disabled={demoPhase === "generating"}
+          onPress={previewCompletion}
+        >
+          {demoPhase === "generating"
+            ? "Previewing…"
+            : demoPhase === "ready"
+              ? "Replay animation"
+              : "Preview completion animation"}
+        </Button>
+        {demoPhase && <ReportFeedback phase={demoPhase} preview />}
+      </Card>
+      <Card>
+        <Text style={ui.heading}>Optional AI explanation</Text>
+        <Text style={ui.small}>
+          Reports cover the last {PERIODS[period]} days from generation time.
+          Charts use local calendar days, so their boundaries may differ.
+        </Text>
+        <View style={[ui.row, { justifyContent: "space-between" }]}>
+          <Text style={[ui.body, { flex: 1 }]}>Include AI explanation</Text>
+          <Switch
+            accessibilityLabel="Include AI explanation and share report summary with Google Gemini"
+            value={includeAi}
+            onValueChange={setIncludeAi}
+            disabled={
+              !capabilities?.ai_available || reportPhase === "generating"
+            }
+          />
+        </View>
+        <Text style={ui.small}>
+          Turning this on and tapping Generate sends age, sex, measurement
+          statistics, assessments, and dates to Google Gemini. Your name and
+          email are excluded. The explanation is saved with your report and may
+          contain mistakes.
+        </Text>
+        {!!capabilityError && <Notice>{capabilityError}</Notice>}
+      </Card>
+      <Button
+        disabled={reportPhase === "generating" || !capabilities?.optional_ai}
+        onPress={handleGenerate}
+      >
+        {reportPhase === "generating" ? "Generating…" : "Generate report"}
+      </Button>
+      <Button secondary disabled={!reportUri} onPress={handleDownload}>
+        Download PDF
+      </Button>
+      <Button
+        secondary
+        disabled={!reportId}
+        onPress={() =>
+          reportId &&
+          router.push({
+            pathname: "/report-preview",
+            params: { id: String(reportId) },
+          })
+        }
+      >
+        View in app
+      </Button>
+      {reportPhase && <ReportFeedback phase={reportPhase} />}
+      {reportError && <Notice>{reportError}</Notice>}
+      <Text style={ui.heading}>Report history</Text>
+      {historyError && <Notice>{historyError}</Notice>}
+      {history === null ? (
+        <Text style={ui.small}>Loading report history…</Text>
+      ) : history.length === 0 ? (
+        <Empty
+          title="No generated reports yet"
+          message="Completed reports will appear here."
+        />
+      ) : (
+        history.map((item) => (
+          <Card key={item.report_id}>
+            <Text style={ui.heading}>{item.report_title}</Text>
+            <Text style={ui.small}>
+              {item.start_date} to {item.end_date} · generated{" "}
+              {new Date(item.created_at).toLocaleDateString()}
+            </Text>
+            <Button
+              secondary
+              disabled={!item.previewable}
+              onPress={() =>
+                router.push({
+                  pathname: "/report-preview",
+                  params: { id: String(item.report_id) },
+                })
+              }
+            >
+              {item.previewable ? "View in app" : "Not available to preview"}
+            </Button>
+            <Button
+              secondary
+              disabled={!item.downloadable || downloadingId === item.report_id}
+              onPress={() => handleHistoryDownload(item)}
+            >
+              {!item.downloadable
+                ? "Not available for re-download"
+                : downloadingId === item.report_id
+                  ? "Downloading…"
+                  : "Download"}
+            </Button>
+          </Card>
+        ))
+      )}
     </Screen>
   );
 }

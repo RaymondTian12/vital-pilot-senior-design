@@ -63,12 +63,12 @@ test('glucose context and explicit peak personal best are sent with the reading'
 });
 
 test('updating a daily total replaces the cached value for the same saved ID',async()=>{
- const original=reading('WATER_INTAKE',1),updated={...original,amount_cups:2.25};
+ const original=reading('WATER_INTAKE',1),updated={...original,amount_cups:2.5};
  let loads=0;
  const store=createVitalStore('WATER_INTAKE',{getVital:()=>++loads===1?Promise.resolve({count:1,records:[original]}):new Promise(()=>{}),submitVital:async()=>updated});
  await store.refresh();
- await store.save('2.25','',false);
+ await store.save('2.5','',false);
  assert.equal(store.getSnapshot().records.length,1);
- assert.equal(store.getSnapshot().records[0].amount_cups,2.25);
+ assert.equal(store.getSnapshot().records[0].amount_cups,2.5);
  store.dispose();
 });

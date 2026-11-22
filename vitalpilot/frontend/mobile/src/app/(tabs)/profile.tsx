@@ -46,8 +46,9 @@ export default function Profile() {
         <Row title="Goals & personal best" detail="Sleep, water, steps and peak flow" icon="vitals" onPress={() => router.push("/goals")} />
         <Row
           title="Account details"
-          detail="View only · editing is not available yet"
+          detail="View and edit your name"
           icon="person"
+          onPress={() => router.push("/account-details")}
         />
         <Row
           title="Change password"

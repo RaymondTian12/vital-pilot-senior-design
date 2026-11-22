@@ -35,10 +35,17 @@ class CursorAdapter:
             return None
         if "ClinicalThresholds" in sql and self.owner.fail_threshold_lookup:
             raise RuntimeError("Simulated threshold lookup failure")
-        return self.cursor.execute(sql.replace("%s", "?"), tuple(float(v) if isinstance(v, Decimal) else v for v in values))
-        if "ClinicalThresholds" in sql and self.owner.fail_threshold_lookup:
-            raise RuntimeError("Simulated threshold lookup failure")
-        return self.cursor.execute(sql.replace("%s", "?"), values)
+        sql = sql.replace("%s", "?")
+        # MySQL's upsert syntax (used by metric_assessments.save_assessment)
+        # has no SQLite equivalent -- translate it to ON CONFLICT ... DO UPDATE.
+        split = re.search(r"\bON DUPLICATE KEY UPDATE\b", sql, re.IGNORECASE)
+        if split:
+            insert, assignments = sql[: split.start()], sql[split.end() :]
+            table = re.match(r"\s*INSERT INTO (\w+)", insert, re.IGNORECASE).group(1)
+            conflict_keys = {"MetricAssessments": "user_id, metric_type, log_id"}[table]
+            set_clause = re.sub(r"VALUES\((\w+)\)", r"excluded.\1", assignments)
+            sql = f"{insert} ON CONFLICT({conflict_keys}) DO UPDATE SET {set_clause}"
+        return self.cursor.execute(sql, tuple(float(v) if isinstance(v, Decimal) else v for v in values))
 
     def fetchone(self):
         return self.cursor.fetchone()
@@ -158,7 +165,11 @@ class MetricTests(unittest.TestCase):
             self.assertEqual(record["classification"], expected[record["log_id"]])
 
     def test_outside_seed_range_is_not_reported_as_normal(self):
-        result = self.assert_unclassified(self.post_reading(100000, 75), ["systolic"])
+        # The seed's top tier is open-ended, so no realistic reading can fall
+        # outside it -- drop it to simulate a value outside the seed range.
+        self.connection.database.execute("DELETE FROM ClinicalThresholds WHERE sub_metric='SYSTOLIC' AND classification='Hypertensive Crisis'")
+        self.connection.commit()
+        result = self.assert_unclassified(self.post_reading(300, 75), ["systolic"])
         self.assertIsNone(result["systolic"])
         self.assertEqual(result["diastolic"]["classification"], "Normal Blood Pressure")
 
@@ -179,7 +190,10 @@ class MetricTests(unittest.TestCase):
         self.assert_unclassified(self.post_reading(), ["systolic", "diastolic"])
 
     def test_known_high_component_is_preserved_if_other_component_is_unknown(self):
-        result = self.assert_unclassified(self.post_reading(182, 100000), ["diastolic"])
+        # Same as above, but for the diastolic component this time.
+        self.connection.database.execute("DELETE FROM ClinicalThresholds WHERE sub_metric='DIASTOLIC' AND classification='Hypertensive Crisis'")
+        self.connection.commit()
+        result = self.assert_unclassified(self.post_reading(182, 200), ["diastolic"])
         self.assertEqual(result["systolic"]["classification"], "Hypertensive Crisis")
 
     def test_authentication_validation_and_cross_account_isolation(self):

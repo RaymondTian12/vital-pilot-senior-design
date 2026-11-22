@@ -95,7 +95,7 @@ function Navigation() {
               <Stack.Screen name="sharing" />
               <Stack.Screen name="notifications" />
               <Stack.Screen name="metric-history" />
-              <Stack.Screen name="report-viewer" />
+              <Stack.Screen name="report-preview" />
               <Stack.Screen name="goals" />
               <Stack.Screen name="(tabs)" />
             </Stack.Protected>
@@ -105,6 +105,8 @@ function Navigation() {
             <Stack.Protected guard={user?.role === "provider"}>
               <Stack.Screen name="doctor-portal" />
               <Stack.Screen name="doctor-patient" />
+              <Stack.Screen name="doctor-report-preview" />
+              <Stack.Screen name="doctor-profile" />
             </Stack.Protected>
             <Stack.Protected guard={user?.role === "admin"}>
               <Stack.Screen name="admin-portal" />

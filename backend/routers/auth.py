@@ -159,7 +159,7 @@ class QuestionnaireRequest(BaseModel):
     peak_flow_goal: Optional[int] = Field(default=None, gt=0)
 
 @router.post("/register")
-def register_user(payload: RegisterRequest):
+def register_user(payload: RegisterRequest, response: Response):
     # Check if the user already exists in the database
     existing_user = User.get_user_by_email(payload.email)
     if existing_user:
@@ -183,7 +183,18 @@ def register_user(payload: RegisterRequest):
     if not new_user.save_user_to_database():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to register user")
 
-    return {"message": "User registered successfully", "user": new_user.to_dict()}
+    # log the new user in immediately, same as /login
+    token = create_access_token(new_user.email, new_user.password_hash)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+    return {"message": "User registered successfully", "access_token": token, "user": new_user.to_dict()}
 
 
 # login route
@@ -226,6 +237,37 @@ def logout_user(response: Response):
 
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
+    return current_user.to_dict()
+
+
+class UpdateProfileRequest(BaseModel):
+    firstname: str = Field(min_length=1, max_length=50)
+    lastname: str = Field(min_length=1, max_length=50)
+
+
+@router.put("/me")
+def update_me(payload: UpdateProfileRequest, current_user: User = Depends(get_current_user)):
+    # Email is intentionally not editable here: it's the JWT subject claim
+    # (see security.py), so changing it would invalidate the caller's own
+    # session mid-request without a token-reissue step this endpoint doesn't do.
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=503, detail="Could not update your profile.")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE Users SET first_name = %s, last_name = %s WHERE user_id = %s",
+                (payload.firstname.strip(), payload.lastname.strip(), current_user.user_id),
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error occurred while updating profile. Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update your profile")
+    finally:
+        conn.close()
+    current_user.firstname = payload.firstname.strip()
+    current_user.lastname = payload.lastname.strip()
     return current_user.to_dict()
 
 @router.post("/questionnare")

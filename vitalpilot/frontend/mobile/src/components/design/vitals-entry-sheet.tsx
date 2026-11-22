@@ -94,6 +94,9 @@ export function VitalsEntrySheet({
   }
   const { signOut } = useAuth();
   const freshResult = saved?.metric_type === config.type ? saved : null;
+  const justUpdated = Boolean(
+    freshResult && "updated" in freshResult && freshResult.updated,
+  );
   const result = preview
     ? null
     : (freshResult ??
@@ -286,6 +289,7 @@ export function VitalsEntrySheet({
                       key={`${result.metric_type}-${result.log_id}`}
                       animate
                       reducedMotion={reducedMotion}
+                      updated={justUpdated}
                     >
                       {resultDetails}
                     </SaveConfirmation>

@@ -34,13 +34,13 @@ class FollowupTests(unittest.TestCase):
                 self.assertEqual(response.status_code,201,response.text)
                 return response.json()
             first=save(1,'2026-11-02T06:30:00Z')
-            second=save(2.25,'2026-11-03T05:59:00Z')
+            second=save(2.5,'2026-11-03T05:59:00Z')
             third=save(3,'2026-11-03T06:00:00Z')
             self.assertEqual(first['log_id'],second['log_id'])
             self.assertNotEqual(second['log_id'],third['log_id'])
             self.assertEqual(conn.database.execute('SELECT COUNT(*) FROM WaterIntake').fetchone()[0],2)
             self.assertEqual(conn.database.execute('SELECT COUNT(*) FROM MetricAssessments').fetchone()[0],2)
-            self.assertEqual(second['amount_cups'],2.25)
+            self.assertEqual(second['amount_cups'],2.5)
 
     def test_goals_validation_and_transaction(self):
         for data in [{},{'SLEEP':25},{'PHYSICAL_ACTIVITY':1.5},{'PEAK_FLOW_RATE':0}]:

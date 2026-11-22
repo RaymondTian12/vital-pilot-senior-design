@@ -20,6 +20,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { usePreview } from "@/context/preview-context";
+import { useNotifications } from "@/context/notification-context";
 import { Button, Card, Screen, ui } from "@/components/design/ui";
 import { Icon } from "@/components/design/icon";
 import {
@@ -56,8 +57,15 @@ export default function Metrics() {
   const active = selectedType === "BLOOD_PRESSURE" ? bp : other;
   const [saved, setSaved] = useState<SavedMetricReading | null>(null);
   const { preview, setPreview } = usePreview();
+  const { refreshNotifications } = useNotifications();
   const opener = useRef<View | null>(null);
   const overview = useRef<Text>(null);
+  // The entry sheet is a native Modal, and so is the critical-alert popup --
+  // refreshing notifications (which can make that popup visible) while the
+  // sheet's own Modal is still open/closing can present two native modals
+  // at once, which has frozen the UI on-device. Defer the refresh until
+  // after the sheet has actually closed instead of firing it immediately.
+  const pendingNotificationRefresh = useRef(false);
   useEffect(() => {
     let active = true;
     AccessibilityInfo.isReduceMotionEnabled()
@@ -101,6 +109,12 @@ export default function Metrics() {
     requestAnimationFrame(() =>
       focusControl(opener.current ?? overview.current),
     );
+    if (pendingNotificationRefresh.current) {
+      pendingNotificationRefresh.current = false;
+      // Give the sheet's Modal time to finish dismissing natively before a
+      // new notification (banner or critical modal) can become visible.
+      setTimeout(() => void refreshNotifications(), 400);
+    }
   }
   function change(field: keyof Draft, value: string) {
     setDrafts((current) => ({
@@ -240,6 +254,7 @@ export default function Metrics() {
                 ...current,
                 [selected]: { ...emptyDraft },
               }));
+              pendingNotificationRefresh.current = true;
             }
           }}
           onChange={change}

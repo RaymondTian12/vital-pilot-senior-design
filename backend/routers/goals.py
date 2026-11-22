@@ -10,10 +10,13 @@ router = APIRouter()
 NAMES = {'SLEEP': 'Sleep', 'PHYSICAL_ACTIVITY': 'Steps', 'WATER_INTAKE': 'Water', 'PEAK_FLOW_RATE': 'Peak Flow'}
 
 class GoalsUpdate(BaseModel):
-    SLEEP: Optional[Decimal] = Field(None, gt=0, le=24, decimal_places=2)
-    PHYSICAL_ACTIVITY: Optional[int] = Field(None, gt=0, le=99999999, strict=True)
-    WATER_INTAKE: Optional[Decimal] = Field(None, gt=0, le=Decimal('99.99'), decimal_places=2)
-    PEAK_FLOW_RATE: Optional[int] = Field(None, gt=0, le=99999999, strict=True)
+    # Bounds are realistic goal ranges, not just "a positive number" -- e.g.
+    # a step goal previously had no real upper bound and would accept
+    # 99,999,999 steps/day.
+    SLEEP: Optional[Decimal] = Field(None, ge=Decimal('1'), le=Decimal('16'), decimal_places=2)
+    PHYSICAL_ACTIVITY: Optional[int] = Field(None, ge=500, le=50000, strict=True)
+    WATER_INTAKE: Optional[Decimal] = Field(None, ge=Decimal('1'), le=Decimal('20'), decimal_places=2)
+    PEAK_FLOW_RATE: Optional[int] = Field(None, ge=30, le=900, strict=True)
 
     @model_validator(mode='after')
     def nonempty(self):

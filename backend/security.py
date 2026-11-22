@@ -4,6 +4,7 @@ import os
 import hashlib
 import hmac
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import jwt
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ from fastapi import HTTPException, Request, status
 
 from backend.models.User import User
 
-load_dotenv()
+load_dotenv(override=True)
 
 SECRET_KEY: str = os.getenv("jwt_secret_key") or ""
 if not SECRET_KEY:
@@ -21,7 +22,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 
-def create_access_token(email: str, password_hash: str | None = None) -> str:
+def create_access_token(email: str, password_hash: Optional[str] = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {"sub": email, "exp": expire}
     if password_hash is not None:

@@ -6,7 +6,9 @@ from google import genai
 from google.genai import errors
 from google.genai import types
 
-load_dotenv()
+# override=True: .env is the source of truth here, not whatever happens to
+# already be exported in the shell that launched the server.
+load_dotenv(override=True)
 
 
 def call_model_with_fallbacks(
@@ -16,6 +18,10 @@ def call_model_with_fallbacks(
     if not gemini_key:
         raise RuntimeError("Gemini is not configured")
     client = genai.Client(api_key=gemini_key)
+    # gemini-3.8-flash has been observed stalling long enough to burn most of
+    # the shared deadline below, starving the rest of the fallback chain of a
+    # chance to even be tried -- kept last so it's only reached as a final
+    # resort, not the first thing attempted.
     models = [
         os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash"),
         "gemini-3.6-flash",
